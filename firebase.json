@@ -1,0 +1,12 @@
+{
+  "hosting": {
+    "public": "public",
+    "ignore": [
+      "firebase.json",
+      "**/.*"
+    ],
+    "predeploy": [
+      "cp \"vendor-bill-tracker.html\" \"public/index.html\""
+    ]
+  }
+}
