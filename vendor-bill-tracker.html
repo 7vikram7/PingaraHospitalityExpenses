@@ -116,7 +116,7 @@ h1{
 }
 .date-control{
   display:flex;
-  align-items:center;
+  align-items:flex-end;
   gap:10px;
   font-family:'IBM Plex Mono',monospace;
 }
@@ -250,6 +250,182 @@ h1{
   padding:20px;
 }
 .modal-overlay.open{display:flex;}
+
+/* ---------- Full-page overlay: Manage Suppliers ---------- */
+.fullpage-overlay{
+  display:none;
+  position:fixed;
+  inset:0;
+  background:rgba(28,33,23,0.7);
+  z-index:1000;
+  padding:24px;
+}
+.fullpage-overlay.open{display:flex;}
+.fullpage-panel{
+  background:var(--paper-dark);
+  border-radius:10px;
+  width:100%;
+  max-width:900px;
+  margin:0 auto;
+  max-height:100%;
+  display:flex;
+  flex-direction:column;
+  box-shadow:8px 8px 0 var(--brass-light);
+  overflow:hidden;
+}
+.fullpage-head{
+  background:var(--ink);
+  color:var(--paper);
+  padding:18px 24px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  flex:0 0 auto;
+}
+.fullpage-head h2{
+  font-family:'Fraunces',serif;
+  font-weight:600;
+  font-size:22px;
+  margin:0;
+}
+.fullpage-close{
+  background:transparent;
+  border:1.5px solid var(--brass-light);
+  color:var(--paper);
+  width:32px;height:32px;
+  border-radius:4px;
+  cursor:pointer;
+  font-size:15px;
+  line-height:1;
+}
+.fullpage-close:hover{background:var(--brass-light);color:var(--ink);}
+.fullpage-body{
+  padding:22px 24px 28px;
+  overflow-y:auto;
+  flex:1 1 auto;
+}
+.manage-section{margin-bottom:28px;}
+.manage-section:last-child{margin-bottom:0;}
+.manage-section h3{
+  font-family:'Fraunces',serif;
+  font-size:17px;
+  font-weight:600;
+  margin:0 0 4px;
+}
+.manage-section-head{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  flex-wrap:wrap;
+  margin-bottom:12px;
+}
+.manage-section-head h3{margin:0;}
+.manage-search{
+  font-family:'IBM Plex Mono',monospace;
+  font-size:13px;
+  padding:8px 10px;
+  border:1.5px solid var(--paper-line);
+  border-radius:4px;
+  background:#fff;
+  color:var(--ink);
+  width:220px;
+  max-width:100%;
+}
+.manage-search:focus{outline:none;border-color:var(--brass);}
+.manage-section-add{
+  background:#fff;
+  border:1.5px solid var(--ink);
+  border-radius:6px;
+  padding:16px 18px;
+  box-shadow:4px 4px 0 var(--brass-light);
+}
+.manage-supplier-list{
+  background:#fff;
+  border:1.5px solid var(--paper-line);
+  border-radius:6px;
+  max-height:360px;
+  overflow-y:auto;
+}
+.manage-supplier-row{
+  padding:10px 14px;
+  border-bottom:1px solid var(--paper-line);
+}
+.manage-supplier-row:last-child{border-bottom:none;}
+.msr-view{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  flex-wrap:wrap;
+}
+.msr-name{font-weight:600;font-size:14px;flex:1 1 200px;min-width:0;}
+.msr-cat{
+  font-family:'IBM Plex Mono',monospace;
+  font-size:12px;
+  color:var(--ink-soft);
+  flex:1 1 260px;
+  min-width:0;
+}
+.msr-cat.missing{color:var(--red);}
+.msr-edit-btn, .msr-delete-btn{
+  background:transparent;
+  border:1px solid var(--paper-line);
+  border-radius:4px;
+  padding:5px 10px;
+  font-family:'IBM Plex Mono',monospace;
+  font-size:11px;
+  cursor:pointer;
+  color:var(--ink-soft);
+}
+.msr-edit-btn:hover{border-color:var(--brass);color:var(--brass-deep);}
+.msr-delete-btn:hover{border-color:var(--red);color:var(--red);}
+.msr-edit{
+  display:flex;
+  gap:8px;
+  flex-wrap:wrap;
+  margin-top:10px;
+  align-items:center;
+}
+.msr-edit input, .msr-edit select{
+  font-family:'IBM Plex Mono',monospace;
+  font-size:13px;
+  padding:7px 9px;
+  border:1.5px solid var(--paper-line);
+  border-radius:4px;
+  background:var(--paper);
+  color:var(--ink);
+  flex:1 1 160px;
+  min-width:0;
+}
+.msr-edit input:focus, .msr-edit select:focus{outline:none;border-color:var(--brass);background:#fff;}
+.msr-save-btn{
+  background:var(--brass);
+  color:#fff;
+  border:none;
+  border-radius:4px;
+  padding:7px 14px;
+  font-size:12px;
+  font-weight:600;
+  cursor:pointer;
+}
+.msr-save-btn:hover{background:var(--brass-deep);}
+.msr-cancel-btn{
+  background:transparent;
+  border:1px solid var(--paper-line);
+  color:var(--ink-soft);
+  border-radius:4px;
+  padding:7px 12px;
+  font-size:12px;
+  cursor:pointer;
+}
+.manage-empty{
+  padding:20px;
+  text-align:center;
+  font-family:'IBM Plex Mono',monospace;
+  font-size:13px;
+  color:var(--ink-soft);
+}
+
 .modal-box{
   background:#fff;
   border-radius:8px;
@@ -1159,6 +1335,7 @@ td.subcat{color:var(--ink-soft);}
     </div>
   </div>
   <div style="display:flex;align-items:flex-end;gap:12px;flex-wrap:wrap;">
+    <button class="history-btn" id="manageSuppliersBtn" type="button">Manage Suppliers</button>
     <button class="history-btn" id="historyToggle" type="button">History</button>
     <div class="date-control">
       <button class="day-nav-btn" id="prevDay" type="button" title="Previous day">‹</button>
@@ -1170,6 +1347,51 @@ td.subcat{color:var(--ink-soft);}
     </div>
   </div>
 </header>
+
+<div class="fullpage-overlay" id="manageSuppliersModal">
+  <div class="fullpage-panel">
+    <div class="fullpage-head">
+      <h2>Manage Suppliers</h2>
+      <button type="button" class="fullpage-close" id="manageSuppliersClose" aria-label="Close">✕</button>
+    </div>
+    <div class="fullpage-body">
+      <section class="manage-section">
+        <div class="manage-section-head">
+          <h3>Existing suppliers <span class="count-hint" id="manageSupplierCount"></span></h3>
+          <input type="text" id="manageSupplierSearch" class="manage-search" placeholder="Search suppliers…">
+        </div>
+        <div class="manage-supplier-list" id="manageSupplierList"></div>
+      </section>
+
+      <section class="manage-section manage-section-add">
+        <h3>Add a new supplier</h3>
+        <div class="new-supplier-box open" id="newSupplierBox">
+          <input type="text" id="newSupplierName" placeholder="Supplier name">
+          <div class="row">
+            <div>
+              <select id="newSupplierCat"></select>
+              <span class="addlink" id="addCatLink">+ new category</span>
+              <div class="inline-add-mini" id="addCatBox">
+                <input type="text" id="newCatInput" placeholder="New category name">
+                <button type="button" id="newCatSave">Save</button>
+              </div>
+            </div>
+            <div>
+              <input type="text" id="newSupplierSub" list="newSupplierSubList" placeholder="Subcategory (optional)">
+              <datalist id="newSupplierSubList"></datalist>
+              <span class="addlink" id="addSubLink">+ new subcategory</span>
+              <div class="inline-add-mini" id="addSubBox">
+                <input type="text" id="newSubInput" placeholder="New subcategory name">
+                <button type="button" id="newSubSave">Save</button>
+              </div>
+            </div>
+          </div>
+          <button type="button" id="saveSupplierBtn">Save supplier</button>
+        </div>
+      </section>
+    </div>
+  </div>
+</div>
 
 <div id="cloudStatusBar" style="display:none;background:#fff;border-bottom:2px solid var(--ink);padding:8px 28px;font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--ink-soft);"></div>
 
@@ -1210,34 +1432,11 @@ td.subcat{color:var(--ink-soft);}
     <p class="quick-add-title">Add a bill <span class="count-hint">— pick a supplier, its category fills in automatically</span></p>
     <div class="qa-grid">
       <div class="field">
-        <label>Supplier <span class="addlink" id="addSupplierLink">+ new supplier</span></label>
+        <label>Supplier</label>
         <select id="supplierSelect" required>
           <option value="">Select supplier…</option>
         </select>
         <div class="supplier-cat-hint" id="supplierCatHint" style="display:none;"></div>
-        <div class="new-supplier-box" id="newSupplierBox">
-          <input type="text" id="newSupplierName" placeholder="Supplier name">
-          <div class="row">
-            <div>
-              <select id="newSupplierCat"></select>
-              <span class="addlink" id="addCatLink">+ new category</span>
-              <div class="inline-add-mini" id="addCatBox">
-                <input type="text" id="newCatInput" placeholder="New category name">
-                <button type="button" id="newCatSave">Save</button>
-              </div>
-            </div>
-            <div>
-              <input type="text" id="newSupplierSub" list="newSupplierSubList" placeholder="Subcategory (optional)">
-              <datalist id="newSupplierSubList"></datalist>
-              <span class="addlink" id="addSubLink">+ new subcategory</span>
-              <div class="inline-add-mini" id="addSubBox">
-                <input type="text" id="newSubInput" placeholder="New subcategory name">
-                <button type="button" id="newSubSave">Save</button>
-              </div>
-            </div>
-          </div>
-          <button type="button" id="saveSupplierBtn">Save supplier</button>
-        </div>
       </div>
       <div class="field">
         <label>Invoice #</label>
@@ -2204,8 +2403,7 @@ function renderSupplierCatHint(){
   });
 }
 function openNewSupplierBox(prefillSupplier){
-  const box = document.getElementById('newSupplierBox');
-  box.classList.add('open');
+  document.getElementById('manageSuppliersModal').classList.add('open');
   document.getElementById('newSupplierName').value = prefillSupplier || "";
   const def = prefillSupplier ? supplierDefaults[supplierKey(prefillSupplier)] : null;
   renderNewSupplierCatSelect();
@@ -2217,6 +2415,167 @@ function openNewSupplierBox(prefillSupplier){
     document.getElementById('newSupplierSub').value = "";
   }
   document.getElementById('newSupplierName').focus();
+  renderManageSupplierList();
+}
+
+/* ---------- Manage Suppliers modal ---------- */
+function openManageSuppliersModal(){
+  document.getElementById('manageSuppliersModal').classList.add('open');
+  document.getElementById('manageSupplierSearch').value = "";
+  renderManageSupplierList();
+}
+function closeManageSuppliersModal(){
+  document.getElementById('manageSuppliersModal').classList.remove('open');
+}
+function renderManageSupplierList(filterText){
+  const listEl = document.getElementById('manageSupplierList');
+  const search = (filterText !== undefined ? filterText : document.getElementById('manageSupplierSearch').value).trim().toLowerCase();
+  listEl.innerHTML = "";
+  const sorted = [...suppliers].sort((a,b)=>a.localeCompare(b));
+  const filtered = search ? sorted.filter(s=>s.toLowerCase().includes(search)) : sorted;
+  document.getElementById('manageSupplierCount').textContent = "(" + suppliers.length + ")";
+  if(filtered.length === 0){
+    const empty = document.createElement('div');
+    empty.className = 'manage-empty';
+    empty.textContent = suppliers.length === 0 ? "No suppliers yet — add one below." : "No suppliers match your search.";
+    listEl.appendChild(empty);
+    return;
+  }
+  filtered.forEach(name=>{ listEl.appendChild(buildManageSupplierRow(name)); });
+}
+function buildManageSupplierRow(name){
+  const row = document.createElement('div');
+  row.className = 'manage-supplier-row';
+
+  const view = document.createElement('div');
+  view.className = 'msr-view';
+
+  const nameEl = document.createElement('span');
+  nameEl.className = 'msr-name';
+  nameEl.textContent = name;
+
+  const def = supplierDefaults[supplierKey(name)];
+  const catEl = document.createElement('span');
+  if(def && categories[def.category]){
+    catEl.className = 'msr-cat';
+    catEl.textContent = def.category + (def.subcategory ? ' → ' + def.subcategory : '');
+  } else {
+    catEl.className = 'msr-cat missing';
+    catEl.textContent = 'No category set';
+  }
+
+  const editBtn = document.createElement('button');
+  editBtn.type = 'button';
+  editBtn.className = 'msr-edit-btn';
+  editBtn.textContent = 'Edit';
+
+  const deleteBtn = document.createElement('button');
+  deleteBtn.type = 'button';
+  deleteBtn.className = 'msr-delete-btn';
+  deleteBtn.textContent = 'Remove';
+
+  view.appendChild(nameEl);
+  view.appendChild(catEl);
+  view.appendChild(editBtn);
+  view.appendChild(deleteBtn);
+  row.appendChild(view);
+
+  editBtn.addEventListener('click', ()=>{
+    const existing = row.querySelector('.msr-edit');
+    if(existing){ existing.remove(); return; }
+    row.appendChild(buildManageSupplierEditForm(name));
+  });
+
+  deleteBtn.addEventListener('click', async ()=>{
+    if(!confirm(`Remove "${name}" from the supplier list? Past bills already logged under this supplier are not affected.`)) return;
+    suppliers = suppliers.filter(s=>s !== name);
+    delete supplierDefaults[supplierKey(name)];
+    await saveSuppliers();
+    await saveSupplierDefaults();
+    renderManageSupplierList();
+    renderSupplierSelect();
+  });
+
+  return row;
+}
+function buildManageSupplierEditForm(name){
+  const def = supplierDefaults[supplierKey(name)];
+  const wrap = document.createElement('div');
+  wrap.className = 'msr-edit';
+
+  const nameInput = document.createElement('input');
+  nameInput.type = 'text';
+  nameInput.value = name;
+
+  const catSelect = document.createElement('select');
+  Object.keys(categories).forEach(c=>{
+    const opt = document.createElement('option');
+    opt.value = c; opt.textContent = c;
+    catSelect.appendChild(opt);
+  });
+  if(def && categories[def.category]) catSelect.value = def.category;
+
+  const subInput = document.createElement('input');
+  subInput.type = 'text';
+  subInput.placeholder = 'Subcategory (optional)';
+  subInput.value = (def && def.subcategory) || '';
+  const subDatalistId = 'msrSubList_' + Math.random().toString(36).slice(2,8);
+  subInput.setAttribute('list', subDatalistId);
+  const datalist = document.createElement('datalist');
+  datalist.id = subDatalistId;
+  function refreshSubDatalist(){
+    datalist.innerHTML = "";
+    (categories[catSelect.value] || []).forEach(s=>{
+      const opt = document.createElement('option');
+      opt.value = s;
+      datalist.appendChild(opt);
+    });
+  }
+  refreshSubDatalist();
+  catSelect.addEventListener('change', refreshSubDatalist);
+
+  const saveBtn = document.createElement('button');
+  saveBtn.type = 'button';
+  saveBtn.className = 'msr-save-btn';
+  saveBtn.textContent = 'Save';
+
+  const cancelBtn = document.createElement('button');
+  cancelBtn.type = 'button';
+  cancelBtn.className = 'msr-cancel-btn';
+  cancelBtn.textContent = 'Cancel';
+
+  saveBtn.addEventListener('click', async ()=>{
+    const newName = nameInput.value.trim();
+    const newCat = catSelect.value;
+    const newSub = subInput.value.trim();
+    if(!newName || !newCat){
+      alert("Please enter a supplier name and pick a category.");
+      return;
+    }
+    if(newSub && !categories[newCat].includes(newSub)){
+      categories[newCat].push(newSub);
+      await saveCategories();
+    }
+    if(newName !== name){
+      const idx = suppliers.indexOf(name);
+      if(idx !== -1) suppliers[idx] = newName;
+      delete supplierDefaults[supplierKey(name)];
+    }
+    supplierDefaults[supplierKey(newName)] = { category: newCat, subcategory: newSub };
+    await saveSuppliers();
+    await saveSupplierDefaults();
+    renderManageSupplierList();
+    renderSupplierSelect();
+  });
+  cancelBtn.addEventListener('click', ()=>{ wrap.remove(); });
+
+  wrap.appendChild(nameInput);
+  wrap.appendChild(catSelect);
+  wrap.appendChild(subInput);
+  wrap.appendChild(datalist);
+  wrap.appendChild(saveBtn);
+  wrap.appendChild(cancelBtn);
+  return wrap;
 }
 function renderTable(){
   const tbody = document.getElementById('tableBody');
@@ -2736,13 +3095,18 @@ document.getElementById('supplierSelect').addEventListener('change', ()=>{
   renderSupplierCatHint();
 });
 
-document.getElementById('addSupplierLink').addEventListener('click', ()=>{
-  const box = document.getElementById('newSupplierBox');
-  if(box.classList.contains('open')){
-    box.classList.remove('open');
-  } else {
-    openNewSupplierBox("");
-  }
+document.getElementById('manageSuppliersBtn').addEventListener('click', ()=>{
+  document.getElementById('newSupplierName').value = "";
+  renderNewSupplierCatSelect();
+  document.getElementById('newSupplierSub').value = "";
+  openManageSuppliersModal();
+});
+document.getElementById('manageSuppliersClose').addEventListener('click', closeManageSuppliersModal);
+document.getElementById('manageSuppliersModal').addEventListener('click', (ev)=>{
+  if(ev.target.id === 'manageSuppliersModal') closeManageSuppliersModal();
+});
+document.getElementById('manageSupplierSearch').addEventListener('input', (ev)=>{
+  renderManageSupplierList(ev.target.value);
 });
 
 document.getElementById('btnUnpaid').addEventListener('click', ()=>setStatus('unpaid'));
@@ -2808,7 +3172,10 @@ document.getElementById('saveSupplierBtn').addEventListener('click', async ()=>{
   renderSupplierSelect();
   document.getElementById('supplierSelect').value = name;
   renderSupplierCatHint();
-  document.getElementById('newSupplierBox').classList.remove('open');
+  renderManageSupplierList();
+  document.getElementById('newSupplierName').value = "";
+  document.getElementById('newSupplierSub').value = "";
+  closeManageSuppliersModal();
   document.getElementById('invoiceInput').focus();
 });
 
