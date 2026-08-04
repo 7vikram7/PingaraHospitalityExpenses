@@ -2,8 +2,9 @@
 
 A web app for tracking daily vendor bills (expenses) and sales across
 multiple restaurants, with Excel/CSV exports and a cross-restaurant spend
-dashboard. No build step, no framework — one HTML file with inline CSS/JS,
-backed by Firebase Firestore, deployed on Firebase Hosting.
+dashboard. No build step, no framework — plain HTML/CSS/JS split into a
+handful of files by concern, backed by Firebase Firestore, deployed on
+Firebase Hosting.
 
 **Live app:** https://vendor-bills.web.app
 
@@ -34,11 +35,12 @@ backed by Firebase Firestore, deployed on Firebase Hosting.
 
 ## Running locally
 
-Nothing to build or install. Either open `vendor-bill-tracker.html` directly
-in a browser, or serve the folder so relative behavior matches production:
+Nothing to build or install. Either open `app/index.html` directly in a
+browser (plain `<script src>`/`<link>` tags, so relative paths resolve fine
+over `file://`), or serve the folder so relative behavior matches production:
 
 ```
-python3 -m http.server 8000
+cd app && python3 -m http.server 8000
 ```
 
 ## Deploying
@@ -47,20 +49,40 @@ python3 -m http.server 8000
 firebase deploy --only hosting --project vendor-bills
 ```
 
-The `predeploy` step in `firebase.json` copies `vendor-bill-tracker.html`
-into `public/index.html` (gitignored — regenerated on every deploy). That
-isolated `public/` folder is the *only* thing Firebase Hosting ever
-uploads, by design: nothing else in this repo, or anywhere else on the
-machine this is deployed from, can end up on the live site by accident.
+The `predeploy` step in `firebase.json` mirrors the whole `app/` folder into
+`public/` (gitignored — regenerated on every deploy). That isolated
+`public/` folder is the *only* thing Firebase Hosting ever uploads, by
+design: nothing else in this repo, or anywhere else on the machine this is
+deployed from, can end up on the live site by accident. Adding a new file to
+`app/` gets it deployed automatically — no changes to `firebase.json` needed.
 
 ## Project structure
 
 ```
-vendor-bill-tracker.html   the entire app — HTML, CSS, and JS, all inline
-firebase.json              Hosting config + the predeploy copy step
-.firebaserc                Firebase project id (vendor-bills)
-CONTEXT.md                 architecture notes, data model, design decisions, known limitations
+app/
+  index.html               markup + tab/modal structure
+  styles.css                all CSS
+  logo.png                  Pingara Hospitality logo (was inline base64, extracted for readability)
+  js/
+    core.js                 constants, app state, Firebase config/init, date/money utils
+    excel-export.js         CSV/Excel export, live-linked spreadsheet sync
+    data-store.js           safeGet/safeSet + category/supplier/bill/sales persistence
+    suppliers-ui.js         supplier dropdown, Manage Suppliers modal
+    ledger-ui.js             ledger table/totals rendering, restaurant select + gate
+    reports-dashboard.js     Reports tab password gate, tab switching, sales/expense charts
+    init.js                  app bootstrap — loaded last, after every other module
+firebase.json               Hosting config + the predeploy sync step
+.firebaserc                 Firebase project id (vendor-bills)
+CONTEXT.md                  architecture notes, data model, design decisions, known limitations
 ```
+
+The JS files are loaded as plain global `<script src>` tags (not ES
+modules) — deliberately, so `file://` still works for local testing/dev.
+That means they all share one global scope, same as when it was one file;
+the split is about navigability for whoever (human or Claude) is editing
+this, not encapsulation. `js/init.js` must stay loaded last since it's the
+only file with code that runs immediately on load rather than waiting for
+an event.
 
 For the deeper "why" — the Firestore key layout and why it's month-bucketed,
 the Excel export sheet structure, the financial-year convention, and a

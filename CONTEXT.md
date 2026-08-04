@@ -1,10 +1,10 @@
 # Vendor Bill Ledger — Project Context
 
 ## What this is
-A single-file HTML web app (`vendor-bill-tracker.html`) used to track daily vendor
-bills (expenses) across 6 restaurants, log daily sales, and generate Excel/CSV
-reports. No build step, no backend server — just one HTML file with inline CSS/JS
-that talks directly to Firebase Firestore from the browser.
+A static HTML/CSS/JS web app (`app/`, see "File location" below) used to track
+daily vendor bills (expenses) across 6 restaurants, log daily sales, and
+generate Excel/CSV reports. No build step, no backend server — plain files
+that talk directly to Firebase Firestore from the browser.
 
 ## Restaurants (hardcoded list, in the `RESTAURANTS` const near the top of the script)
 | id | label |
@@ -230,10 +230,18 @@ need to reference the numbers again. No billing account is needed currently.
   lift).
 
 ## File location
-Just one file: `vendor-bill-tracker.html`. No other project files. All CSS/JS
-is inline in this single file (view/edit directly — search for the relevant
-function names mentioned above, e.g. `buildFYSection`, `loadEntries`,
-`renderSupplierSelect`, `initFirebase`).
+As of 2026-08-04, split out of the original single-file design (was one
+`vendor-bill-tracker.html` with everything inline) into `app/` — see
+`README.md`'s "Project structure" for the full file map. Function names
+mentioned throughout this doc (`buildFYSection`, `loadEntries`,
+`renderSupplierSelect`, `initFirebase`, etc.) now live in `app/js/*.js`,
+grouped by concern rather than all in one script. The split was purely
+mechanical — code was cut at existing section boundaries, nothing was
+reordered or rewritten — done for editability (the original file had grown
+to ~3,400 lines with a 77KB base64 logo embedded as a single line, both of
+which made it slow to navigate). Still zero build step: the JS files are
+plain global `<script src>` tags, not ES modules, specifically so the app
+still opens directly over `file://` for local testing.
 
 ## Suggested next steps (not yet requested, just flagged as possible follow-ups)
 - Consider whether the Sunday-highlight limitation needs a real fix.
