@@ -6,7 +6,9 @@
       "**/.*"
     ],
     "predeploy": [
-      "cp \"vendor-bill-tracker.html\" \"public/index.html\""
+      "rm -rf public",
+      "mkdir -p public",
+      "cp -R app/. public/"
     ]
   }
 }
