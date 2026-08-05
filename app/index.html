@@ -89,6 +89,64 @@ window.__firebaseSdkReady = (async ()=>{
   </div>
 </div>
 
+<div class="modal-overlay" id="editBillModal">
+  <div class="modal-box">
+    <h2>Modify bill</h2>
+    <p>Update this bill's details. Changes save immediately.</p>
+    <div class="edit-bill-grid">
+      <div class="field">
+        <label>Supplier</label>
+        <select id="editBillSupplier"></select>
+      </div>
+      <div class="field">
+        <label>Category</label>
+        <select id="editBillCategory"></select>
+      </div>
+      <div class="field">
+        <label>Subcategory</label>
+        <input type="text" id="editBillSubcategory" list="editBillSubcategoryList" placeholder="optional">
+        <datalist id="editBillSubcategoryList"></datalist>
+      </div>
+      <div class="field">
+        <label>Invoice #</label>
+        <input type="text" id="editBillInvoice" placeholder="optional">
+      </div>
+      <div class="field">
+        <label>Amount</label>
+        <input type="number" id="editBillAmount" step="0.01" min="0">
+      </div>
+      <div class="field">
+        <label>Status</label>
+        <div class="status-toggle">
+          <button type="button" class="unpaid" id="editBillBtnUnpaid" data-status="unpaid">Unpaid</button>
+          <button type="button" class="paid" id="editBillBtnPaid" data-status="paid">Paid</button>
+        </div>
+      </div>
+    </div>
+    <div class="modal-error" id="editBillError">Please pick a supplier and category, and enter an amount above 0.</div>
+    <div class="modal-actions">
+      <button type="button" class="modal-btn-secondary" id="editBillCancel">Cancel</button>
+      <button type="button" class="modal-btn-primary" id="editBillSave">Save changes</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modifyAuthModal">
+  <div class="modal-box">
+    <h2>Admin password required</h2>
+    <p>This bill was added more than an hour ago — enter the admin password to modify it.</p>
+    <div class="field">
+      <label>Password</label>
+      <input type="password" id="modifyAuthInput" placeholder="Password">
+    </div>
+    <div class="modal-error" id="modifyAuthError">Incorrect password.</div>
+    <div class="modal-actions">
+      <button type="button" class="modal-btn-secondary" id="modifyAuthCancel">Cancel</button>
+      <button type="button" class="modal-btn-primary" id="modifyAuthSubmit">Unlock</button>
+    </div>
+  </div>
+</div>
+
 <div id="tabPanelExpenses" class="tab-panel active">
 
 <div class="expenses-toolbar">
@@ -225,6 +283,7 @@ window.__firebaseSdkReady = (async ()=>{
           <th>Invoice #</th>
           <th class="num">Amount</th>
           <th>Status</th>
+          <th style="width:80px;"></th>
           <th style="width:70px;"></th>
         </tr>
       </thead>

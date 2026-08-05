@@ -498,6 +498,14 @@ h1{
 }
 .modal-error.show{display:block;}
 
+.edit-bill-grid{
+  display:flex;
+  flex-wrap:wrap;
+  gap:12px;
+  margin-bottom:4px;
+}
+.edit-bill-grid .field{flex:1 1 160px;min-width:140px;}
+
 .restaurant-context-bar{
   background:var(--paper);
   border-bottom:3px solid var(--ink);
@@ -1236,6 +1244,18 @@ td.subcat{color:var(--ink-soft);}
 }
 .del-btn:hover{border-color:var(--red);color:var(--red);}
 .del-btn.confirming{background:var(--red);color:#fff;border-color:var(--red);}
+.modify-btn{
+  background:none;
+  border:1px solid var(--paper-line);
+  color:var(--ink-soft);
+  border-radius:4px;
+  padding:5px 9px;
+  font-size:11px;
+  cursor:pointer;
+  font-family:'IBM Plex Mono',monospace;
+  white-space:nowrap;
+}
+.modify-btn:hover{border-color:var(--brass);color:var(--brass-deep);}
 
 .empty-state{
   padding:50px 20px;

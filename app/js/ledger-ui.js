@@ -10,6 +10,9 @@ function renderTable(){
   }
   sorted.forEach((e, i)=>{
     const tr = document.createElement('tr');
+    const withinModifyWindow = (Date.now() - e.createdAt) < MODIFY_WINDOW_MS;
+    const modifyLabel = withinModifyWindow ? 'Modify' : '🔒 Modify';
+    const modifyTitle = withinModifyWindow ? '' : ' title="Added more than an hour ago — admin password required"';
     tr.innerHTML = `
       <td class="idx">${i+1}</td>
       <td>${escapeHtml(e.category)}</td>
@@ -18,6 +21,7 @@ function renderTable(){
       <td class="subcat">${escapeHtml(e.invoice || '—')}</td>
       <td class="amount">${fmtMoney(e.amount)}</td>
       <td><button class="badge ${e.status}" data-id="${e.id}" data-action="toggle">${e.status}</button></td>
+      <td><button class="modify-btn" data-id="${e.id}" data-action="modify"${modifyTitle}>${modifyLabel}</button></td>
       <td><button class="del-btn" data-id="${e.id}" data-action="delete">Delete</button></td>
     `;
     tbody.appendChild(tr);
@@ -55,6 +59,63 @@ function renderBreakdown(){
     chip.innerHTML = `${escapeHtml(cat)} <b>${fmtMoney(amt)}</b>`;
     box.appendChild(chip);
   });
+}
+/* ---------- Modify bill modal ---------- */
+let editBillId = null;
+function renderEditBillSupplierSelect(selectedSupplier){
+  const sel = document.getElementById('editBillSupplier');
+  sel.innerHTML = "";
+  [...suppliers].sort((a,b)=>a.localeCompare(b)).forEach(s=>{
+    const opt = document.createElement('option');
+    opt.value = s; opt.textContent = s;
+    sel.appendChild(opt);
+  });
+  if(selectedSupplier && !suppliers.includes(selectedSupplier)){
+    const opt = document.createElement('option');
+    opt.value = selectedSupplier; opt.textContent = selectedSupplier + ' (removed)';
+    sel.appendChild(opt);
+  }
+  sel.value = selectedSupplier || "";
+}
+function renderEditBillCategorySelect(selectedCat){
+  const sel = document.getElementById('editBillCategory');
+  sel.innerHTML = "";
+  Object.keys(categories).forEach(c=>{
+    const opt = document.createElement('option');
+    opt.value = c; opt.textContent = c;
+    sel.appendChild(opt);
+  });
+  if(selectedCat && categories[selectedCat]) sel.value = selectedCat;
+  renderEditBillSubcategoryList();
+}
+function renderEditBillSubcategoryList(){
+  const cat = document.getElementById('editBillCategory').value;
+  const dl = document.getElementById('editBillSubcategoryList');
+  dl.innerHTML = "";
+  (categories[cat] || []).forEach(s=>{
+    const opt = document.createElement('option');
+    opt.value = s;
+    dl.appendChild(opt);
+  });
+}
+function setEditBillStatus(s){
+  document.getElementById('editBillBtnUnpaid').classList.toggle('active', s === 'unpaid');
+  document.getElementById('editBillBtnPaid').classList.toggle('active', s === 'paid');
+}
+function openEditBillModal(entry){
+  editBillId = entry.id;
+  renderEditBillSupplierSelect(entry.supplier);
+  renderEditBillCategorySelect(entry.category);
+  document.getElementById('editBillSubcategory').value = entry.subcategory || "";
+  document.getElementById('editBillInvoice').value = entry.invoice || "";
+  document.getElementById('editBillAmount').value = entry.amount;
+  setEditBillStatus(entry.status);
+  document.getElementById('editBillError').classList.remove('show');
+  document.getElementById('editBillModal').classList.add('open');
+}
+function closeEditBillModal(){
+  document.getElementById('editBillModal').classList.remove('open');
+  editBillId = null;
 }
 function renderAll(){
   renderSupplierSelect();
@@ -155,5 +216,47 @@ document.getElementById('saveSpreadsheetBtn').addEventListener('click', saveToSp
 document.getElementById('fyModalCancel').addEventListener('click', closeFYModal);
 document.getElementById('fyModal').addEventListener('click', (ev)=>{
   if(ev.target.id === 'fyModal') closeFYModal();
+});
+
+document.getElementById('editBillSupplier').addEventListener('change', ()=>{
+  const supplier = document.getElementById('editBillSupplier').value;
+  const def = supplierDefaults[supplierKey(supplier)];
+  if(def && categories[def.category]){
+    renderEditBillCategorySelect(def.category);
+    document.getElementById('editBillSubcategory').value = def.subcategory || "";
+  }
+});
+document.getElementById('editBillCategory').addEventListener('change', renderEditBillSubcategoryList);
+document.getElementById('editBillBtnUnpaid').addEventListener('click', ()=>setEditBillStatus('unpaid'));
+document.getElementById('editBillBtnPaid').addEventListener('click', ()=>setEditBillStatus('paid'));
+document.getElementById('editBillCancel').addEventListener('click', closeEditBillModal);
+document.getElementById('editBillModal').addEventListener('click', (ev)=>{
+  if(ev.target.id === 'editBillModal') closeEditBillModal();
+});
+document.getElementById('editBillSave').addEventListener('click', async ()=>{
+  const entry = entries.find(x=>x.id === editBillId);
+  if(!entry){ closeEditBillModal(); return; }
+  const supplier = document.getElementById('editBillSupplier').value;
+  const category = document.getElementById('editBillCategory').value;
+  const subcategory = document.getElementById('editBillSubcategory').value.trim();
+  const invoice = document.getElementById('editBillInvoice').value.trim();
+  const amount = parseFloat(document.getElementById('editBillAmount').value);
+  const status = document.getElementById('editBillBtnPaid').classList.contains('active') ? 'paid' : 'unpaid';
+  if(!supplier || !category || !amount || amount <= 0){
+    document.getElementById('editBillError').classList.add('show');
+    return;
+  }
+  document.getElementById('editBillError').classList.remove('show');
+  entry.supplier = supplier;
+  entry.category = category;
+  entry.subcategory = subcategory;
+  entry.invoice = invoice;
+  entry.amount = amount;
+  entry.status = status;
+  await saveEntries();
+  renderTable();
+  renderTotals();
+  renderBreakdown();
+  closeEditBillModal();
 });
 

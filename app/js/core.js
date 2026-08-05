@@ -160,3 +160,9 @@ function fmtDateLabel(dstr){
 }
 function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
 
+// A bill stays freely modifiable for this long after it's added (no password) —
+// past it, modifying requires the admin (Reports-tab) password. Based on the
+// entry's original createdAt, not reset by edits, so re-editing an old bill
+// needs the password again each time.
+const MODIFY_WINDOW_MS = 60 * 60 * 1000;
+

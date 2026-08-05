@@ -32,6 +32,41 @@ document.getElementById('reportsPasswordInput').addEventListener('keydown', (ev)
   if(ev.key === 'Enter') document.getElementById('reportsUnlockBtn').click();
 });
 
+/* ---------- Modify-bill admin password gate (bills older than MODIFY_WINDOW_MS) ----------
+   Reuses the same owner/admin password as the Reports tab — one password for the
+   owner to remember, not two. */
+let modifyAuthPendingId = null;
+function openModifyAuthModal(id){
+  modifyAuthPendingId = id;
+  document.getElementById('modifyAuthInput').value = '';
+  document.getElementById('modifyAuthError').classList.remove('show');
+  document.getElementById('modifyAuthModal').classList.add('open');
+}
+function closeModifyAuthModal(){
+  document.getElementById('modifyAuthModal').classList.remove('open');
+  modifyAuthPendingId = null;
+}
+document.getElementById('modifyAuthCancel').addEventListener('click', closeModifyAuthModal);
+document.getElementById('modifyAuthModal').addEventListener('click', (ev)=>{
+  if(ev.target.id === 'modifyAuthModal') closeModifyAuthModal();
+});
+document.getElementById('modifyAuthSubmit').addEventListener('click', async ()=>{
+  const input = document.getElementById('modifyAuthInput');
+  const errEl = document.getElementById('modifyAuthError');
+  const hash = await sha256Hex(input.value);
+  if(hash === REPORTS_PASSWORD_HASH){
+    const id = modifyAuthPendingId;
+    closeModifyAuthModal();
+    const e = entries.find(x=>x.id === id);
+    if(e) openEditBillModal(e);
+  } else {
+    errEl.classList.add('show');
+  }
+});
+document.getElementById('modifyAuthInput').addEventListener('keydown', (ev)=>{
+  if(ev.key === 'Enter') document.getElementById('modifyAuthSubmit').click();
+});
+
 function switchTab(tab){
   const expensesBtn = document.getElementById('tabBtnExpenses');
   const reportsBtn = document.getElementById('tabBtnReports');
@@ -625,6 +660,12 @@ document.getElementById('tableBody').addEventListener('click', async (ev)=>{
       renderTable();
       renderTotals();
     }
+  } else if(action === 'modify'){
+    const e = entries.find(x=>x.id === id);
+    if(!e) return;
+    const withinModifyWindow = (Date.now() - e.createdAt) < MODIFY_WINDOW_MS;
+    if(withinModifyWindow) openEditBillModal(e);
+    else openModifyAuthModal(id);
   } else if(action === 'delete'){
     if(btn.classList.contains('confirming')){
       entries = entries.filter(x=>x.id !== id);
