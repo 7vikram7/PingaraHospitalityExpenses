@@ -75,6 +75,7 @@ window.__firebaseSdkReady = (async ()=>{
 <div class="tab-bar">
   <button class="tab-btn active" id="tabBtnExpenses" type="button">Add Expenses</button>
   <button class="tab-btn" id="tabBtnReports" type="button">Reports</button>
+  <button class="tab-btn" id="tabBtnLedger" type="button">Vendor Ledger</button>
 </div>
 
 <div class="modal-overlay" id="fyModal">
@@ -370,6 +371,55 @@ window.__firebaseSdkReady = (async ()=>{
   </div>
 </div>
 
+<div id="tabPanelLedger" class="tab-panel">
+  <div class="reports-lock" id="vlLock">
+    <h2>Owner access</h2>
+    <p>Enter the password to view the vendor ledger.</p>
+    <input type="password" id="vlPasswordInput" placeholder="Password">
+    <button type="button" id="vlUnlockBtn">Unlock</button>
+    <div class="err" id="vlLockError">Incorrect password.</div>
+  </div>
+
+  <div class="reports-content" id="vlContent">
+    <main>
+      <div class="viz-root dash-panel">
+        <div class="dash-filter-row">
+          <select id="vlRestaurantSelect" class="dash-date-input"></select>
+          <div class="dash-toggle-group" role="group" aria-label="Reporting period">
+            <button type="button" class="dash-toggle-btn" id="vlPeriodDay" data-period="day">Day</button>
+            <button type="button" class="dash-toggle-btn active" id="vlPeriodMonth" data-period="month">Month</button>
+          </div>
+          <input type="date" id="vlDatePicker" class="dash-date-input" style="display:none;">
+          <input type="month" id="vlMonthPicker" class="dash-date-input">
+        </div>
+
+        <div class="dash-hero-row" id="vlTotalsBar" style="display:none;">
+          <div class="dash-hero">
+            <div class="dash-hero-label">Vendors</div>
+            <div class="dash-hero-value" id="vlTotalVendors">0</div>
+          </div>
+          <div class="dash-hero">
+            <div class="dash-hero-label">Total spend</div>
+            <div class="dash-hero-value" id="vlTotalAmount">₹0.00</div>
+          </div>
+          <div class="dash-hero">
+            <div class="dash-hero-label">Paid</div>
+            <div class="dash-hero-value" id="vlTotalPaid">₹0.00</div>
+          </div>
+          <div class="dash-hero">
+            <div class="dash-hero-label">Unpaid</div>
+            <div class="dash-hero-value" id="vlTotalUnpaid">₹0.00</div>
+          </div>
+        </div>
+
+        <div class="dash-empty" id="vlEmpty" style="display:none;">No bills logged for this period yet.</div>
+
+        <div class="plain-table-wrap" id="vlTableWrap"></div>
+      </div>
+    </main>
+  </div>
+</div>
+
 </div><!-- /appTabsWrap -->
 
 <script src="js/core.js"></script>
@@ -378,6 +428,7 @@ window.__firebaseSdkReady = (async ()=>{
 <script src="js/suppliers-ui.js"></script>
 <script src="js/ledger-ui.js"></script>
 <script src="js/reports-dashboard.js"></script>
+<script src="js/vendor-ledger.js"></script>
 <script src="js/init.js"></script>
 </body>
 </html>

@@ -1172,6 +1172,15 @@ main{padding:24px 28px 60px;max-width:1400px;margin:0 auto;}
   opacity:0.35;
   z-index:0;
 }
+/* Same bordered box as .ledger-wrap, without the red margin-line — that line is
+   positioned to align with the day-ledger's "#" index column, which tables like
+   the Vendor Ledger don't have. */
+.plain-table-wrap{
+  background:var(--paper);
+  border:1.5px solid var(--ink);
+  border-radius:6px;
+  overflow:hidden;
+}
 table{
   width:100%;
   border-collapse:collapse;
@@ -1218,6 +1227,11 @@ td.amount{
 }
 td.supplier{font-weight:600;}
 td.subcat{color:var(--ink-soft);}
+td.num{
+  font-family:'IBM Plex Mono',monospace;
+  text-align:right;
+  white-space:nowrap;
+}
 .badge{
   font-family:'IBM Plex Mono',monospace;
   font-size:11px;

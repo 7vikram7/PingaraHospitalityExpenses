@@ -68,25 +68,27 @@ document.getElementById('modifyAuthInput').addEventListener('keydown', (ev)=>{
 });
 
 function switchTab(tab){
-  const expensesBtn = document.getElementById('tabBtnExpenses');
-  const reportsBtn = document.getElementById('tabBtnReports');
-  const expensesPanel = document.getElementById('tabPanelExpenses');
-  const reportsPanel = document.getElementById('tabPanelReports');
-  if(tab === 'reports'){
-    expensesBtn.classList.remove('active');
-    reportsBtn.classList.add('active');
-    expensesPanel.classList.remove('active');
-    reportsPanel.classList.add('active');
-    showReportsPanel();
-  } else {
-    reportsBtn.classList.remove('active');
-    expensesBtn.classList.add('active');
-    reportsPanel.classList.remove('active');
-    expensesPanel.classList.add('active');
-  }
+  const btns = {
+    expenses: document.getElementById('tabBtnExpenses'),
+    reports: document.getElementById('tabBtnReports'),
+    ledger: document.getElementById('tabBtnLedger')
+  };
+  const panels = {
+    expenses: document.getElementById('tabPanelExpenses'),
+    reports: document.getElementById('tabPanelReports'),
+    ledger: document.getElementById('tabPanelLedger')
+  };
+  Object.keys(btns).forEach(key=>{
+    const active = key === tab;
+    btns[key].classList.toggle('active', active);
+    panels[key].classList.toggle('active', active);
+  });
+  if(tab === 'reports') showReportsPanel();
+  else if(tab === 'ledger') showVLPanel();
 }
 document.getElementById('tabBtnExpenses').addEventListener('click', ()=>switchTab('expenses'));
 document.getElementById('tabBtnReports').addEventListener('click', ()=>switchTab('reports'));
+document.getElementById('tabBtnLedger').addEventListener('click', ()=>switchTab('ledger'));
 
 /* ---------- Reports dashboard: sales vs. expenses, by restaurant ----------
    Cross-restaurant, independent of the currently confirmed restaurant — reads
