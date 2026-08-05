@@ -97,15 +97,11 @@ window.__firebaseSdkReady = (async ()=>{
       <div class="field">
         <label>Supplier</label>
         <select id="editBillSupplier"></select>
+        <div class="supplier-cat-hint" id="editBillCatHint" style="display:none;"></div>
       </div>
       <div class="field">
-        <label>Category</label>
-        <select id="editBillCategory"></select>
-      </div>
-      <div class="field">
-        <label>Subcategory</label>
-        <input type="text" id="editBillSubcategory" list="editBillSubcategoryList" placeholder="optional">
-        <datalist id="editBillSubcategoryList"></datalist>
+        <label>Date</label>
+        <input type="date" id="editBillDate">
       </div>
       <div class="field">
         <label>Invoice #</label>
@@ -123,7 +119,8 @@ window.__firebaseSdkReady = (async ()=>{
         </div>
       </div>
     </div>
-    <div class="modal-error" id="editBillError">Please pick a supplier and category, and enter an amount above 0.</div>
+    <p>Category/subcategory always follow the supplier's saved default — change the supplier's category from Manage Suppliers if it's wrong.</p>
+    <div class="modal-error" id="editBillError">Please pick a supplier with a category set, a valid date, and an amount above 0.</div>
     <div class="modal-actions">
       <button type="button" class="modal-btn-secondary" id="editBillCancel">Cancel</button>
       <button type="button" class="modal-btn-primary" id="editBillSave">Save changes</button>

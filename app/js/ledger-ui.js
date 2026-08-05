@@ -43,6 +43,21 @@ function renderTotals(){
   document.getElementById('ledUnpaid').textContent = fmtMoney(unpaid);
   document.getElementById('ledSales').textContent = (currentSales !== null && !isNaN(currentSales)) ? fmtMoney(currentSales) : "—";
 }
+// Sales for a day are freely editable while new (currentSales === null) or within
+// MODIFY_WINDOW_MS of when they were first saved — same 1hr-then-password rule as
+// bills. currentSalesSavedAt is null for legacy dates saved before this feature
+// existed, which is treated as "outside the window" (locked) rather than guessed at.
+function salesWithinModifyWindow(){
+  return currentSales === null || (!!currentSalesSavedAt && (Date.now() - currentSalesSavedAt) < MODIFY_WINDOW_MS);
+}
+function updateSalesLockUI(){
+  const input = document.getElementById('salesInput');
+  const btn = document.getElementById('saveSalesBtn');
+  const locked = !salesWithinModifyWindow() && !salesTempUnlocked;
+  input.disabled = locked;
+  btn.textContent = locked ? '🔒 Unlock' : 'Save';
+  btn.title = locked ? "Sales entered more than an hour ago — click to unlock with the admin password" : "";
+}
 function renderBreakdown(){
   const box = document.getElementById('breakdown');
   box.innerHTML = '<span class="breakdown-label">By category</span>';
@@ -77,25 +92,28 @@ function renderEditBillSupplierSelect(selectedSupplier){
   }
   sel.value = selectedSupplier || "";
 }
-function renderEditBillCategorySelect(selectedCat){
-  const sel = document.getElementById('editBillCategory');
-  sel.innerHTML = "";
-  Object.keys(categories).forEach(c=>{
-    const opt = document.createElement('option');
-    opt.value = c; opt.textContent = c;
-    sel.appendChild(opt);
-  });
-  if(selectedCat && categories[selectedCat]) sel.value = selectedCat;
-  renderEditBillSubcategoryList();
-}
-function renderEditBillSubcategoryList(){
-  const cat = document.getElementById('editBillCategory').value;
-  const dl = document.getElementById('editBillSubcategoryList');
-  dl.innerHTML = "";
-  (categories[cat] || []).forEach(s=>{
-    const opt = document.createElement('option');
-    opt.value = s;
-    dl.appendChild(opt);
+// Category/subcategory are never directly editable here — same supplier-first
+// rule as the quick-add form (see supplierCatHint). This just displays what
+// the currently-selected supplier's default is; fix the default via Manage
+// Suppliers if it's wrong, don't override it per-bill.
+function renderEditBillCatHint(){
+  const supplier = document.getElementById('editBillSupplier').value;
+  const hint = document.getElementById('editBillCatHint');
+  if(!supplier){
+    hint.style.display = 'none';
+    return;
+  }
+  const def = supplierDefaults[supplierKey(supplier)];
+  hint.style.display = 'block';
+  if(def && categories[def.category]){
+    hint.classList.remove('missing');
+    hint.innerHTML = `Category: <b>${escapeHtml(def.category)}${def.subcategory ? ' → ' + escapeHtml(def.subcategory) : ''}</b><span class="change-link" id="editBillChangeCatLink">change</span>`;
+  } else {
+    hint.classList.add('missing');
+    hint.innerHTML = `No category set for this supplier.<span class="change-link" id="editBillChangeCatLink">set now</span>`;
+  }
+  document.getElementById('editBillChangeCatLink').addEventListener('click', ()=>{
+    openNewSupplierBox(supplier);
   });
 }
 function setEditBillStatus(s){
@@ -105,8 +123,8 @@ function setEditBillStatus(s){
 function openEditBillModal(entry){
   editBillId = entry.id;
   renderEditBillSupplierSelect(entry.supplier);
-  renderEditBillCategorySelect(entry.category);
-  document.getElementById('editBillSubcategory').value = entry.subcategory || "";
+  renderEditBillCatHint();
+  document.getElementById('editBillDate').value = currentDate;
   document.getElementById('editBillInvoice').value = entry.invoice || "";
   document.getElementById('editBillAmount').value = entry.amount;
   setEditBillStatus(entry.status);
@@ -198,10 +216,20 @@ document.getElementById('restaurantChangeBtn').addEventListener('click', ()=>{
   showRestaurantGate();
 });
 document.getElementById('saveSalesBtn').addEventListener('click', async ()=>{
+  if(document.getElementById('salesInput').disabled){
+    openModifyAuthModal(()=>{
+      salesTempUnlocked = true;
+      updateSalesLockUI();
+      document.getElementById('salesInput').focus();
+    });
+    return;
+  }
   const ok = await saveSalesValue();
   const hint = document.getElementById('salesSavedHint');
   if(ok){
+    salesTempUnlocked = false;
     renderTotals();
+    updateSalesLockUI();
     hint.style.display = 'inline';
     setTimeout(()=>{ hint.style.display = 'none'; }, 2500);
   } else {
@@ -218,15 +246,7 @@ document.getElementById('fyModal').addEventListener('click', (ev)=>{
   if(ev.target.id === 'fyModal') closeFYModal();
 });
 
-document.getElementById('editBillSupplier').addEventListener('change', ()=>{
-  const supplier = document.getElementById('editBillSupplier').value;
-  const def = supplierDefaults[supplierKey(supplier)];
-  if(def && categories[def.category]){
-    renderEditBillCategorySelect(def.category);
-    document.getElementById('editBillSubcategory').value = def.subcategory || "";
-  }
-});
-document.getElementById('editBillCategory').addEventListener('change', renderEditBillSubcategoryList);
+document.getElementById('editBillSupplier').addEventListener('change', renderEditBillCatHint);
 document.getElementById('editBillBtnUnpaid').addEventListener('click', ()=>setEditBillStatus('unpaid'));
 document.getElementById('editBillBtnPaid').addEventListener('click', ()=>setEditBillStatus('paid'));
 document.getElementById('editBillCancel').addEventListener('click', closeEditBillModal);
@@ -237,26 +257,34 @@ document.getElementById('editBillSave').addEventListener('click', async ()=>{
   const entry = entries.find(x=>x.id === editBillId);
   if(!entry){ closeEditBillModal(); return; }
   const supplier = document.getElementById('editBillSupplier').value;
-  const category = document.getElementById('editBillCategory').value;
-  const subcategory = document.getElementById('editBillSubcategory').value.trim();
+  const def = supplierDefaults[supplierKey(supplier)];
+  const newDate = document.getElementById('editBillDate').value;
   const invoice = document.getElementById('editBillInvoice').value.trim();
   const amount = parseFloat(document.getElementById('editBillAmount').value);
   const status = document.getElementById('editBillBtnPaid').classList.contains('active') ? 'paid' : 'unpaid';
-  if(!supplier || !category || !amount || amount <= 0){
+  if(!supplier || !def || !categories[def.category] || !newDate || !amount || amount <= 0){
     document.getElementById('editBillError').classList.add('show');
     return;
   }
   document.getElementById('editBillError').classList.remove('show');
   entry.supplier = supplier;
-  entry.category = category;
-  entry.subcategory = subcategory;
+  entry.category = def.category;
+  entry.subcategory = def.subcategory || "";
   entry.invoice = invoice;
   entry.amount = amount;
   entry.status = status;
-  await saveEntries();
+
+  if(newDate !== currentDate){
+    await moveEntryDate(entry, newDate);
+  } else {
+    await saveEntries();
+  }
   renderTable();
   renderTotals();
   renderBreakdown();
   closeEditBillModal();
+  if(newDate !== currentDate){
+    alert(`Moved to ${fmtDateLabel(newDate)} — it no longer appears in this day's ledger. Navigate to that date to see it.`);
+  }
 });
 

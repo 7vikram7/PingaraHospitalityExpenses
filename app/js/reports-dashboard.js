@@ -32,19 +32,20 @@ document.getElementById('reportsPasswordInput').addEventListener('keydown', (ev)
   if(ev.key === 'Enter') document.getElementById('reportsUnlockBtn').click();
 });
 
-/* ---------- Modify-bill admin password gate (bills older than MODIFY_WINDOW_MS) ----------
+/* ---------- Admin password gate (bills/sales older than MODIFY_WINDOW_MS) ----------
    Reuses the same owner/admin password as the Reports tab — one password for the
-   owner to remember, not two. */
-let modifyAuthPendingId = null;
-function openModifyAuthModal(id){
-  modifyAuthPendingId = id;
+   owner to remember, not two. Generic: takes a callback to run on success, so both
+   the bill-modify flow and the sales-unlock flow share this one modal. */
+let modifyAuthOnSuccess = null;
+function openModifyAuthModal(onSuccess){
+  modifyAuthOnSuccess = onSuccess;
   document.getElementById('modifyAuthInput').value = '';
   document.getElementById('modifyAuthError').classList.remove('show');
   document.getElementById('modifyAuthModal').classList.add('open');
 }
 function closeModifyAuthModal(){
   document.getElementById('modifyAuthModal').classList.remove('open');
-  modifyAuthPendingId = null;
+  modifyAuthOnSuccess = null;
 }
 document.getElementById('modifyAuthCancel').addEventListener('click', closeModifyAuthModal);
 document.getElementById('modifyAuthModal').addEventListener('click', (ev)=>{
@@ -55,10 +56,9 @@ document.getElementById('modifyAuthSubmit').addEventListener('click', async ()=>
   const errEl = document.getElementById('modifyAuthError');
   const hash = await sha256Hex(input.value);
   if(hash === REPORTS_PASSWORD_HASH){
-    const id = modifyAuthPendingId;
+    const onSuccess = modifyAuthOnSuccess;
     closeModifyAuthModal();
-    const e = entries.find(x=>x.id === id);
-    if(e) openEditBillModal(e);
+    if(onSuccess) onSuccess();
   } else {
     errEl.classList.add('show');
   }
@@ -665,7 +665,7 @@ document.getElementById('tableBody').addEventListener('click', async (ev)=>{
     if(!e) return;
     const withinModifyWindow = (Date.now() - e.createdAt) < MODIFY_WINDOW_MS;
     if(withinModifyWindow) openEditBillModal(e);
-    else openModifyAuthModal(id);
+    else openModifyAuthModal(()=>openEditBillModal(e));
   } else if(action === 'delete'){
     if(btn.classList.contains('confirming')){
       entries = entries.filter(x=>x.id !== id);

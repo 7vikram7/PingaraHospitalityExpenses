@@ -9,6 +9,14 @@
       "rm -rf public",
       "mkdir -p public",
       "cp -R app/. public/"
+    ],
+    "headers": [
+      {
+        "source": "**",
+        "headers": [
+          { "key": "Cache-Control", "value": "no-cache, max-age=0, must-revalidate" }
+        ]
+      }
     ]
   }
 }

@@ -71,6 +71,7 @@ function supplierKey(name){ return (name||"").trim().toLowerCase(); }
 // report reads roughly 30x versus one document per day.
 function billsMonthKey(monthKey){ return restPrefix() + "bills:" + monthKey; }
 function salesMonthKey(monthKey){ return restPrefix() + "sales:" + monthKey; }
+function salesMetaKey(monthKey){ return restPrefix() + "salesMeta:" + monthKey; }
 
 let billsMonthCache = {};
 let currentBillsMonthCacheKey = null;
@@ -94,6 +95,28 @@ async function saveEntries(){
   await safeSet(billsMonthKey(monthKey), JSON.stringify(month));
 }
 
+// Moves a single bill from the currently-viewed date to a different date (used by
+// the Modify-bill date field). The entry's own fields should already be updated by
+// the caller before this runs — this only relocates it between day-buckets, which
+// may mean a different month document entirely.
+async function moveEntryDate(entry, newDate){
+  entries = entries.filter(x => x.id !== entry.id);
+  await saveEntries(); // persists the current month bucket without this entry
+
+  const targetMonthKey = newDate.slice(0,7);
+  const targetKey = billsMonthKey(targetMonthKey);
+  let targetMonthObj;
+  if(targetKey === currentBillsMonthCacheKey){
+    targetMonthObj = billsMonthCache; // same month as the one we just saved above
+  } else {
+    const raw = await safeGet(targetKey);
+    targetMonthObj = raw ? (JSON.parse(raw) || {}) : {};
+  }
+  if(!targetMonthObj[newDate]) targetMonthObj[newDate] = [];
+  targetMonthObj[newDate].push(entry);
+  await safeSet(targetKey, JSON.stringify(targetMonthObj));
+}
+
 let salesMonthCache = {};
 let currentSalesMonthCacheKey = null;
 async function loadSalesMonth(monthKey){
@@ -105,13 +128,33 @@ async function loadSalesMonth(monthKey){
   }
   return salesMonthCache;
 }
+// Separate lightweight doc tracking only *when* each date's sales figure was first
+// saved — kept apart from the sales value itself so every existing reader of the
+// sales bucket (Excel export, dashboard) is untouched by this addition.
+let salesMetaCache = {};
+let currentSalesMetaCacheKey = null;
+async function loadSalesMeta(monthKey){
+  const cacheKey = salesMetaKey(monthKey);
+  if(currentSalesMetaCacheKey !== cacheKey){
+    const raw = await safeGet(cacheKey);
+    salesMetaCache = raw ? (JSON.parse(raw) || {}) : {};
+    currentSalesMetaCacheKey = cacheKey;
+  }
+  return salesMetaCache;
+}
 let currentSales = null; // number or null for "not recorded"
+let currentSalesSavedAt = null; // timestamp sales was first saved for this date, or null if legacy/unknown
+let salesTempUnlocked = false; // password-unlocked for the currently-viewed date; reset whenever the date changes
 async function loadSales(date){
+  salesTempUnlocked = false;
   const month = await loadSalesMonth(date.slice(0,7));
   const val = month[date];
   currentSales = (val !== undefined && val !== null && val !== "") ? Number(val) : null;
+  const meta = await loadSalesMeta(date.slice(0,7));
+  currentSalesSavedAt = meta[date] || null;
   const input = document.getElementById('salesInput');
   if(input) input.value = (currentSales !== null && !isNaN(currentSales)) ? currentSales : "";
+  updateSalesLockUI();
 }
 async function saveSalesValue(){
   const input = document.getElementById('salesInput');
@@ -121,7 +164,13 @@ async function saveSalesValue(){
   const month = await loadSalesMonth(monthKey);
   month[currentDate] = val;
   await safeSet(salesMonthKey(monthKey), JSON.stringify(month));
+  const meta = await loadSalesMeta(monthKey);
+  if(!meta[currentDate]){
+    meta[currentDate] = Date.now();
+    await safeSet(salesMetaKey(monthKey), JSON.stringify(meta));
+  }
   currentSales = val;
+  currentSalesSavedAt = meta[currentDate];
   return true;
 }
 

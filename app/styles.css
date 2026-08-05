@@ -208,6 +208,7 @@ h1{
   text-align:right;
 }
 .sales-inline input:focus{outline:none;border-color:var(--brass);background:#fff;}
+.sales-inline input:disabled{background:var(--paper-dark);color:var(--ink-soft);cursor:not-allowed;}
 .sales-inline button{
   background:var(--brass);
   color:#fff;
