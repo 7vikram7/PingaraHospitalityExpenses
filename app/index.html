@@ -388,9 +388,14 @@ window.__firebaseSdkReady = (async ()=>{
           <div class="dash-toggle-group" role="group" aria-label="Reporting period">
             <button type="button" class="dash-toggle-btn" id="vlPeriodDay" data-period="day">Day</button>
             <button type="button" class="dash-toggle-btn active" id="vlPeriodMonth" data-period="month">Month</button>
+            <button type="button" class="dash-toggle-btn" id="vlPeriodRange" data-period="range">Date range</button>
           </div>
           <input type="date" id="vlDatePicker" class="dash-date-input" style="display:none;">
           <input type="month" id="vlMonthPicker" class="dash-date-input">
+          <span class="toolbar-label" id="vlRangeFromLabel" style="display:none;">From</span>
+          <input type="date" id="vlRangeFromPicker" class="dash-date-input" style="display:none;">
+          <span class="toolbar-label" id="vlRangeToLabel" style="display:none;">To</span>
+          <input type="date" id="vlRangeToPicker" class="dash-date-input" style="display:none;">
         </div>
 
         <div class="dash-hero-row" id="vlTotalsBar" style="display:none;">

@@ -1,9 +1,24 @@
 /* ---------- Vendor Ledger tab: per-vendor spend, all restaurants or one, for a period ----------
    Shares the Reports tab's owner password/session (same sensitivity — aggregate
    financial data across restaurants) rather than introducing a second password. */
-let vlPeriodType = 'month';  // 'day' | 'month'
+let vlPeriodType = 'month';  // 'day' | 'month' | 'range'
 let vlSelectedDate, vlSelectedMonth;
+let vlRangeFrom, vlRangeTo;
 let vlRestaurantFilter = 'all'; // 'all' or a restaurant id
+
+// Inclusive list of "YYYY-MM" month keys spanned by a date range — a range can
+// cross month-bucket document boundaries, so every covered month needs its own fetch.
+function monthsBetween(fromDate, toDate){
+  const months = [];
+  let y = Number(fromDate.slice(0,4)), m = Number(fromDate.slice(5,7));
+  const endY = Number(toDate.slice(0,4)), endM = Number(toDate.slice(5,7));
+  while(y < endY || (y === endY && m <= endM)){
+    months.push(y + '-' + String(m).padStart(2,'0'));
+    m++;
+    if(m > 12){ m = 1; y++; }
+  }
+  return months;
+}
 
 function renderVLRestaurantSelect(){
   const sel = document.getElementById('vlRestaurantSelect');
@@ -45,11 +60,31 @@ document.getElementById('vlPasswordInput').addEventListener('keydown', (ev)=>{
 
 // Reuses fetchAllRestaurantsBillsForMonth (reports-dashboard.js) for every restaurant
 // even when scoped to one, for simplicity — Firestore reads stay well within quota
-// at this app's actual data volume (see CONTEXT.md).
-async function computeVendorLedgerData(periodType, dateOrMonth, restaurantFilter){
-  const monthKey = periodType === 'day' ? dateOrMonth.slice(0,7) : dateOrMonth;
-  const dateFilter = periodType === 'day' ? (d)=> d === dateOrMonth : ()=> true;
-  const billsAll = await fetchAllRestaurantsBillsForMonth(monthKey);
+// at this app's actual data volume (see CONTEXT.md). params is one of:
+// {date}, {month}, or {from, to} depending on periodType.
+async function computeVendorLedgerData(periodType, params, restaurantFilter){
+  let monthKeys, dateFilter;
+  if(periodType === 'day'){
+    monthKeys = [params.date.slice(0,7)];
+    dateFilter = (d)=> d === params.date;
+  } else if(periodType === 'range'){
+    const from = params.from <= params.to ? params.from : params.to;
+    const to = params.from <= params.to ? params.to : params.from;
+    monthKeys = monthsBetween(from, to);
+    dateFilter = (d)=> d >= from && d <= to;
+  } else {
+    monthKeys = [params.month];
+    dateFilter = ()=> true;
+  }
+
+  const billsAll = {};
+  for(const mk of monthKeys){
+    const monthBills = await fetchAllRestaurantsBillsForMonth(mk);
+    RESTAURANTS.forEach(r=>{
+      if(!billsAll[r.id]) billsAll[r.id] = {};
+      Object.assign(billsAll[r.id], monthBills[r.id] || {});
+    });
+  }
 
   const vendors = {}; // supplier name -> { amount, paid, unpaid, count, restaurantIds:Set }
   RESTAURANTS.forEach(r=>{
@@ -127,14 +162,20 @@ function renderVLTable(rows, showRestCol){
 async function renderVendorLedger(){
   if(vlSelectedDate === undefined) vlSelectedDate = addDaysStr(todayStr(), -1);
   if(vlSelectedMonth === undefined) vlSelectedMonth = todayStr().slice(0,7);
+  if(vlRangeFrom === undefined) vlRangeFrom = todayStr().slice(0,8) + '01'; // 1st of this month
+  if(vlRangeTo === undefined) vlRangeTo = todayStr();
   document.getElementById('vlDatePicker').value = vlSelectedDate;
   document.getElementById('vlMonthPicker').value = vlSelectedMonth;
+  document.getElementById('vlRangeFromPicker').value = vlRangeFrom;
+  document.getElementById('vlRangeToPicker').value = vlRangeTo;
 
   const panel = document.querySelector('#tabPanelLedger .dash-panel');
   panel.classList.add('dash-loading');
   try{
-    const dateOrMonth = vlPeriodType === 'day' ? vlSelectedDate : vlSelectedMonth;
-    const { rows, totals } = await computeVendorLedgerData(vlPeriodType, dateOrMonth, vlRestaurantFilter);
+    const params = vlPeriodType === 'day' ? { date: vlSelectedDate }
+      : vlPeriodType === 'range' ? { from: vlRangeFrom, to: vlRangeTo }
+      : { month: vlSelectedMonth };
+    const { rows, totals } = await computeVendorLedgerData(vlPeriodType, params, vlRestaurantFilter);
 
     const totalsBar = document.getElementById('vlTotalsBar');
     const empty = document.getElementById('vlEmpty');
@@ -162,25 +203,37 @@ document.getElementById('vlRestaurantSelect').addEventListener('change', (ev)=>{
   vlRestaurantFilter = ev.target.value;
   renderVendorLedger();
 });
-document.getElementById('vlPeriodDay').addEventListener('click', ()=>{
-  vlPeriodType = 'day';
-  document.getElementById('vlPeriodDay').classList.add('active');
-  document.getElementById('vlPeriodMonth').classList.remove('active');
-  document.getElementById('vlDatePicker').style.display = '';
-  document.getElementById('vlMonthPicker').style.display = 'none';
+
+const VL_PERIOD_BTNS = { day: 'vlPeriodDay', month: 'vlPeriodMonth', range: 'vlPeriodRange' };
+const VL_PERIOD_FIELDS = {
+  day: ['vlDatePicker'],
+  month: ['vlMonthPicker'],
+  range: ['vlRangeFromLabel', 'vlRangeFromPicker', 'vlRangeToLabel', 'vlRangeToPicker']
+};
+function setVLPeriodType(type){
+  vlPeriodType = type;
+  Object.keys(VL_PERIOD_BTNS).forEach(key=>{
+    document.getElementById(VL_PERIOD_BTNS[key]).classList.toggle('active', key === type);
+  });
+  Object.keys(VL_PERIOD_FIELDS).forEach(key=>{
+    const display = key === type ? '' : 'none';
+    VL_PERIOD_FIELDS[key].forEach(id=>{ document.getElementById(id).style.display = display; });
+  });
   renderVendorLedger();
-});
-document.getElementById('vlPeriodMonth').addEventListener('click', ()=>{
-  vlPeriodType = 'month';
-  document.getElementById('vlPeriodMonth').classList.add('active');
-  document.getElementById('vlPeriodDay').classList.remove('active');
-  document.getElementById('vlDatePicker').style.display = 'none';
-  document.getElementById('vlMonthPicker').style.display = '';
-  renderVendorLedger();
-});
+}
+document.getElementById('vlPeriodDay').addEventListener('click', ()=>setVLPeriodType('day'));
+document.getElementById('vlPeriodMonth').addEventListener('click', ()=>setVLPeriodType('month'));
+document.getElementById('vlPeriodRange').addEventListener('click', ()=>setVLPeriodType('range'));
+
 document.getElementById('vlDatePicker').addEventListener('change', (ev)=>{
   if(ev.target.value){ vlSelectedDate = ev.target.value; renderVendorLedger(); }
 });
 document.getElementById('vlMonthPicker').addEventListener('change', (ev)=>{
   if(ev.target.value){ vlSelectedMonth = ev.target.value; renderVendorLedger(); }
+});
+document.getElementById('vlRangeFromPicker').addEventListener('change', (ev)=>{
+  if(ev.target.value){ vlRangeFrom = ev.target.value; renderVendorLedger(); }
+});
+document.getElementById('vlRangeToPicker').addEventListener('change', (ev)=>{
+  if(ev.target.value){ vlRangeTo = ev.target.value; renderVendorLedger(); }
 });
