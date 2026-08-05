@@ -94,25 +94,72 @@ a cost/scaling discussion:
   Firestore reads when adding multiple bills to the same day/month in one
   session.
 
-## Two-tab structure (added 2026-07-31)
-The page body is split into two tab panels, switched by `.tab-bar` buttons
-(`tabBtnExpenses` / `tabBtnReports`) via `switchTab()`:
-- **"Add Expenses"** (`#tabPanelExpenses`, default/active tab) — everything
-  that existed before: restaurant selector (shared above both tabs, in
-  `.restaurant-bar`), date nav, history panel, LED totals, sales input, the
-  supplier-first quick-add form, and the ledger table. Managers use only this
-  tab.
-- **"Reports"** (`#tabPanelReports`) — holds everything related to generating/
-  exporting Excel or CSV: `syncBtn` (Link Excel file), `downloadCsvBtn`,
-  `downloadExcelBtn`, and `saveSpreadsheetBtn` (Save to Excel File), plus their
-  shared `save-bar` note. Gated behind a **client-side password prompt**
-  (`#reportsLock` / `#reportsContent`, `showReportsPanel()`): the entered
-  password is SHA-256 hashed in-browser (`sha256Hex`) and compared against a
-  hardcoded hash (`REPORTS_PASSWORD_HASH`) — the plaintext password is not
-  stored in the file, only its hash. Once unlocked, the unlock state is kept in
-  `sessionStorage` (`reportsUnlockedSession`) so switching tabs back and forth
-  doesn't re-prompt, but a fresh browser session (new tab/window, page
-  reload after closing) does.
+## Login: profile (Owner/Manager) + per-restaurant passwords (added 2026-08-05)
+Before any tab is reachable, `app/js/auth.js` runs a small client-side login
+flow — still the same "soft deterrent, not real security" model as everything
+else in this app (see Known limitations), just applied one level earlier than
+before. Session-scoped (`sessionStorage`), so it re-prompts on every fresh
+browser session, matching how the Reports-tab password already behaved.
+
+Screens (all in `index.html`, siblings before `#appTabsWrap`):
+1. **`#profileGate`** — "Who's logging in?" Owner or Manager.
+2. **`#ownerLoginGate`** (Owner only) — one password, SHA-256-compared against
+   `REPORTS_PASSWORD_HASH` in `core.js` — **the same hash the Reports tab
+   already used**, reused deliberately so the owner has one password, not two.
+   Success sets `sessionStorage.profileType = 'owner'` and *also* sets the
+   Reports tab's own unlock flag (`reportsUnlockedSession`), so Reports and
+   Vendor Ledger open with no further prompt.
+3. **`#restaurantGate`** (existing screen, extended) — pick a restaurant, then
+   Continue. For a **Manager**, a password field appears and is checked
+   against `RESTAURANT_PASSWORD_HASH[restaurantId]` in `core.js` (one hash per
+   restaurant — a manager only knows their own restaurant's password, so this
+   is a practical boundary between locations even though Firestore itself
+   doesn't enforce it). For an **Owner**, no password field — Continue alone
+   confirms, for *any* restaurant. Either way, confirming sets
+   `sessionStorage.unlockedRestaurantId` to that restaurant, which is what
+   `isRestaurantUnlockedForSession()` (core.js) checks on every reload to
+   decide whether to show the gate again or go straight to the app —
+   deliberately **not** short-circuited by owner status alone, so the owner
+   still clicks through this step once per session too (same "prevents an
+   accidental restaurant switch" purpose the gate always had).
+4. Main app — `restaurantConfirmedBar` gets a second button, **"Switch
+   profile"**, alongside the existing "Change restaurant" — clears both
+   session flags and returns to `#profileGate`.
+
+**Tab visibility by profile** (`updateTabVisibilityForProfile()` in
+auth.js): a Manager only ever sees the "Add Expenses" tab button — Reports
+and Vendor Ledger buttons are `display:none`, not just password-gated, so
+they're not just locked but not even visible. An Owner sees all three.
+
+**"Once the owner logs in, no other passwords are required" applies
+app-wide**, not just to the tabs — `billWithinModifyWindow()` (core.js) and
+`salesWithinModifyWindow()` (ledger-ui.js) both short-circuit true for an
+owner session, so the Modify-bill and sales-edit admin-password prompts
+(see "Modify a bill" below) never appear for an owner, even on data older
+than the 1-hour window. A Manager still sees those prompts normally — that's
+a per-action escalation (type the owner password to override just this one
+edit), a separate concept from the profile login itself, deliberately left
+as-is.
+
+## Tab structure (Add Expenses added first; Reports added 2026-07-31; Vendor
+## Ledger added 2026-08-05)
+Three tab panels, switched by `.tab-bar` buttons (`tabBtnExpenses` /
+`tabBtnReports` / `tabBtnLedger`) via `switchTab()` in reports-dashboard.js:
+- **"Add Expenses"** (`#tabPanelExpenses`, default/active tab) — restaurant
+  selector (shared above all tabs, in `.restaurant-context-bar`), date nav,
+  history panel, LED totals, sales input, the supplier-first quick-add form,
+  and the ledger table. The only tab a Manager profile ever sees.
+- **"Reports"** (`#tabPanelReports`) — the sales-vs-expenses dashboard plus
+  everything for generating/exporting Excel or CSV: `syncBtn` (Link Excel
+  file), `downloadCsvBtn`, `downloadExcelBtn`, and `saveSpreadsheetBtn` (Save
+  to Excel File), plus their shared `save-bar` note. Gated behind a
+  **client-side password prompt** (`#reportsLock` / `#reportsContent`,
+  `showReportsPanel()`): SHA-256 hashed in-browser (`sha256Hex`) and compared
+  against `REPORTS_PASSWORD_HASH` — the plaintext password is not stored in
+  the file, only its hash. Unlock state lives in `sessionStorage`
+  (`reportsUnlockedSession`) — as of the login system above, an Owner is
+  already unlocked on arrival; this gate mainly still matters as the
+  mechanism the owner-login step itself sets.
   - **This is a soft deterrent, not real security.** It's a static HTML file
     with no backend — anyone who opens browser DevTools can read the hash (or
     the whole app's source), and Firestore itself has open rules (see above),
@@ -120,11 +167,45 @@ The page body is split into two tab panels, switched by `.tab-bar` buttons
     per-role access control is ever needed, that requires Firebase Auth +
     server-enforced rules, not a client-side password.
   - The financial-year picker modal (`#fyModal`, triggered by
-    `downloadExcelBtn`) lives as a page-level sibling (not nested inside
-    either tab-panel div) specifically so it isn't hidden by `display:none`
-    when the Reports tab's panel is the one currently inactive.
-  - To change the Reports password, recompute a SHA-256 hex hash of the new
-    password and replace `REPORTS_PASSWORD_HASH` in the script.
+    `downloadExcelBtn`) lives as a page-level sibling (not nested inside any
+    tab-panel div) specifically so it isn't hidden by `display:none` when the
+    Reports tab's panel is the one currently inactive.
+  - To change the Reports/owner password, recompute a SHA-256 hex hash of the
+    new password and replace `REPORTS_PASSWORD_HASH` in `reports-dashboard.js`
+    (this same hash is reused for the owner-login step in auth.js).
+- **"Vendor Ledger"** (`#tabPanelLedger`, `app/js/vendor-ledger.js`) — bills
+  grouped by supplier instead of by day. A restaurant selector (all
+  restaurants, or one specific one) plus a Day/Month/Date-range period
+  toggle scope the view; each row shows bill count, amount, paid, unpaid,
+  and — only in "All restaurants" mode — which restaurants that vendor
+  supplied. A date range can span multiple month-bucket documents
+  (`monthsBetween()` computes every month key it touches and merges them).
+  Gated the same way as Reports (shares `reportsUnlocked()`/the same session
+  flag, not a second password).
+
+## Modify a bill (added 2026-08-05)
+Each ledger row has a **Modify** button (`ledger-ui.js` renders it,
+`reports-dashboard.js`'s `tableBody` click handler wires it). Only supplier,
+date, invoice, amount, and status are editable — **category/subcategory are
+never directly editable**, they always follow the selected supplier's saved
+default (same supplier-first rule as the quick-add form), shown as a
+read-only hint (`renderEditBillCatHint()`). Changing the date can move a bill
+into a different day, even a different month-bucket document
+(`moveEntryDate()` in data-store.js).
+
+Freely usable for **1 hour after `createdAt`** (`MODIFY_WINDOW_MS` in
+core.js); past that, a manager is prompted for the owner/Reports password via
+`modifyAuthModal` (a generic password gate taking a success callback, shared
+with the sales-unlock flow below) before the edit dialog opens. Editing
+doesn't reset `createdAt`, so an old bill needs the password again on every
+edit. An owner session skips this prompt entirely (see the login section
+above).
+
+**Sales entry follows the same rule.** A `rest:<id>:salesMeta:<YYYY-MM>` doc
+(separate from the sales value itself, so Excel export/dashboard readers are
+unaffected) tracks when each date's figure was first saved; past the 1-hour
+window the Save button becomes a "🔒 Unlock" prompt for a manager, and is
+never locked at all for an owner.
 
 ## Financial year convention
 Indian FY: **April → March**. See `fyStartYearForDate()`, `monthsForFY()`,
@@ -208,17 +289,18 @@ the month-bucketing change — this was calculated out in detail in chat if you
 need to reference the numbers again. No billing account is needed currently.
 
 ## Known limitations / deliberately deferred items
-- **No authentication / no per-restaurant access lock at the data layer.**
-  Firestore rules are fully open, and the Firebase config is now hardcoded into
+- **No access control at the data layer, despite the login screens.**
+  Firestore rules are fully open, and the Firebase config is hardcoded into
   the (public, deployed) HTML file — anyone with the URL can read/write all 6
-  restaurants' data directly via the network, regardless of the Reports-tab
-  password (that password only hides the *download buttons in the UI*, it does
-  not protect the underlying Firestore data). User explicitly chose this over
-  building real auth + restaurant-scoped security rules.
-- **The Reports-tab password is a UI deterrent, not real access control** — see
-  the "Two-tab structure" section above. A determined user can bypass it via
-  browser DevTools since everything (including the password hash) ships in the
-  client-side HTML.
+  restaurants' data directly via the network, regardless of profile/restaurant
+  passwords (those only gate the *UI*, not the underlying Firestore data).
+  Every password hash (owner + all 6 restaurants) ships in the client-side JS,
+  so a determined user can read them via browser DevTools. This was a
+  deliberate choice both times (Reports password originally, then the
+  profile/restaurant login layered on top) over building real auth +
+  restaurant-scoped security rules — the login system is a genuine UI/workflow
+  boundary between an owner, a restaurant's manager, and other restaurants'
+  managers, not a security control against a determined attacker.
 - **Linked Excel file only works in Chrome/Edge desktop** (File System Access
   API). Other browsers fall back to a plain download with an alert explaining
   why.

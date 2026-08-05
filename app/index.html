@@ -55,19 +55,49 @@ window.__firebaseSdkReady = (async ()=>{
   </div>
 </header>
 
-<div class="restaurant-gate" id="restaurantGate">
+<div class="restaurant-gate" id="profileGate">
+  <div class="restaurant-gate-box">
+    <h2>Who's logging in?</h2>
+    <p>Pick your role to continue.</p>
+    <div class="profile-choice-row">
+      <button type="button" class="profile-choice-btn" id="profileChooseOwner">Owner</button>
+      <button type="button" class="profile-choice-btn" id="profileChooseManager">Manager</button>
+    </div>
+  </div>
+</div>
+
+<div class="restaurant-gate" id="ownerLoginGate" style="display:none;">
+  <div class="restaurant-gate-box">
+    <h2>Owner login</h2>
+    <p>Enter the owner password to continue. This also unlocks Reports, Vendor Ledger, and every restaurant for this session — no other passwords will be asked.</p>
+    <label for="ownerLoginPasswordInput">Password</label>
+    <input type="password" id="ownerLoginPasswordInput" placeholder="Password">
+    <div class="modal-error" id="ownerLoginError">Incorrect password.</div>
+    <button type="button" id="ownerLoginBtn">Unlock</button>
+    <button type="button" class="gate-back-link" id="ownerLoginBack">‹ Back</button>
+  </div>
+</div>
+
+<div class="restaurant-gate" id="restaurantGate" style="display:none;">
   <div class="restaurant-gate-box">
     <h2>Select restaurant</h2>
     <p>Choose which restaurant you're working on, then continue. It stays locked in until you deliberately change it, so a stray tap can't send today's bills to the wrong restaurant.</p>
     <label for="restaurantSelect">Restaurant</label>
     <select id="restaurantSelect"></select>
+    <div id="restaurantPasswordField" style="display:none;">
+      <label for="restaurantPasswordInput">Password for this restaurant</label>
+      <input type="password" id="restaurantPasswordInput" placeholder="Password">
+      <div class="modal-error" id="restaurantPasswordError">Incorrect password for this restaurant.</div>
+    </div>
     <button type="button" id="restaurantConfirmBtn">Continue</button>
+    <button type="button" class="gate-back-link" id="restaurantGateBack">‹ Back</button>
   </div>
 </div>
 
 <div class="restaurant-context-bar" id="restaurantConfirmedBar" style="display:none;">
   <h2 class="restaurant-context-name" id="restaurantConfirmedName"></h2>
   <button type="button" class="restaurant-change-btn" id="restaurantChangeBtn">Change restaurant</button>
+  <button type="button" class="restaurant-change-btn" id="switchProfileBtn">Switch profile</button>
 </div>
 
 <div id="appTabsWrap" style="display:none;">
@@ -434,6 +464,7 @@ window.__firebaseSdkReady = (async ()=>{
 <script src="js/ledger-ui.js"></script>
 <script src="js/reports-dashboard.js"></script>
 <script src="js/vendor-ledger.js"></script>
+<script src="js/auth.js"></script>
 <script src="js/init.js"></script>
 </body>
 </html>

@@ -34,6 +34,19 @@ function restaurantLabel(id){
 let currentRestaurantId = getCurrentRestaurantId();
 function restPrefix(){ return "rest:" + currentRestaurantId + ":"; }
 
+// One password per restaurant — a manager only knows the password for their own
+// restaurant(s). Client-side SHA-256 compare, same soft-deterrent model as
+// REPORTS_PASSWORD_HASH (see auth.js and CONTEXT.md's security notes) — not real
+// access control, just a UI-level boundary between locations.
+const RESTAURANT_PASSWORD_HASH = {
+  "krishna-nigdi":   "fd1782e48deb8911c3fb137065038a5aa8e1bd4f97717f63c89d99329cb7527a",
+  "krishna-ravet":   "8df8aa769d24738c7ac2b3255706fb4e6e1d6d10cf81c8dc907f00a2dc550089",
+  "krishna-chikhli": "eb7edf9e07f7959d4be3253db3a770cb6c745510c755d74087214162833cfd36",
+  "savali":          "a49389c0e960243bb07a679032c1bd2777850aa7db7663da1d1bfc5b896d3316",
+  "malhaar":         "889fe9a11fde855aaaf2326ea6c8b397ee85745dd43dbd99bc6e8f3ead79e597",
+  "umami-la-delice": "97318b10fb613f4cc830bca4acf33dc296565f25addf97ba103ce3af3a560bb9"
+};
+
 // Every one of these keys is namespaced by the current restaurant, so switching
 // restaurants gives you a completely separate set of categories/suppliers/bills.
 // Suppliers and categories are shared across every restaurant — same vendor
@@ -163,6 +176,48 @@ function uid(){ return Date.now().toString(36) + Math.random().toString(36).slic
 // A bill stays freely modifiable for this long after it's added (no password) —
 // past it, modifying requires the admin (Reports-tab) password. Based on the
 // entry's original createdAt, not reset by edits, so re-editing an old bill
-// needs the password again each time.
+// needs the password again each time. The owner profile is exempt (see auth.js) —
+// once logged in as owner, no further passwords are asked anywhere in the app.
 const MODIFY_WINDOW_MS = 60 * 60 * 1000;
+function billWithinModifyWindow(entry){
+  return isOwnerProfile() || (Date.now() - entry.createdAt) < MODIFY_WINDOW_MS;
+}
+
+/* ---------- Login: profile (owner/manager) + per-restaurant session state ----------
+   Session-scoped (sessionStorage) to match the existing Reports-tab password's
+   behavior — closing the browser/tab requires logging in again. See auth.js for
+   the login screens and flow; these are just the storage primitives, kept here
+   alongside the other small state accessors (getCurrentRestaurantId etc). */
+const PROFILE_KEY = "profileType"; // 'owner' | 'manager'
+function getProfile(){
+  try{ return sessionStorage.getItem(PROFILE_KEY); }catch(e){ return null; }
+}
+function setProfile(p){
+  try{
+    if(p) sessionStorage.setItem(PROFILE_KEY, p);
+    else sessionStorage.removeItem(PROFILE_KEY);
+  }catch(e){}
+}
+function isOwnerProfile(){ return getProfile() === 'owner'; }
+
+const UNLOCKED_RESTAURANT_KEY = "unlockedRestaurantId"; // which restaurant a manager verified this session
+function getUnlockedRestaurantId(){
+  try{ return sessionStorage.getItem(UNLOCKED_RESTAURANT_KEY); }catch(e){ return null; }
+}
+function setUnlockedRestaurantId(id){
+  try{
+    if(id) sessionStorage.setItem(UNLOCKED_RESTAURANT_KEY, id);
+    else sessionStorage.removeItem(UNLOCKED_RESTAURANT_KEY);
+  }catch(e){}
+}
+// Whether `id` has actually been confirmed (clicked through the restaurant gate)
+// THIS session — true for both profiles once confirmed, but getting there only
+// requires a password for a manager. Deliberately does not short-circuit true
+// for isOwnerProfile() alone: the owner still goes through the picker once per
+// session (no password), same "prevents an accidental restaurant switch" safety
+// net the gate always had — just skipping straight to a stale localStorage
+// restaurant with no confirmation click would defeat that.
+function isRestaurantUnlockedForSession(id){
+  return getUnlockedRestaurantId() === id;
+}
 

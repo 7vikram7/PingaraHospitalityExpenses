@@ -10,16 +10,27 @@ Firebase Hosting.
 
 ## Features
 
+- **Login: Owner or Manager profile** — Owner enters one password and gets
+  every tab and every restaurant; Manager picks a restaurant and enters
+  *that restaurant's* password, and only ever sees the Add Expenses tab.
+  Session-scoped — closing the browser logs you out.
 - **Supplier-first bill entry** — pick a supplier, its category/subcategory
   auto-fills from a saved default
-- **Restaurant lock** — a manager confirms one restaurant before anything
-  else is editable, so a stray tap can't misattribute a bill to the wrong
-  restaurant
-- **Daily sales tracking** alongside purchases
-- **Reports tab** (password-gated): a spend dashboard (by restaurant, by
+- **Restaurant lock** — confirm one restaurant before anything else is
+  editable, so a stray tap can't misattribute a bill to the wrong restaurant
+- **Modify a bill** — freely editable for 1 hour after it's added; after
+  that, a Manager needs the owner password, an Owner never does. Category/
+  subcategory always follow the supplier's default and aren't directly
+  editable; the date can be changed, moving the bill to a different day.
+- **Daily sales tracking** alongside purchases, with the same 1-hour-then-
+  password rule once a day's figure has been saved
+- **Reports tab** (Owner only): a spend dashboard (by restaurant, by
   category, Yesterday/Month-to-date toggle) plus Excel/CSV export —
   including a live-linked `.xlsx` file (Chrome/Edge desktop only) and a
   full financial-year register (Apr–Mar, Indian FY convention)
+- **Vendor Ledger tab** (Owner only): bills grouped by supplier instead of
+  by day, across all restaurants or one, for a day, month, or custom date
+  range
 - **Offline-first**: every write lands in `localStorage` immediately and
   syncs to Firestore in the background, so a flaky connection never blocks
   data entry
@@ -68,8 +79,10 @@ app/
     excel-export.js         CSV/Excel export, live-linked spreadsheet sync
     data-store.js           safeGet/safeSet + category/supplier/bill/sales persistence
     suppliers-ui.js         supplier dropdown, Manage Suppliers modal
-    ledger-ui.js             ledger table/totals rendering, restaurant select + gate
+    ledger-ui.js             ledger table/totals rendering, restaurant select, Modify-bill dialog
     reports-dashboard.js     Reports tab password gate, tab switching, sales/expense charts
+    vendor-ledger.js         Vendor Ledger tab — per-supplier spend by restaurant/period
+    auth.js                  login: Owner/Manager profile choice, per-restaurant passwords
     init.js                  app bootstrap — loaded last, after every other module
 firebase.json               Hosting config + the predeploy sync step
 .firebaserc                 Firebase project id (vendor-bills)
@@ -95,9 +108,10 @@ running list of known limitations — see [`CONTEXT.md`](./CONTEXT.md).
   Anyone with the deployed URL can read/write all restaurants' data over the
   network. See `CONTEXT.md` for the reasoning and what a stricter setup
   would require.
-- **The Reports tab password is a UI deterrent, not access control.** It's
-  a client-side SHA-256 comparison in a static file with no backend — it
-  hides the download buttons from casual use, nothing more.
+- **Every password (owner, all 6 restaurants) is a UI deterrent, not access
+  control.** All client-side SHA-256 comparisons in a static file with no
+  backend — they gate what the UI shows, not what's reachable over the
+  network. See `CONTEXT.md`'s "Login" and "Known limitations" sections.
 - Real reports, exports, and any restaurant-specific data are intentionally
   **not** in this repo.
 

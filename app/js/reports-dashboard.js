@@ -665,8 +665,7 @@ document.getElementById('tableBody').addEventListener('click', async (ev)=>{
   } else if(action === 'modify'){
     const e = entries.find(x=>x.id === id);
     if(!e) return;
-    const withinModifyWindow = (Date.now() - e.createdAt) < MODIFY_WINDOW_MS;
-    if(withinModifyWindow) openEditBillModal(e);
+    if(billWithinModifyWindow(e)) openEditBillModal(e);
     else openModifyAuthModal(()=>openEditBillModal(e));
   } else if(action === 'delete'){
     if(btn.classList.contains('confirming')){

@@ -1,7 +1,7 @@
 /* ---------- Init ---------- */
 (async function init(){
   renderRestaurantSelect();
-  renderRestaurantGateState();
+  renderAuthGateState();
   renderFirebaseStatus("", false);
   await loadCategories();
   await loadSuppliers();

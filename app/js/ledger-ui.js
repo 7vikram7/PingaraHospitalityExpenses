@@ -10,7 +10,7 @@ function renderTable(){
   }
   sorted.forEach((e, i)=>{
     const tr = document.createElement('tr');
-    const withinModifyWindow = (Date.now() - e.createdAt) < MODIFY_WINDOW_MS;
+    const withinModifyWindow = billWithinModifyWindow(e);
     const modifyLabel = withinModifyWindow ? 'Modify' : '🔒 Modify';
     const modifyTitle = withinModifyWindow ? '' : ' title="Added more than an hour ago — admin password required"';
     tr.innerHTML = `
@@ -48,7 +48,7 @@ function renderTotals(){
 // bills. currentSalesSavedAt is null for legacy dates saved before this feature
 // existed, which is treated as "outside the window" (locked) rather than guessed at.
 function salesWithinModifyWindow(){
-  return currentSales === null || (!!currentSalesSavedAt && (Date.now() - currentSalesSavedAt) < MODIFY_WINDOW_MS);
+  return isOwnerProfile() || currentSales === null || (!!currentSalesSavedAt && (Date.now() - currentSalesSavedAt) < MODIFY_WINDOW_MS);
 }
 function updateSalesLockUI(){
   const input = document.getElementById('salesInput');
@@ -177,44 +177,20 @@ document.getElementById('restaurantSelect').addEventListener('change', (ev)=>{
 });
 
 /* ---------- Restaurant selection gate ----------
-   Shown before anything else (Add Expenses or Reports). Picking a restaurant
-   here is a deliberate, separate step from the rest of the UI — once
-   confirmed, the dropdown is hidden behind a "Change restaurant" button so a
-   manager mid-entry can't accidentally flip the dropdown and keep adding
-   bills against the wrong restaurant. */
-const RESTAURANT_CONFIRMED_KEY = "restaurantConfirmed";
-function isRestaurantConfirmed(){
-  try{ return localStorage.getItem(RESTAURANT_CONFIRMED_KEY) === '1'; }catch(e){ return false; }
-}
-function setRestaurantConfirmed(val){
-  try{
-    if(val) localStorage.setItem(RESTAURANT_CONFIRMED_KEY, '1');
-    else localStorage.removeItem(RESTAURANT_CONFIRMED_KEY);
-  }catch(e){}
-}
-function showRestaurantGate(){
-  document.getElementById('restaurantGate').style.display = 'flex';
-  document.getElementById('restaurantConfirmedBar').style.display = 'none';
-  document.getElementById('appTabsWrap').style.display = 'none';
-}
+   Shown once login (see auth.js) has confirmed the profile and, for a manager,
+   the restaurant's own password. Picking a restaurant here is a deliberate,
+   separate step from the rest of the UI — once confirmed, the dropdown is
+   hidden behind a "Change restaurant" button so a manager mid-entry can't
+   accidentally flip the dropdown and keep adding bills against the wrong
+   restaurant. */
 function showConfirmedRestaurant(){
+  document.getElementById('profileGate').style.display = 'none';
+  document.getElementById('ownerLoginGate').style.display = 'none';
   document.getElementById('restaurantGate').style.display = 'none';
   document.getElementById('restaurantConfirmedBar').style.display = 'flex';
   document.getElementById('restaurantConfirmedName').textContent = restaurantLabel(currentRestaurantId);
   document.getElementById('appTabsWrap').style.display = 'block';
 }
-function renderRestaurantGateState(){
-  if(isRestaurantConfirmed()) showConfirmedRestaurant();
-  else showRestaurantGate();
-}
-document.getElementById('restaurantConfirmBtn').addEventListener('click', ()=>{
-  setRestaurantConfirmed(true);
-  showConfirmedRestaurant();
-});
-document.getElementById('restaurantChangeBtn').addEventListener('click', ()=>{
-  setRestaurantConfirmed(false);
-  showRestaurantGate();
-});
 document.getElementById('saveSalesBtn').addEventListener('click', async ()=>{
   if(document.getElementById('salesInput').disabled){
     openModifyAuthModal(()=>{
