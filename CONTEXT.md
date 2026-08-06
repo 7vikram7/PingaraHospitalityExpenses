@@ -67,7 +67,11 @@ below (ledger, totals, sales) is scoped to whichever restaurant is selected.
     its category/subcategory auto-fill)
 - **Per-restaurant, per-month bucketed** (this is the current, optimized design):
   - Bills: key = `rest:<restaurantId>:bills:<YYYY-MM>` → JSON object
-    `{ "<date YYYY-MM-DD>": [ {id, category, subcategory, supplier, invoice, amount, status, createdAt}, ... ], ... }`
+    `{ "<date YYYY-MM-DD>": [ {id, category, subcategory, supplier, invoice, amount, status, paidAt, createdAt}, ... ], ... }`.
+    `paidAt` (added 2026-08-05) is a timestamp set whenever `status` becomes
+    `'paid'` (at creation if added already-paid, or via either toggle path
+    below) and cleared back to `null` on `'unpaid'` — not a history log, just
+    "when did this bill *most recently* become paid."
   - Sales: key = `rest:<restaurantId>:sales:<YYYY-MM>` → JSON object
     `{ "<date YYYY-MM-DD>": <number>, ... }`
 
@@ -182,6 +186,18 @@ Three tab panels, switched by `.tab-bar` buttons (`tabBtnExpenses` /
   (`monthsBetween()` computes every month key it touches and merges them).
   Gated the same way as Reports (shares `reportsUnlocked()`/the same session
   flag, not a second password).
+  - **Click a vendor row to expand it** (`vlExpandedVendors`, a Set of vendor
+    names, tracks which rows are open — persists across the re-render a
+    status toggle triggers, but is cleared whenever the restaurant/period
+    filter changes) into a nested per-bill table: date, restaurant (only in
+    "All restaurants" mode), invoice #, amount, a clickable paid/unpaid
+    `.badge` button, and the paid date. Toggling status here calls
+    `toggleBillStatusByLocation()` (data-store.js) rather than mutating the
+    `entries` array directly, since the bill may belong to a different
+    restaurant/date than whatever's currently active in the Add Expenses tab
+    — it reuses the month cache when it happens to be the same
+    restaurant+month, otherwise fetches fresh, and syncs the live `entries`
+    array too if it is the same day currently being viewed there.
 
 ## Modify a bill (added 2026-08-05)
 Each ledger row has a **Modify** button (`ledger-ui.js` renders it,

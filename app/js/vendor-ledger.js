@@ -86,7 +86,7 @@ async function computeVendorLedgerData(periodType, params, restaurantFilter){
     });
   }
 
-  const vendors = {}; // supplier name -> { amount, paid, unpaid, count, restaurantIds:Set }
+  const vendors = {}; // supplier name -> { amount, paid, unpaid, count, restaurantIds:Set, bills:[] }
   RESTAURANTS.forEach(r=>{
     if(restaurantFilter !== 'all' && restaurantFilter !== r.id) return;
     const billsData = billsAll[r.id] || {};
@@ -94,12 +94,16 @@ async function computeVendorLedgerData(periodType, params, restaurantFilter){
       if(!dateFilter(d)) return;
       (billsData[d] || []).forEach(e=>{
         const name = e.supplier || 'Unknown';
-        if(!vendors[name]) vendors[name] = { amount: 0, paid: 0, unpaid: 0, count: 0, restaurantIds: new Set() };
+        if(!vendors[name]) vendors[name] = { amount: 0, paid: 0, unpaid: 0, count: 0, restaurantIds: new Set(), bills: [] };
         const amt = Number(e.amount || 0);
         vendors[name].amount += amt;
         if(e.status === 'paid') vendors[name].paid += amt; else vendors[name].unpaid += amt;
         vendors[name].count += 1;
         vendors[name].restaurantIds.add(r.id);
+        vendors[name].bills.push({
+          id: e.id, date: d, restaurantId: r.id, invoice: e.invoice || '',
+          amount: amt, status: e.status, paidAt: e.paidAt || null, createdAt: e.createdAt || 0
+        });
       });
     });
   });
@@ -110,7 +114,8 @@ async function computeVendorLedgerData(periodType, params, restaurantFilter){
       name,
       category: (supplierDefaults[supplierKey(name)] || {}).category || '—',
       amount: v.amount, paid: v.paid, unpaid: v.unpaid, count: v.count,
-      restaurantIds: Array.from(v.restaurantIds)
+      restaurantIds: Array.from(v.restaurantIds),
+      bills: v.bills.sort((a,b)=> b.date === a.date ? (b.createdAt - a.createdAt) : (b.date < a.date ? -1 : 1))
     };
   }).sort((a,b)=>b.amount-a.amount);
 
@@ -123,7 +128,67 @@ async function computeVendorLedgerData(periodType, params, restaurantFilter){
   return { rows, totals };
 }
 
+// Which vendor names are currently expanded — persists across re-renders
+// triggered by a status toggle inside the expanded detail, but is cleared
+// whenever the restaurant/period filter changes (see the filter handlers below).
+let vlExpandedVendors = new Set();
+let vlLastRows = [];
+let vlLastShowRestCol = false;
+
+function buildVLDetailTable(row, showRestCol){
+  const scroll = document.createElement('div');
+  scroll.className = 'vl-detail-scroll';
+  const table = document.createElement('table');
+  table.className = 'vl-detail-table';
+  const thead = document.createElement('thead');
+  const headRow = document.createElement('tr');
+  headRow.innerHTML = '<th>Date</th>' + (showRestCol ? '<th>Restaurant</th>' : '') +
+    '<th>Invoice #</th><th class="num">Amount</th><th>Status</th><th>Paid on</th>';
+  thead.appendChild(headRow);
+
+  const tbody = document.createElement('tbody');
+  row.bills.forEach(b=>{
+    const tr = document.createElement('tr');
+    const tdDate = document.createElement('td'); tdDate.textContent = fmtDateLabel(b.date);
+    tr.appendChild(tdDate);
+    if(showRestCol){
+      const tdRest = document.createElement('td');
+      tdRest.textContent = restaurantLabel(b.restaurantId);
+      tdRest.className = 'subcat';
+      tr.appendChild(tdRest);
+    }
+    const tdInv = document.createElement('td'); tdInv.textContent = b.invoice || '—'; tdInv.className = 'subcat';
+    const tdAmt = document.createElement('td'); tdAmt.className = 'amount'; tdAmt.textContent = fmtMoney(b.amount);
+    tr.appendChild(tdInv); tr.appendChild(tdAmt);
+
+    const tdStatus = document.createElement('td');
+    const statusBtn = document.createElement('button');
+    statusBtn.type = 'button';
+    statusBtn.className = 'badge ' + b.status;
+    statusBtn.textContent = b.status;
+    statusBtn.addEventListener('click', async ()=>{
+      statusBtn.disabled = true;
+      await toggleBillStatusByLocation(b.restaurantId, b.date, b.id);
+      await renderVendorLedger();
+    });
+    tdStatus.appendChild(statusBtn);
+    tr.appendChild(tdStatus);
+
+    const tdPaidOn = document.createElement('td');
+    tdPaidOn.className = 'subcat';
+    tdPaidOn.textContent = b.paidAt ? fmtDateLabel(toDateStr(new Date(b.paidAt))) : '—';
+    tr.appendChild(tdPaidOn);
+
+    tbody.appendChild(tr);
+  });
+  table.appendChild(thead); table.appendChild(tbody);
+  scroll.appendChild(table);
+  return scroll;
+}
+
 function renderVLTable(rows, showRestCol){
+  vlLastRows = rows;
+  vlLastShowRestCol = showRestCol;
   const wrap = document.getElementById('vlTableWrap');
   wrap.innerHTML = "";
   const table = document.createElement('table');
@@ -136,9 +201,14 @@ function renderVLTable(rows, showRestCol){
 
   const tbody = document.createElement('tbody');
   rows.forEach(r=>{
+    const expanded = vlExpandedVendors.has(r.name);
     const tr = document.createElement('tr');
+    tr.className = 'vl-vendor-row';
+    tr.tabIndex = 0;
+
     const tdName = document.createElement('td');
-    tdName.textContent = r.name; tdName.className = 'supplier';
+    tdName.className = 'supplier';
+    tdName.innerHTML = `<span class="vl-expand-caret">${expanded ? '▾' : '▸'}</span>${escapeHtml(r.name)}`;
     const tdCat = document.createElement('td');
     tdCat.textContent = r.category; tdCat.className = 'subcat';
     tr.appendChild(tdName); tr.appendChild(tdCat);
@@ -153,7 +223,27 @@ function renderVLTable(rows, showRestCol){
     const tdPaid = document.createElement('td'); tdPaid.className = 'num'; tdPaid.textContent = fmtMoney(r.paid);
     const tdUnpaid = document.createElement('td'); tdUnpaid.className = 'num'; tdUnpaid.textContent = fmtMoney(r.unpaid);
     tr.appendChild(tdCount); tr.appendChild(tdAmt); tr.appendChild(tdPaid); tr.appendChild(tdUnpaid);
+
+    const toggleExpand = ()=>{
+      if(vlExpandedVendors.has(r.name)) vlExpandedVendors.delete(r.name);
+      else vlExpandedVendors.add(r.name);
+      renderVLTable(vlLastRows, vlLastShowRestCol);
+    };
+    tr.addEventListener('click', toggleExpand);
+    tr.addEventListener('keydown', (ev)=>{
+      if(ev.key === 'Enter' || ev.key === ' '){ ev.preventDefault(); toggleExpand(); }
+    });
     tbody.appendChild(tr);
+
+    if(expanded){
+      const detailTr = document.createElement('tr');
+      detailTr.className = 'vl-detail-row';
+      const detailTd = document.createElement('td');
+      detailTd.colSpan = showRestCol ? 7 : 6;
+      detailTd.appendChild(buildVLDetailTable(r, showRestCol));
+      detailTr.appendChild(detailTd);
+      tbody.appendChild(detailTr);
+    }
   });
   table.appendChild(thead); table.appendChild(tbody);
   wrap.appendChild(table);
@@ -201,6 +291,7 @@ async function renderVendorLedger(){
 
 document.getElementById('vlRestaurantSelect').addEventListener('change', (ev)=>{
   vlRestaurantFilter = ev.target.value;
+  vlExpandedVendors.clear();
   renderVendorLedger();
 });
 
@@ -212,6 +303,7 @@ const VL_PERIOD_FIELDS = {
 };
 function setVLPeriodType(type){
   vlPeriodType = type;
+  vlExpandedVendors.clear();
   Object.keys(VL_PERIOD_BTNS).forEach(key=>{
     document.getElementById(VL_PERIOD_BTNS[key]).classList.toggle('active', key === type);
   });
@@ -226,14 +318,14 @@ document.getElementById('vlPeriodMonth').addEventListener('click', ()=>setVLPeri
 document.getElementById('vlPeriodRange').addEventListener('click', ()=>setVLPeriodType('range'));
 
 document.getElementById('vlDatePicker').addEventListener('change', (ev)=>{
-  if(ev.target.value){ vlSelectedDate = ev.target.value; renderVendorLedger(); }
+  if(ev.target.value){ vlSelectedDate = ev.target.value; vlExpandedVendors.clear(); renderVendorLedger(); }
 });
 document.getElementById('vlMonthPicker').addEventListener('change', (ev)=>{
-  if(ev.target.value){ vlSelectedMonth = ev.target.value; renderVendorLedger(); }
+  if(ev.target.value){ vlSelectedMonth = ev.target.value; vlExpandedVendors.clear(); renderVendorLedger(); }
 });
 document.getElementById('vlRangeFromPicker').addEventListener('change', (ev)=>{
-  if(ev.target.value){ vlRangeFrom = ev.target.value; renderVendorLedger(); }
+  if(ev.target.value){ vlRangeFrom = ev.target.value; vlExpandedVendors.clear(); renderVendorLedger(); }
 });
 document.getElementById('vlRangeToPicker').addEventListener('change', (ev)=>{
-  if(ev.target.value){ vlRangeTo = ev.target.value; renderVendorLedger(); }
+  if(ev.target.value){ vlRangeTo = ev.target.value; vlExpandedVendors.clear(); renderVendorLedger(); }
 });

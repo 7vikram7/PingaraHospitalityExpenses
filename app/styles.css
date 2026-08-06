@@ -1200,6 +1200,33 @@ main{padding:24px 28px 60px;max-width:1400px;margin:0 auto;}
   border-radius:6px;
   overflow:hidden;
 }
+
+/* ---------- Vendor Ledger: expandable per-vendor bill detail ---------- */
+.vl-vendor-row{cursor:pointer;}
+.vl-vendor-row:focus-visible{outline:2px solid var(--brass);outline-offset:-2px;}
+.vl-expand-caret{
+  display:inline-block;
+  width:14px;
+  color:var(--brass);
+  font-weight:700;
+}
+.vl-detail-row td{
+  padding:14px 16px 18px 40px;
+  background:var(--paper-dark);
+  cursor:default;
+}
+.vl-detail-scroll{max-height:320px;overflow-y:auto;}
+.vl-detail-table{
+  width:100%;
+  border-collapse:collapse;
+  font-size:12.5px;
+  background:#fff;
+  border:1.5px solid var(--paper-line);
+  border-radius:4px;
+  overflow:hidden;
+}
+.vl-detail-table thead th{padding:7px 10px;font-size:10px;}
+.vl-detail-table tbody td{padding:7px 10px;}
 table{
   width:100%;
   border-collapse:collapse;

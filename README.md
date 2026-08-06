@@ -30,7 +30,9 @@ Firebase Hosting.
   full financial-year register (Apr–Mar, Indian FY convention)
 - **Vendor Ledger tab** (Owner only): bills grouped by supplier instead of
   by day, across all restaurants or one, for a day, month, or custom date
-  range
+  range. Click a vendor to expand its individual bills (date, invoice #,
+  amount, paid/unpaid) and flip paid status right there, with the paid
+  date recorded alongside it
 - **Offline-first**: every write lands in `localStorage` immediately and
   syncs to Firestore in the background, so a flaky connection never blocks
   data entry

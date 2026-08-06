@@ -634,6 +634,7 @@ document.getElementById('quickAddForm').addEventListener('submit', async (ev)=>{
     invoice: invoice,
     amount: amount,
     status: status,
+    paidAt: status === 'paid' ? Date.now() : null,
     createdAt: Date.now()
   };
   entries.push(entry);
@@ -658,6 +659,7 @@ document.getElementById('tableBody').addEventListener('click', async (ev)=>{
     const e = entries.find(x=>x.id === id);
     if(e){
       e.status = e.status === 'paid' ? 'unpaid' : 'paid';
+      e.paidAt = e.status === 'paid' ? Date.now() : null;
       await saveEntries();
       renderTable();
       renderTotals();
