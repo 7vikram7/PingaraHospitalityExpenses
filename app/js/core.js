@@ -14,7 +14,8 @@ const RESTAURANTS = [
   { id: "krishna-chikhli",   label: "Krishna Veg (Chikhli)" },
   { id: "savali",            label: "Savali" },
   { id: "malhaar",           label: "Malhaar" },
-  { id: "umami-la-delice",   label: "Umami La Delice" }
+  { id: "umami-la-delice",   label: "Umami La Delice" },
+  { id: "central-kitchen",   label: "Central Kitchen" }
 ];
 const CURRENT_RESTAURANT_KEY = "currentRestaurantId"; // NOT namespaced — this is global, just remembers your last pick
 function getCurrentRestaurantId(){
@@ -44,7 +45,8 @@ const RESTAURANT_PASSWORD_HASH = {
   "krishna-chikhli": "eb7edf9e07f7959d4be3253db3a770cb6c745510c755d74087214162833cfd36",
   "savali":          "a49389c0e960243bb07a679032c1bd2777850aa7db7663da1d1bfc5b896d3316",
   "malhaar":         "889fe9a11fde855aaaf2326ea6c8b397ee85745dd43dbd99bc6e8f3ead79e597",
-  "umami-la-delice": "97318b10fb613f4cc830bca4acf33dc296565f25addf97ba103ce3af3a560bb9"
+  "umami-la-delice": "97318b10fb613f4cc830bca4acf33dc296565f25addf97ba103ce3af3a560bb9",
+  "central-kitchen": "e43fc89bc3650189d3cdc36f544c91939cb50c43b4cea04b5f228a699ddb156d"
 };
 
 // Every one of these keys is namespaced by the current restaurant, so switching

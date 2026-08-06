@@ -2,8 +2,8 @@
 
 ## What this is
 A static HTML/CSS/JS web app (`app/`, see "File location" below) used to track
-daily vendor bills (expenses) across 6 restaurants, log daily sales, and
-generate Excel/CSV reports. No build step, no backend server — plain files
+daily vendor bills (expenses) across 7 restaurants/locations, log daily sales,
+and generate Excel/CSV reports. No build step, no backend server — plain files
 that talk directly to Firebase Firestore from the browser.
 
 ## Restaurants (hardcoded list, in the `RESTAURANTS` const near the top of the script)
@@ -15,6 +15,13 @@ that talk directly to Firebase Firestore from the browser.
 | savali | Savali |
 | malhaar | Malhaar |
 | umami-la-delice | Umami La Delice |
+| central-kitchen | Central Kitchen (added 2026-08-06) |
+
+Adding a restaurant is just two entries: one in `RESTAURANTS` (core.js) and
+one hash in `RESTAURANT_PASSWORD_HASH` (same file, see the Login section
+below) — everything else (dropdowns, Vendor Ledger's "All restaurants"
+aggregation, the Reports dashboard, per-month Firestore bucketing) is driven
+off `RESTAURANTS` with no other hardcoded list anywhere in the app.
 
 A dropdown at the top of the page switches the "active" restaurant; everything
 below (ledger, totals, sales) is scoped to whichever restaurant is selected.
@@ -299,16 +306,18 @@ bill, all-time, columns Date/Category/Subcategory/Supplier/Invoice/Amount/Status
 Unaffected by the above — kept as a basic detail-level backup format.
 
 ## Firestore usage / cost (context, not action items)
-At the stated usage (20 entries/day/restaurant × 5-6 restaurants, ~10
+At the stated usage (20 entries/day/restaurant × 7 restaurants, ~10
 reports/day), this stays comfortably within Firebase's free Spark tier (50k
 reads/day, 20k writes/day) even after several years of accumulated data post
 the month-bucketing change — this was calculated out in detail in chat if you
-need to reference the numbers again. No billing account is needed currently.
+need to reference the numbers again (margin was large enough that going from
+5-6 to 7 restaurants doesn't meaningfully change the conclusion). No billing
+account is needed currently.
 
 ## Known limitations / deliberately deferred items
 - **No access control at the data layer, despite the login screens.**
   Firestore rules are fully open, and the Firebase config is hardcoded into
-  the (public, deployed) HTML file — anyone with the URL can read/write all 6
+  the (public, deployed) HTML file — anyone with the URL can read/write all 7
   restaurants' data directly via the network, regardless of profile/restaurant
   passwords (those only gate the *UI*, not the underlying Firestore data).
   Every password hash (owner + all 6 restaurants) ships in the client-side JS,

@@ -110,7 +110,7 @@ running list of known limitations — see [`CONTEXT.md`](./CONTEXT.md).
   Anyone with the deployed URL can read/write all restaurants' data over the
   network. See `CONTEXT.md` for the reasoning and what a stricter setup
   would require.
-- **Every password (owner, all 6 restaurants) is a UI deterrent, not access
+- **Every password (owner, all 7 restaurants) is a UI deterrent, not access
   control.** All client-side SHA-256 comparisons in a static file with no
   backend — they gate what the UI shows, not what's reachable over the
   network. See `CONTEXT.md`'s "Login" and "Known limitations" sections.
