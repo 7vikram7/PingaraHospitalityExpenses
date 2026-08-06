@@ -143,14 +143,15 @@ function renderAll(){
   document.getElementById('datePick').value = currentDate;
 }
 function renderRestaurantSelect(){
-  const sel = document.getElementById('restaurantSelect');
-  sel.innerHTML = "";
-  RESTAURANTS.forEach(r=>{
-    const opt = document.createElement('option');
-    opt.value = r.id; opt.textContent = r.label;
-    sel.appendChild(opt);
+  [document.getElementById('restaurantSelect'), document.getElementById('expensesRestaurantSelect')].forEach(sel=>{
+    sel.innerHTML = "";
+    RESTAURANTS.forEach(r=>{
+      const opt = document.createElement('option');
+      opt.value = r.id; opt.textContent = r.label;
+      sel.appendChild(opt);
+    });
+    sel.value = currentRestaurantId;
   });
-  sel.value = currentRestaurantId;
   updateSyncBtnLabel();
 }
 function updateSyncBtnLabel(){
@@ -163,6 +164,10 @@ async function switchRestaurant(newId){
   setCurrentRestaurantId(newId);
   fileHandle = fileHandles[currentRestaurantId] || null;
   renderRestaurantSelect();
+  // Keep the top bar's name in sync even when this is triggered directly from
+  // the owner's in-toolbar selector (no restaurant-gate re-confirm in between
+  // to refresh it, unlike the manager's "Change restaurant" flow).
+  document.getElementById('restaurantConfirmedName').textContent = restaurantLabel(currentRestaurantId);
   await loadCategories();
   await loadSuppliers();
   await loadSupplierDefaults();
@@ -173,6 +178,9 @@ async function switchRestaurant(newId){
 
 /* ---------- Events ---------- */
 document.getElementById('restaurantSelect').addEventListener('change', (ev)=>{
+  switchRestaurant(ev.target.value);
+});
+document.getElementById('expensesRestaurantSelect').addEventListener('change', (ev)=>{
   switchRestaurant(ev.target.value);
 });
 

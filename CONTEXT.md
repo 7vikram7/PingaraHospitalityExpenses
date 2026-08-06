@@ -120,22 +120,42 @@ Screens (all in `index.html`, siblings before `#appTabsWrap`):
    Success sets `sessionStorage.profileType = 'owner'` and *also* sets the
    Reports tab's own unlock flag (`reportsUnlockedSession`), so Reports and
    Vendor Ledger open with no further prompt.
-3. **`#restaurantGate`** (existing screen, extended) — pick a restaurant, then
-   Continue. For a **Manager**, a password field appears and is checked
-   against `RESTAURANT_PASSWORD_HASH[restaurantId]` in `core.js` (one hash per
+3. **`#restaurantGate`** — pick a restaurant, then Continue. **Manager only**
+   as of 2026-08-06 — a password field appears and is checked against
+   `RESTAURANT_PASSWORD_HASH[restaurantId]` in `core.js` (one hash per
    restaurant — a manager only knows their own restaurant's password, so this
    is a practical boundary between locations even though Firestore itself
-   doesn't enforce it). For an **Owner**, no password field — Continue alone
-   confirms, for *any* restaurant. Either way, confirming sets
-   `sessionStorage.unlockedRestaurantId` to that restaurant, which is what
-   `isRestaurantUnlockedForSession()` (core.js) checks on every reload to
-   decide whether to show the gate again or go straight to the app —
-   deliberately **not** short-circuited by owner status alone, so the owner
-   still clicks through this step once per session too (same "prevents an
-   accidental restaurant switch" purpose the gate always had).
-4. Main app — `restaurantConfirmedBar` gets a second button, **"Switch
-   profile"**, alongside the existing "Change restaurant" — clears both
-   session flags and returns to `#profileGate`.
+   doesn't enforce it). Confirming sets `sessionStorage.unlockedRestaurantId`
+   to that restaurant, which `isRestaurantUnlockedForSession()` (core.js)
+   checks on every reload to decide whether to show the gate again.
+   **An Owner never sees this screen at all** — `ownerLoginBtn`'s success
+   handler calls `showConfirmedRestaurant()` directly, and
+   `isRestaurantUnlockedForSession()` short-circuits true for
+   `isOwnerProfile()` regardless of which restaurant, so the gate is skipped
+   both on login and on every later reload. (Originally the owner *did* click
+   through this screen once per session, password-free, as a leftover
+   "prevents an accidental restaurant switch" step — changed on explicit
+   request since the owner instead gets a restaurant selector directly in the
+   Add Expenses toolbar, see below.)
+4. Main app — `restaurantConfirmedBar` shows the current restaurant name plus
+   **"Switch profile"** (clears both session flags, returns to
+   `#profileGate`) for both profiles, and **"Change restaurant"** (re-shows
+   the gate) for a **Manager only** — hidden for an Owner, since re-showing a
+   gate the owner never goes through wouldn't do anything useful.
+   `updateTabVisibilityForProfile()` (auth.js) toggles both buttons plus the
+   Add Expenses toolbar's `#expensesRestaurantControl` (owner-only) between
+   profiles.
+
+**Add Expenses toolbar restaurant selector (added 2026-08-06,
+`#expensesRestaurantSelect`)** — owner-only (same `updateTabVisibilityForProfile()`
+toggle), populated by the same `renderRestaurantSelect()` (ledger-ui.js) that
+already populates the gate's own `#restaurantSelect`, so both stay in sync.
+On change it calls the existing `switchRestaurant(id)` — no new
+restaurant-switching logic, just a second entry point into it, matching how
+Reports/Vendor Ledger each already have their own independent restaurant
+selector. `switchRestaurant()` now also updates `#restaurantConfirmedName`'s
+text directly, since this path (unlike the old gate-confirm flow) doesn't
+pass back through `showConfirmedRestaurant()` to refresh it.
 
 **Tab visibility by profile** (`updateTabVisibilityForProfile()` in
 auth.js): a Manager only ever sees the "Add Expenses" tab button — Reports
@@ -156,10 +176,13 @@ as-is.
 ## Ledger added 2026-08-05)
 Three tab panels, switched by `.tab-bar` buttons (`tabBtnExpenses` /
 `tabBtnReports` / `tabBtnLedger`) via `switchTab()` in reports-dashboard.js:
-- **"Add Expenses"** (`#tabPanelExpenses`, default/active tab) — restaurant
-  selector (shared above all tabs, in `.restaurant-context-bar`), date nav,
-  history panel, LED totals, sales input, the supplier-first quick-add form,
-  and the ledger table. The only tab a Manager profile ever sees.
+- **"Add Expenses"** (`#tabPanelExpenses`, default/active tab) — a
+  restaurant control (Manager: name-only, in `.restaurant-context-bar` above
+  all tabs, "Change restaurant" re-triggers the password gate; Owner: an
+  actual `#expensesRestaurantSelect` dropdown in the toolbar itself, see the
+  Login section above), date nav, history panel, LED totals, sales input,
+  the supplier-first quick-add form, and the ledger table. The only tab a
+  Manager profile ever sees.
 - **"Reports"** (`#tabPanelReports`) — the sales-vs-expenses dashboard plus
   everything for generating/exporting Excel or CSV: `syncBtn` (Link Excel
   file), `downloadCsvBtn`, `downloadExcelBtn`, and `saveSpreadsheetBtn` (Save

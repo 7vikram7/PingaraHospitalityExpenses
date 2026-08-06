@@ -5,8 +5,13 @@
    every other password in this app (see CONTEXT.md): client-side only, not real
    access control, just a UI-level boundary.
 
-   Flow: profileGate -> (Owner: ownerLoginGate -> restaurantGate w/o password)
-                      -> (Manager: restaurantGate w/ per-restaurant password)
+   Flow: profileGate -> (Owner: ownerLoginGate -> straight to the app, no
+                          restaurant gate at all — the owner gets a restaurant
+                          selector directly in the Add Expenses toolbar instead,
+                          same pattern as Reports/Vendor Ledger's own selectors)
+                      -> (Manager: restaurantGate w/ per-restaurant password,
+                          still required — that's a real boundary between
+                          restaurants' managers, not just a UX step)
                       -> restaurantConfirmedBar + appTabsWrap
    "Switch profile" (in the confirmed bar) and "Back" (on each gate screen) reset
    session state and return to profileGate. */
@@ -39,11 +44,17 @@ function showRestaurantGateStep(){
 
 // Only the owner profile gets every tab; a manager sees Add Expenses only. If a
 // manager is somehow left on a hidden tab (shouldn't happen via normal clicks,
-// since the buttons themselves are hidden), fall back to Add Expenses.
+// since the buttons themselves are hidden), fall back to Add Expenses. Also
+// toggles the two restaurant-switching affordances between profiles: an owner
+// gets the in-toolbar selector (no gate, no password) instead of "Change
+// restaurant" (which re-triggers the gate — meaningless for an owner who
+// never goes through it).
 function updateTabVisibilityForProfile(){
   const owner = isOwnerProfile();
   document.getElementById('tabBtnReports').style.display = owner ? '' : 'none';
   document.getElementById('tabBtnLedger').style.display = owner ? '' : 'none';
+  document.getElementById('expensesRestaurantControl').style.display = owner ? 'flex' : 'none';
+  document.getElementById('restaurantChangeBtn').style.display = owner ? 'none' : '';
   if(!owner){
     const activePanel = document.querySelector('.tab-panel.active');
     if(activePanel && activePanel.id !== 'tabPanelExpenses' && typeof switchTab === 'function'){
@@ -83,7 +94,10 @@ document.getElementById('ownerLoginBtn').addEventListener('click', async ()=>{
     // "once the owner logs in, no other passwords are required" applies there too.
     try{ sessionStorage.setItem(REPORTS_UNLOCK_KEY, '1'); }catch(e){}
     updateTabVisibilityForProfile();
-    showRestaurantGateStep();
+    // No restaurant gate for the owner — straight into the app. Whichever
+    // restaurant was last active (or the default) is already selected; the
+    // owner can switch it via the Add Expenses toolbar's own selector.
+    showConfirmedRestaurant();
   } else {
     errEl.classList.add('show');
   }

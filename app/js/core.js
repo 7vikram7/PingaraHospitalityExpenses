@@ -212,14 +212,13 @@ function setUnlockedRestaurantId(id){
     else sessionStorage.removeItem(UNLOCKED_RESTAURANT_KEY);
   }catch(e){}
 }
-// Whether `id` has actually been confirmed (clicked through the restaurant gate)
-// THIS session — true for both profiles once confirmed, but getting there only
-// requires a password for a manager. Deliberately does not short-circuit true
-// for isOwnerProfile() alone: the owner still goes through the picker once per
-// session (no password), same "prevents an accidental restaurant switch" safety
-// net the gate always had — just skipping straight to a stale localStorage
-// restaurant with no confirmation click would defeat that.
+// Whether `id` is usable without going through the restaurant gate. An owner
+// never needs the gate at all (2026-08-06: owner skips restaurant selection
+// entirely at login — see auth.js — and instead gets a restaurant selector
+// directly in the Add Expenses toolbar, matching how Reports/Vendor Ledger
+// already have their own independent selectors). A manager still needs to
+// have confirmed `id` specifically THIS session, via its password.
 function isRestaurantUnlockedForSession(id){
-  return getUnlockedRestaurantId() === id;
+  return isOwnerProfile() || getUnlockedRestaurantId() === id;
 }
 
