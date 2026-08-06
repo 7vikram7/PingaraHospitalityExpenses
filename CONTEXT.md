@@ -186,10 +186,11 @@ Three tab panels, switched by `.tab-bar` buttons (`tabBtnExpenses` /
   (`monthsBetween()` computes every month key it touches and merges them).
   Gated the same way as Reports (shares `reportsUnlocked()`/the same session
   flag, not a second password).
-  - **Click a vendor row to expand it** (`vlExpandedVendors`, a Set of vendor
-    names, tracks which rows are open — persists across the re-render a
-    status toggle triggers, but is cleared whenever the restaurant/period
-    filter changes) into a nested per-bill table: date, restaurant (only in
+  - **Click a vendor row to expand it** (`vlExpandedVendor` holds at most one
+    vendor name — an accordion, expanding a new vendor closes whichever was
+    open. Persists across the re-render a status toggle triggers, but is
+    cleared whenever the restaurant/period filter changes) into a nested
+    per-bill table: date, restaurant (only in
     "All restaurants" mode), invoice #, amount, a clickable paid/unpaid
     `.badge` button, and the paid date. Toggling status here calls
     `toggleBillStatusByLocation()` (data-store.js) rather than mutating the

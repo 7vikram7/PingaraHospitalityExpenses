@@ -128,10 +128,11 @@ async function computeVendorLedgerData(periodType, params, restaurantFilter){
   return { rows, totals };
 }
 
-// Which vendor names are currently expanded — persists across re-renders
-// triggered by a status toggle inside the expanded detail, but is cleared
-// whenever the restaurant/period filter changes (see the filter handlers below).
-let vlExpandedVendors = new Set();
+// Accordion: at most one vendor's detail open at a time — expanding a new one
+// closes whichever was open. Persists across re-renders triggered by a status
+// toggle inside the expanded detail, but is cleared whenever the restaurant/
+// period filter changes (see the filter handlers below).
+let vlExpandedVendor = null;
 let vlLastRows = [];
 let vlLastShowRestCol = false;
 
@@ -201,7 +202,7 @@ function renderVLTable(rows, showRestCol){
 
   const tbody = document.createElement('tbody');
   rows.forEach(r=>{
-    const expanded = vlExpandedVendors.has(r.name);
+    const expanded = vlExpandedVendor === r.name;
     const tr = document.createElement('tr');
     tr.className = 'vl-vendor-row';
     tr.tabIndex = 0;
@@ -225,8 +226,7 @@ function renderVLTable(rows, showRestCol){
     tr.appendChild(tdCount); tr.appendChild(tdAmt); tr.appendChild(tdPaid); tr.appendChild(tdUnpaid);
 
     const toggleExpand = ()=>{
-      if(vlExpandedVendors.has(r.name)) vlExpandedVendors.delete(r.name);
-      else vlExpandedVendors.add(r.name);
+      vlExpandedVendor = (vlExpandedVendor === r.name) ? null : r.name;
       renderVLTable(vlLastRows, vlLastShowRestCol);
     };
     tr.addEventListener('click', toggleExpand);
@@ -291,7 +291,7 @@ async function renderVendorLedger(){
 
 document.getElementById('vlRestaurantSelect').addEventListener('change', (ev)=>{
   vlRestaurantFilter = ev.target.value;
-  vlExpandedVendors.clear();
+  vlExpandedVendor = null;
   renderVendorLedger();
 });
 
@@ -303,7 +303,7 @@ const VL_PERIOD_FIELDS = {
 };
 function setVLPeriodType(type){
   vlPeriodType = type;
-  vlExpandedVendors.clear();
+  vlExpandedVendor = null;
   Object.keys(VL_PERIOD_BTNS).forEach(key=>{
     document.getElementById(VL_PERIOD_BTNS[key]).classList.toggle('active', key === type);
   });
@@ -318,14 +318,14 @@ document.getElementById('vlPeriodMonth').addEventListener('click', ()=>setVLPeri
 document.getElementById('vlPeriodRange').addEventListener('click', ()=>setVLPeriodType('range'));
 
 document.getElementById('vlDatePicker').addEventListener('change', (ev)=>{
-  if(ev.target.value){ vlSelectedDate = ev.target.value; vlExpandedVendors.clear(); renderVendorLedger(); }
+  if(ev.target.value){ vlSelectedDate = ev.target.value; vlExpandedVendor = null; renderVendorLedger(); }
 });
 document.getElementById('vlMonthPicker').addEventListener('change', (ev)=>{
-  if(ev.target.value){ vlSelectedMonth = ev.target.value; vlExpandedVendors.clear(); renderVendorLedger(); }
+  if(ev.target.value){ vlSelectedMonth = ev.target.value; vlExpandedVendor = null; renderVendorLedger(); }
 });
 document.getElementById('vlRangeFromPicker').addEventListener('change', (ev)=>{
-  if(ev.target.value){ vlRangeFrom = ev.target.value; vlExpandedVendors.clear(); renderVendorLedger(); }
+  if(ev.target.value){ vlRangeFrom = ev.target.value; vlExpandedVendor = null; renderVendorLedger(); }
 });
 document.getElementById('vlRangeToPicker').addEventListener('change', (ev)=>{
-  if(ev.target.value){ vlRangeTo = ev.target.value; vlExpandedVendors.clear(); renderVendorLedger(); }
+  if(ev.target.value){ vlRangeTo = ev.target.value; vlExpandedVendor = null; renderVendorLedger(); }
 });
