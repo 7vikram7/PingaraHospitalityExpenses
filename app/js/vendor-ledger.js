@@ -285,8 +285,13 @@ async function renderVendorLedger(){
     renderVLTable(rows, vlRestaurantFilter === 'all');
   }catch(e){
     console.error('vendor ledger render failed', e);
+  }finally{
+    // Must run even on the "no bills for this scope" early return above (or a
+    // thrown error) -- .dash-loading sets pointer-events:none on the whole
+    // panel, which would otherwise permanently disable the restaurant
+    // selector and period toggles the moment a scope has zero bills.
+    panel.classList.remove('dash-loading');
   }
-  panel.classList.remove('dash-loading');
 }
 
 document.getElementById('vlRestaurantSelect').addEventListener('change', (ev)=>{
