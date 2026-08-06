@@ -13,7 +13,10 @@ function showReportsPanel(){
   const unlocked = reportsUnlocked();
   document.getElementById('reportsLock').style.display = unlocked ? 'none' : 'block';
   document.getElementById('reportsContent').style.display = unlocked ? 'block' : 'none';
-  if(unlocked) renderDashboard();
+  if(unlocked){
+    renderDashRestaurantSelect();
+    renderDashboard();
+  }
 }
 document.getElementById('reportsUnlockBtn').addEventListener('click', async ()=>{
   const input = document.getElementById('reportsPasswordInput');
@@ -99,8 +102,22 @@ const CATEGORY_COLOR_SLOTS = ["#2a78d6","#eb6834","#1baf7a","#eda100","#e87ba4",
 const PROFIT_COLOR = '#565f4c'; // var(--ink-soft) — neutral, reserved, not a categorical slot
 let dashTooltipEl = null;
 let dashChartType = 'bar';   // 'bar' | 'pie'
-let dashPeriodType = 'day';  // 'day' | 'month'
+let dashPeriodType = 'day';  // 'day' | 'month' | 'range'
 let dashSelectedDate, dashSelectedMonth; // set from init(), after todayStr()/addDaysStr() exist
+let dashRangeFrom, dashRangeTo;
+let dashRestaurantFilter = 'all'; // 'all' or a restaurant id
+
+function renderDashRestaurantSelect(){
+  const sel = document.getElementById('dashRestaurantSelect');
+  const prev = sel.value || dashRestaurantFilter;
+  sel.innerHTML = '<option value="all">All restaurants</option>';
+  RESTAURANTS.forEach(r=>{
+    const opt = document.createElement('option');
+    opt.value = r.id; opt.textContent = r.label;
+    sel.appendChild(opt);
+  });
+  sel.value = prev;
+}
 
 function restaurantBillsKeyFor(restaurantId, monthKey){
   return "rest:" + restaurantId + ":bills:" + monthKey;
@@ -134,16 +151,42 @@ function addDaysStr(dateStr, delta){
   return toDateStr(d);
 }
 
-async function computeSalesExpenseData(periodType, dateOrMonth){
-  const monthKey = periodType === 'day' ? dateOrMonth.slice(0,7) : dateOrMonth;
-  const dateFilter = periodType === 'day' ? (d)=> d === dateOrMonth : ()=> true;
-  const [salesAll, billsAll] = await Promise.all([
-    fetchAllRestaurantsSalesForMonth(monthKey),
-    fetchAllRestaurantsBillsForMonth(monthKey)
-  ]);
+// params is {date}, {month}, or {from,to} depending on periodType — mirrors
+// computeVendorLedgerData (vendor-ledger.js), including reusing its
+// monthsBetween() helper for the range case (a range can span multiple
+// month-bucket documents per restaurant).
+async function computeSalesExpenseData(periodType, params, restaurantFilter){
+  let monthKeys, dateFilter;
+  if(periodType === 'day'){
+    monthKeys = [params.date.slice(0,7)];
+    dateFilter = (d)=> d === params.date;
+  } else if(periodType === 'range'){
+    const from = params.from <= params.to ? params.from : params.to;
+    const to = params.from <= params.to ? params.to : params.from;
+    monthKeys = monthsBetween(from, to);
+    dateFilter = (d)=> d >= from && d <= to;
+  } else {
+    monthKeys = [params.month];
+    dateFilter = ()=> true;
+  }
+
+  const salesAll = {}, billsAll = {};
+  for(const mk of monthKeys){
+    const [salesForMonth, billsForMonth] = await Promise.all([
+      fetchAllRestaurantsSalesForMonth(mk),
+      fetchAllRestaurantsBillsForMonth(mk)
+    ]);
+    RESTAURANTS.forEach(r=>{
+      if(!salesAll[r.id]) salesAll[r.id] = {};
+      if(!billsAll[r.id]) billsAll[r.id] = {};
+      Object.assign(salesAll[r.id], salesForMonth[r.id] || {});
+      Object.assign(billsAll[r.id], billsForMonth[r.id] || {});
+    });
+  }
 
   const restaurants = [];
   RESTAURANTS.forEach(r=>{
+    if(restaurantFilter && restaurantFilter !== 'all' && restaurantFilter !== r.id) return;
     const salesData = salesAll[r.id] || {};
     const salesDays = Object.keys(salesData).filter(dateFilter);
     if(salesDays.length === 0) return; // no sales entered for this period — fully excluded
@@ -434,14 +477,20 @@ function renderDashTable(restaurants){
 async function renderDashboard(){
   if(dashSelectedDate === undefined) dashSelectedDate = addDaysStr(todayStr(), -1);
   if(dashSelectedMonth === undefined) dashSelectedMonth = todayStr().slice(0,7);
+  if(dashRangeFrom === undefined) dashRangeFrom = todayStr().slice(0,8) + '01'; // 1st of this month
+  if(dashRangeTo === undefined) dashRangeTo = todayStr();
   document.getElementById('dashDatePicker').value = dashSelectedDate;
   document.getElementById('dashMonthPicker').value = dashSelectedMonth;
+  document.getElementById('dashRangeFromPicker').value = dashRangeFrom;
+  document.getElementById('dashRangeToPicker').value = dashRangeTo;
 
   const panel = document.getElementById('reportsDashboard');
   panel.classList.add('dash-loading');
   try{
-    const dateOrMonth = dashPeriodType === 'day' ? dashSelectedDate : dashSelectedMonth;
-    const data = await computeSalesExpenseData(dashPeriodType, dateOrMonth);
+    const params = dashPeriodType === 'day' ? { date: dashSelectedDate }
+      : dashPeriodType === 'range' ? { from: dashRangeFrom, to: dashRangeTo }
+      : { month: dashSelectedMonth };
+    const data = await computeSalesExpenseData(dashPeriodType, params, dashRestaurantFilter);
 
     document.getElementById('dashTotalSales').textContent = fmtMoney(data.totalSales);
     document.getElementById('dashTotalExpenses').textContent = fmtMoney(data.totalExpenses);
@@ -460,8 +509,12 @@ async function renderDashboard(){
     renderDashTable(data.restaurants);
   }catch(e){
     console.error('dashboard render failed', e);
+  }finally{
+    // finally, not just "after the try" -- an early return added inside the
+    // try later would otherwise skip this and permanently freeze the panel
+    // (pointer-events:none via .dash-loading), as happened in Vendor Ledger.
+    panel.classList.remove('dash-loading');
   }
-  panel.classList.remove('dash-loading');
 }
 
 document.getElementById('dashChartBar').addEventListener('click', ()=>{
@@ -480,27 +533,43 @@ document.getElementById('dashChartPie').addEventListener('click', ()=>{
   document.getElementById('dashPieGrid').style.display = 'grid';
   renderDashboard();
 });
-document.getElementById('dashPeriodDay').addEventListener('click', ()=>{
-  dashPeriodType = 'day';
-  document.getElementById('dashPeriodDay').classList.add('active');
-  document.getElementById('dashPeriodMonth').classList.remove('active');
-  document.getElementById('dashDatePicker').style.display = '';
-  document.getElementById('dashMonthPicker').style.display = 'none';
+document.getElementById('dashRestaurantSelect').addEventListener('change', (ev)=>{
+  dashRestaurantFilter = ev.target.value;
   renderDashboard();
 });
-document.getElementById('dashPeriodMonth').addEventListener('click', ()=>{
-  dashPeriodType = 'month';
-  document.getElementById('dashPeriodMonth').classList.add('active');
-  document.getElementById('dashPeriodDay').classList.remove('active');
-  document.getElementById('dashDatePicker').style.display = 'none';
-  document.getElementById('dashMonthPicker').style.display = '';
+
+const DASH_PERIOD_BTNS = { day: 'dashPeriodDay', month: 'dashPeriodMonth', range: 'dashPeriodRange' };
+const DASH_PERIOD_FIELDS = {
+  day: ['dashDatePicker'],
+  month: ['dashMonthPicker'],
+  range: ['dashRangeFromLabel', 'dashRangeFromPicker', 'dashRangeToLabel', 'dashRangeToPicker']
+};
+function setDashPeriodType(type){
+  dashPeriodType = type;
+  Object.keys(DASH_PERIOD_BTNS).forEach(key=>{
+    document.getElementById(DASH_PERIOD_BTNS[key]).classList.toggle('active', key === type);
+  });
+  Object.keys(DASH_PERIOD_FIELDS).forEach(key=>{
+    const display = key === type ? '' : 'none';
+    DASH_PERIOD_FIELDS[key].forEach(id=>{ document.getElementById(id).style.display = display; });
+  });
   renderDashboard();
-});
+}
+document.getElementById('dashPeriodDay').addEventListener('click', ()=>setDashPeriodType('day'));
+document.getElementById('dashPeriodMonth').addEventListener('click', ()=>setDashPeriodType('month'));
+document.getElementById('dashPeriodRange').addEventListener('click', ()=>setDashPeriodType('range'));
+
 document.getElementById('dashDatePicker').addEventListener('change', (ev)=>{
   if(ev.target.value){ dashSelectedDate = ev.target.value; renderDashboard(); }
 });
 document.getElementById('dashMonthPicker').addEventListener('change', (ev)=>{
   if(ev.target.value){ dashSelectedMonth = ev.target.value; renderDashboard(); }
+});
+document.getElementById('dashRangeFromPicker').addEventListener('change', (ev)=>{
+  if(ev.target.value){ dashRangeFrom = ev.target.value; renderDashboard(); }
+});
+document.getElementById('dashRangeToPicker').addEventListener('change', (ev)=>{
+  if(ev.target.value){ dashRangeTo = ev.target.value; renderDashboard(); }
 });
 document.getElementById('dashTableToggle').addEventListener('click', (ev)=>{
   const wrap = document.getElementById('dashTableWrap');

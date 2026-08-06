@@ -163,7 +163,14 @@ Three tab panels, switched by `.tab-bar` buttons (`tabBtnExpenses` /
 - **"Reports"** (`#tabPanelReports`) — the sales-vs-expenses dashboard plus
   everything for generating/exporting Excel or CSV: `syncBtn` (Link Excel
   file), `downloadCsvBtn`, `downloadExcelBtn`, and `saveSpreadsheetBtn` (Save
-  to Excel File), plus their shared `save-bar` note. Gated behind a
+  to Excel File), plus their shared `save-bar` note. A restaurant selector
+  (all restaurants, or one specific one) plus a Day/Month/Date-range period
+  toggle scope the dashboard (added 2026-08-06, mirrors Vendor Ledger's own
+  filter row exactly — same `monthsBetween()` reuse for a range spanning
+  multiple month-bucket documents). With one restaurant selected, the
+  bar/pie chart just shows that restaurant's single bar/pie rather than a
+  comparison — same rendering code, just a filtered `restaurants` array from
+  `computeSalesExpenseData(periodType, params, restaurantFilter)`. Gated behind a
   **client-side password prompt** (`#reportsLock` / `#reportsContent`,
   `showReportsPanel()`): SHA-256 hashed in-browser (`sha256Hex`) and compared
   against `REPORTS_PASSWORD_HASH` — the plaintext password is not stored in
