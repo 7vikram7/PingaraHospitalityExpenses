@@ -28,3 +28,12 @@ const TENANT_FIREBASE_CONFIG = {
 // passwords for now"). sha256("Admin123"). Revisit if these two portals should
 // have independent owner access later.
 const TENANT_REPORTS_PASSWORD_HASH = "3b612c75a7b5048a435fb6ec81e52ff92d6d795a8b5a9c17070f6a63c97a53b2";
+
+// No distinct per-restaurant passwords chosen yet, so both restaurants use the
+// same Admin123 hash as the owner password for now, per "use same passwords
+// for now." Give each restaurant its own manager password once RK Twelve21
+// is ready to onboard managers separately from the owner.
+const TENANT_RESTAURANT_PASSWORD_HASH = {
+  "ramakrishna": "3b612c75a7b5048a435fb6ec81e52ff92d6d795a8b5a9c17070f6a63c97a53b2",
+  "twelve21":    "3b612c75a7b5048a435fb6ec81e52ff92d6d795a8b5a9c17070f6a63c97a53b2"
+};

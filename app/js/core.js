@@ -30,6 +30,13 @@ function restaurantLabel(id){
 let currentRestaurantId = getCurrentRestaurantId();
 function restPrefix(){ return "rest:" + currentRestaurantId + ":"; }
 
+// One password per restaurant — a manager only knows the password for their own
+// restaurant(s). Client-side SHA-256 compare, same soft-deterrent model as
+// REPORTS_PASSWORD_HASH (see auth.js and CONTEXT.md's security notes) — not real
+// access control, just a UI-level boundary between locations. Comes from the
+// active tenant config, same as RESTAURANTS above.
+const RESTAURANT_PASSWORD_HASH = TENANT_RESTAURANT_PASSWORD_HASH;
+
 // Every one of these keys is namespaced by the current restaurant, so switching
 // restaurants gives you a completely separate set of categories/suppliers/bills.
 // Suppliers and categories are shared across every restaurant — same vendor
@@ -152,6 +159,47 @@ function uid(){ return Date.now().toString(36) + Math.random().toString(36).slic
 // A bill stays freely modifiable for this long after it's added (no password) —
 // past it, modifying requires the admin (Reports-tab) password. Based on the
 // entry's original createdAt, not reset by edits, so re-editing an old bill
-// needs the password again each time.
+// needs the password again each time. The owner profile is exempt (see auth.js) —
+// once logged in as owner, no further passwords are asked anywhere in the app.
 const MODIFY_WINDOW_MS = 60 * 60 * 1000;
+function billWithinModifyWindow(entry){
+  return isOwnerProfile() || (Date.now() - entry.createdAt) < MODIFY_WINDOW_MS;
+}
+
+/* ---------- Login: profile (owner/manager) + per-restaurant session state ----------
+   Session-scoped (sessionStorage) to match the existing Reports-tab password's
+   behavior — closing the browser/tab requires logging in again. See auth.js for
+   the login screens and flow; these are just the storage primitives, kept here
+   alongside the other small state accessors (getCurrentRestaurantId etc). */
+const PROFILE_KEY = "profileType"; // 'owner' | 'manager'
+function getProfile(){
+  try{ return sessionStorage.getItem(PROFILE_KEY); }catch(e){ return null; }
+}
+function setProfile(p){
+  try{
+    if(p) sessionStorage.setItem(PROFILE_KEY, p);
+    else sessionStorage.removeItem(PROFILE_KEY);
+  }catch(e){}
+}
+function isOwnerProfile(){ return getProfile() === 'owner'; }
+
+const UNLOCKED_RESTAURANT_KEY = "unlockedRestaurantId"; // which restaurant a manager verified this session
+function getUnlockedRestaurantId(){
+  try{ return sessionStorage.getItem(UNLOCKED_RESTAURANT_KEY); }catch(e){ return null; }
+}
+function setUnlockedRestaurantId(id){
+  try{
+    if(id) sessionStorage.setItem(UNLOCKED_RESTAURANT_KEY, id);
+    else sessionStorage.removeItem(UNLOCKED_RESTAURANT_KEY);
+  }catch(e){}
+}
+// Whether `id` is usable without going through the restaurant gate. An owner
+// never needs the gate at all (2026-08-06: owner skips restaurant selection
+// entirely at login — see auth.js — and instead gets a restaurant selector
+// directly in the Add Expenses toolbar, matching how Reports/Vendor Ledger
+// already have their own independent selectors). A manager still needs to
+// have confirmed `id` specifically THIS session, via its password.
+function isRestaurantUnlockedForSession(id){
+  return isOwnerProfile() || getUnlockedRestaurantId() === id;
+}
 

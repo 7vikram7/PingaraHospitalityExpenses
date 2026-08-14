@@ -574,7 +574,8 @@ h1{
   margin-bottom:6px;
   text-align:left;
 }
-.restaurant-gate-box select{
+.restaurant-gate-box select,
+.restaurant-gate-box input[type=password]{
   width:100%;
   font-family:'Fraunces',serif;
   font-weight:600;
@@ -584,10 +585,11 @@ h1{
   border-radius:4px;
   background:#fff;
   color:var(--ink);
-  cursor:pointer;
   margin-bottom:16px;
   box-sizing:border-box;
 }
+.restaurant-gate-box select{cursor:pointer;}
+.restaurant-gate-box input[type=password]:focus{outline:none;border-color:var(--brass);}
 .restaurant-gate-box button{
   background:var(--brass);
   color:#fff;
@@ -602,6 +604,23 @@ h1{
   width:100%;
 }
 .restaurant-gate-box button:hover{background:var(--brass-deep);}
+.profile-choice-row{
+  display:flex;
+  gap:10px;
+}
+.profile-choice-row .profile-choice-btn{flex:1;}
+.restaurant-gate-box .gate-back-link{
+  background:transparent;
+  color:var(--ink-soft);
+  text-transform:none;
+  letter-spacing:0;
+  font-family:'IBM Plex Mono',monospace;
+  font-size:12px;
+  font-weight:400;
+  margin-top:10px;
+  padding:6px;
+}
+.restaurant-gate-box .gate-back-link:hover{color:var(--brass-deep);background:transparent;}
 
 /* ---------- Tabs ---------- */
 .tab-bar{
@@ -1172,6 +1191,42 @@ main{padding:24px 28px 60px;max-width:1400px;margin:0 auto;}
   opacity:0.35;
   z-index:0;
 }
+/* Same bordered box as .ledger-wrap, without the red margin-line — that line is
+   positioned to align with the day-ledger's "#" index column, which tables like
+   the Vendor Ledger don't have. */
+.plain-table-wrap{
+  background:var(--paper);
+  border:1.5px solid var(--ink);
+  border-radius:6px;
+  overflow:hidden;
+}
+
+/* ---------- Vendor Ledger: expandable per-vendor bill detail ---------- */
+.vl-vendor-row{cursor:pointer;}
+.vl-vendor-row:focus-visible{outline:2px solid var(--brass);outline-offset:-2px;}
+.vl-expand-caret{
+  display:inline-block;
+  width:14px;
+  color:var(--brass);
+  font-weight:700;
+}
+.vl-detail-row td{
+  padding:14px 16px 18px 40px;
+  background:var(--paper-dark);
+  cursor:default;
+}
+.vl-detail-scroll{max-height:320px;overflow-y:auto;}
+.vl-detail-table{
+  width:100%;
+  border-collapse:collapse;
+  font-size:12.5px;
+  background:#fff;
+  border:1.5px solid var(--paper-line);
+  border-radius:4px;
+  overflow:hidden;
+}
+.vl-detail-table thead th{padding:7px 10px;font-size:10px;}
+.vl-detail-table tbody td{padding:7px 10px;}
 table{
   width:100%;
   border-collapse:collapse;
@@ -1218,6 +1273,11 @@ td.amount{
 }
 td.supplier{font-weight:600;}
 td.subcat{color:var(--ink-soft);}
+td.num{
+  font-family:'IBM Plex Mono',monospace;
+  text-align:right;
+  white-space:nowrap;
+}
 .badge{
   font-family:'IBM Plex Mono',monospace;
   font-size:11px;

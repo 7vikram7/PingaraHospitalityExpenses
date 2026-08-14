@@ -7,8 +7,7 @@
     ],
     "predeploy": [
       "rm -rf public",
-      "mkdir -p public",
-      "cp -R app/. public/",
+      "cp -R app public",
       "rm -rf public/tenants"
     ],
     "headers": [

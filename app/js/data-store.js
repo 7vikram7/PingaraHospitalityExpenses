@@ -117,6 +117,33 @@ async function moveEntryDate(entry, newDate){
   await safeSet(targetKey, JSON.stringify(targetMonthObj));
 }
 
+// Toggles paid/unpaid for a bill identified by restaurant+date+id rather than
+// by position in the currently-loaded `entries` array — used by the Vendor
+// Ledger tab, where a bill's restaurant/date may not be the one currently
+// active in the Add Expenses tab. Reuses the current month cache when it
+// happens to be the same restaurant+month (avoiding a redundant read), and
+// keeps the live `entries` array in sync if it's the same day being viewed.
+async function toggleBillStatusByLocation(restaurantId, date, billId){
+  const monthKey = date.slice(0,7);
+  const key = "rest:" + restaurantId + ":bills:" + monthKey;
+  const sameCachedMonth = (restaurantId === currentRestaurantId) && (key === currentBillsMonthCacheKey);
+  const monthObj = sameCachedMonth ? billsMonthCache
+    : (JSON.parse((await safeGet(key)) || "{}") || {});
+
+  const dayBills = monthObj[date] || [];
+  const bill = dayBills.find(b => b.id === billId);
+  if(!bill) return null;
+  bill.status = bill.status === 'paid' ? 'unpaid' : 'paid';
+  bill.paidAt = bill.status === 'paid' ? Date.now() : null;
+  await safeSet(key, JSON.stringify(monthObj));
+
+  if(restaurantId === currentRestaurantId && date === currentDate){
+    const localEntry = entries.find(e => e.id === billId);
+    if(localEntry){ localEntry.status = bill.status; localEntry.paidAt = bill.paidAt; }
+  }
+  return bill;
+}
+
 let salesMonthCache = {};
 let currentSalesMonthCacheKey = null;
 async function loadSalesMonth(monthKey){

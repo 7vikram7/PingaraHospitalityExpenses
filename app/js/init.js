@@ -19,7 +19,7 @@ function applyTenantBranding(){
 (async function init(){
   applyTenantBranding();
   renderRestaurantSelect();
-  renderRestaurantGateState();
+  renderAuthGateState();
   renderFirebaseStatus("", false);
   await loadCategories();
   await loadSuppliers();
