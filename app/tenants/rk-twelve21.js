@@ -11,17 +11,16 @@ const TENANT_RESTAURANTS = [
   { id: "twelve21",    label: "Twelve21" }
 ];
 
-// TODO: incomplete — messagingSenderId/appId/measurementId were never provided.
-// Do not deploy this tenant until these are filled in from the Firebase Console
-// (Project settings > General > Your apps > SDK setup and configuration).
+// Pulled via `firebase apps:sdkconfig WEB <appId> --project rk-twelve21`.
+// No measurementId — Google Analytics isn't linked to this app, and the app
+// doesn't use Analytics for anything, so there's nothing to fill in there.
 const TENANT_FIREBASE_CONFIG = {
   apiKey: "AIzaSyDGV8AgE1OanmRyK3L58Fw_vxePIZDanHk",
   authDomain: "rk-twelve21.firebaseapp.com",
   projectId: "rk-twelve21",
   storageBucket: "rk-twelve21.firebasestorage.app",
-  messagingSenderId: "TODO",
-  appId: "TODO",
-  measurementId: "TODO"
+  messagingSenderId: "174662512823",
+  appId: "1:174662512823:web:66024638866a8407409d32"
 };
 
 // Same admin password as Pingara's Reports tab, per owner request ("use same
