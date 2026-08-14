@@ -46,11 +46,11 @@ window.__firebaseSdkReady = (async ()=>{
 
 <header class="brand-header">
   <div class="brand-block">
-    <img src="logo.png" alt="Pingara Hospitality" class="brand-logo">
-    <div class="brand-divider"></div>
+    <img alt="" class="brand-logo" id="brandLogo" style="display:none;">
+    <div class="brand-divider" id="brandDivider" style="display:none;"></div>
     <div>
-      <p class="brand-eyebrow" id="restaurantEyebrow">Daily Purchase Register</p>
-      <h1>Vendor Bill Ledger</h1>
+      <p class="brand-eyebrow" id="restaurantEyebrow"></p>
+      <h1 id="brandTitle"></h1>
     </div>
   </div>
 </header>
@@ -372,6 +372,7 @@ window.__firebaseSdkReady = (async ()=>{
 
 </div><!-- /appTabsWrap -->
 
+<script src="tenant.js"></script>
 <script src="js/core.js"></script>
 <script src="js/excel-export.js"></script>
 <script src="js/data-store.js"></script>

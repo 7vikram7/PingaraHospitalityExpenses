@@ -8,14 +8,10 @@ const DEFAULT_CATEGORIES = {
   "Other": ["Miscellaneous"]
 };
 
-const RESTAURANTS = [
-  { id: "krishna-nigdi",     label: "Krishna Veg (Nigdi)" },
-  { id: "krishna-ravet",     label: "Krishna Veg (Ravet)" },
-  { id: "krishna-chikhli",   label: "Krishna Veg (Chikhli)" },
-  { id: "savali",            label: "Savali" },
-  { id: "malhaar",           label: "Malhaar" },
-  { id: "umami-la-delice",   label: "Umami La Delice" }
-];
+// Restaurant list comes from the active tenant config (app/tenant.js, loaded
+// before this file) — this is what makes the same codebase servable as a
+// distinct white-labeled portal per client.
+const RESTAURANTS = TENANT_RESTAURANTS;
 const CURRENT_RESTAURANT_KEY = "currentRestaurantId"; // NOT namespaced — this is global, just remembers your last pick
 function getCurrentRestaurantId(){
   try{
@@ -56,17 +52,10 @@ let fileHandles = {};
 let fileHandle = null;
 
 /* ---------- Firebase (Firestore) remote KV backend ---------- */
-// This app always talks to this one Firebase project — there is deliberately
-// no UI to point it at a different project or disconnect from it.
-const FIREBASE_CONFIG = {
-  apiKey: "AIzaSyBQtd4VGuG2TyEEjKyF81_WmDTMem60QtI",
-  authDomain: "vendor-bills.firebaseapp.com",
-  projectId: "vendor-bills",
-  storageBucket: "vendor-bills.firebasestorage.app",
-  messagingSenderId: "998946985906",
-  appId: "1:998946985906:web:77a8397812ea1fcb14b6ab",
-  measurementId: "G-1LKF1KY8T1"
-};
+// This app always talks to one Firebase project per tenant — there is
+// deliberately no UI to point it at a different project or disconnect from
+// it. Which project is "this app" comes from app/tenant.js.
+const FIREBASE_CONFIG = TENANT_FIREBASE_CONFIG;
 let firebaseDb = null;
 let firebaseInitTried = false;
 
