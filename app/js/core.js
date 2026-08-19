@@ -8,15 +8,10 @@ const DEFAULT_CATEGORIES = {
   "Other": ["Miscellaneous"]
 };
 
-const RESTAURANTS = [
-  { id: "krishna-nigdi",     label: "Krishna Veg (Nigdi)" },
-  { id: "krishna-ravet",     label: "Krishna Veg (Ravet)" },
-  { id: "krishna-chikhli",   label: "Krishna Veg (Chikhli)" },
-  { id: "savali",            label: "Savali" },
-  { id: "malhaar",           label: "Malhaar" },
-  { id: "umami-la-delice",   label: "Umami La Delice" },
-  { id: "central-kitchen",   label: "Central Kitchen" }
-];
+// Restaurant list comes from the active tenant config (app/tenant.js, loaded
+// before this file) — this is what makes the same codebase servable as a
+// distinct white-labeled portal per client.
+const RESTAURANTS = TENANT_RESTAURANTS;
 const CURRENT_RESTAURANT_KEY = "currentRestaurantId"; // NOT namespaced — this is global, just remembers your last pick
 function getCurrentRestaurantId(){
   try{
@@ -38,16 +33,9 @@ function restPrefix(){ return "rest:" + currentRestaurantId + ":"; }
 // One password per restaurant — a manager only knows the password for their own
 // restaurant(s). Client-side SHA-256 compare, same soft-deterrent model as
 // REPORTS_PASSWORD_HASH (see auth.js and CONTEXT.md's security notes) — not real
-// access control, just a UI-level boundary between locations.
-const RESTAURANT_PASSWORD_HASH = {
-  "krishna-nigdi":   "fd1782e48deb8911c3fb137065038a5aa8e1bd4f97717f63c89d99329cb7527a",
-  "krishna-ravet":   "8df8aa769d24738c7ac2b3255706fb4e6e1d6d10cf81c8dc907f00a2dc550089",
-  "krishna-chikhli": "eb7edf9e07f7959d4be3253db3a770cb6c745510c755d74087214162833cfd36",
-  "savali":          "a49389c0e960243bb07a679032c1bd2777850aa7db7663da1d1bfc5b896d3316",
-  "malhaar":         "889fe9a11fde855aaaf2326ea6c8b397ee85745dd43dbd99bc6e8f3ead79e597",
-  "umami-la-delice": "97318b10fb613f4cc830bca4acf33dc296565f25addf97ba103ce3af3a560bb9",
-  "central-kitchen": "e43fc89bc3650189d3cdc36f544c91939cb50c43b4cea04b5f228a699ddb156d"
-};
+// access control, just a UI-level boundary between locations. Comes from the
+// active tenant config, same as RESTAURANTS above.
+const RESTAURANT_PASSWORD_HASH = TENANT_RESTAURANT_PASSWORD_HASH;
 
 // Every one of these keys is namespaced by the current restaurant, so switching
 // restaurants gives you a completely separate set of categories/suppliers/bills.
@@ -71,17 +59,10 @@ let fileHandles = {};
 let fileHandle = null;
 
 /* ---------- Firebase (Firestore) remote KV backend ---------- */
-// This app always talks to this one Firebase project — there is deliberately
-// no UI to point it at a different project or disconnect from it.
-const FIREBASE_CONFIG = {
-  apiKey: "AIzaSyBQtd4VGuG2TyEEjKyF81_WmDTMem60QtI",
-  authDomain: "vendor-bills.firebaseapp.com",
-  projectId: "vendor-bills",
-  storageBucket: "vendor-bills.firebasestorage.app",
-  messagingSenderId: "998946985906",
-  appId: "1:998946985906:web:77a8397812ea1fcb14b6ab",
-  measurementId: "G-1LKF1KY8T1"
-};
+// This app always talks to one Firebase project per tenant — there is
+// deliberately no UI to point it at a different project or disconnect from
+// it. Which project is "this app" comes from app/tenant.js.
+const FIREBASE_CONFIG = TENANT_FIREBASE_CONFIG;
 let firebaseDb = null;
 let firebaseInitTried = false;
 

@@ -3,7 +3,7 @@ async function sha256Hex(str){
   const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
   return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
 }
-const REPORTS_PASSWORD_HASH = "3b612c75a7b5048a435fb6ec81e52ff92d6d795a8b5a9c17070f6a63c97a53b2";
+const REPORTS_PASSWORD_HASH = TENANT_REPORTS_PASSWORD_HASH;
 const REPORTS_UNLOCK_KEY = "reportsUnlockedSession";
 
 function reportsUnlocked(){

@@ -1,4 +1,7 @@
 {
+  "firestore": {
+    "rules": "firestore.rules"
+  },
   "hosting": {
     "public": "public",
     "ignore": [
@@ -7,7 +10,8 @@
     ],
     "predeploy": [
       "rm -rf public",
-      "cp -R app public"
+      "cp -R app public",
+      "rm -rf public/tenants"
     ],
     "headers": [
       {
