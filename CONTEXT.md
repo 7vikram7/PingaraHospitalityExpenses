@@ -215,13 +215,33 @@ reports-dashboard.js:
     server-enforced rules, not a client-side password.
   - **"Spend by category" table + Profit %** (added 2026-08-20, modeled on a
     manual Excel cost-ratio analysis the owner already used for Umami):
-    `aggregateCategorySpend()` sums each restaurant's `byCategory` (already
-    computed for the chart) into one flat list per category — amount and %
-    **of total sales for the scope**, same ratio `buildSegments()` already
-    uses per-restaurant for the chart, just surfaced as plain numbers in
-    `#dashCategoryTableWrap` (`buildCategoryTable()`, reused by the compare
-    view below) instead of only a chart segment. The hero row gained a 4th
-    stat, Profit % (`setProfitPctText()`), alongside the existing ₹ figures.
+    `computeSalesExpenseData()` builds `byCategoryAll`/`bySubcategoryAll` —
+    category and subcategory totals across every restaurant matching the
+    filter+date range, **independent of whether that restaurant logged a
+    sales figure for the period**. `aggregateCategorySpend()` turns those
+    into a sorted list, each row carrying its own `subcategories` array —
+    amount and % **of total sales for the scope**, same ratio
+    `buildSegments()` uses per-restaurant for the chart. `buildCategoryTable()`
+    (`#dashCategoryTableWrap`, reused by the compare view below) renders it
+    as a click-to-expand accordion — one category open at a time, mirroring
+    Vendor Ledger's `vlExpandedVendor` pattern, except the expand state is
+    closure-scoped per table instance (not a module-level variable) since
+    Compare-months renders two of these side by side and each expands
+    independently. The hero row gained a 4th stat, Profit %
+    (`setProfitPctText()`), alongside the existing ₹ figures.
+    - **Fixed 2026-08-20**: the chart/per-restaurant table legitimately stay
+      sales-gated (a restaurant with no sales entry can't be plotted as a
+      proportional sales-vs-expense bar), but that exclusion used to also
+      silently drop that restaurant's expense categories from the aggregate
+      "Spend by category" table and from the "Total expenses"/Profit hero
+      figures — a restaurant that logs bills without ever logging a sales
+      figure (a real usage pattern, not just an edge case) had its entire
+      spend invisible everywhere except its own Add-Expenses/Vendor-Ledger
+      view. `totalExpenses` is now derived from the same complete
+      `byCategoryAll` sum the category table uses, so the hero "Total
+      expenses" figure always agrees with what the table sums to; `totalSales`
+      stays restaurant-gated since an unlogged sales figure genuinely isn't
+      known to be zero.
   - **"Compare months" period mode** (`dashPeriodCompare`, same 2026-08-20
     change) — a 4th option alongside Day/Month/Date-range. Two independent
     `<input type="month">` pickers (`dashCompareMonthA`/`B`, no relationship

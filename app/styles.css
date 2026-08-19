@@ -1261,6 +1261,8 @@ main{padding:24px 28px 60px;max-width:1400px;margin:0 auto;}
 /* ---------- Vendor Ledger: expandable per-vendor bill detail ---------- */
 .vl-vendor-row{cursor:pointer;}
 .vl-vendor-row:focus-visible{outline:2px solid var(--brass);outline-offset:-2px;}
+.dash-cat-row{cursor:pointer;}
+.dash-cat-row:focus-visible{outline:2px solid var(--brass);outline-offset:-2px;}
 .vl-expand-caret{
   display:inline-block;
   width:14px;

@@ -31,7 +31,12 @@ Firebase Hosting.
   plain "spend by category" table (amount + % of sales) and Profit %
   alongside the chart, and a "Compare months" mode — pick any two months
   to see them side by side, each with its own Sales/Expenses/Profit/
-  Profit % and category breakdown
+  Profit % and category breakdown. The category table (and Total Expenses/
+  Profit above it) always reflects every bill in scope, even for a
+  restaurant/period with no sales figure logged — only the chart itself
+  needs a sales number to plot. Click a category row to expand it and see
+  its subcategories with their own amounts/percentages (accordion, one
+  open at a time, independent per column in Compare-months)
 - **Vendor Ledger tab** (Owner only): bills grouped by supplier instead of
   by day, across all restaurants or one, for a day, month, or custom date
   range. Click a vendor to expand its individual bills (date, invoice #,

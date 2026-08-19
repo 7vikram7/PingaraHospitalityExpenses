@@ -202,12 +202,21 @@ async function computeSalesExpenseData(periodType, params, restaurantFilter){
   }
 
   const restaurants = [];
+  // Category/subcategory totals across EVERY restaurant matching the filter+
+  // date range, independent of whether that restaurant logged a sales figure
+  // for the period. The per-restaurant chart/table stays sales-gated below (a
+  // restaurant with no sales entry can't be plotted as a proportional sales-
+  // vs-expense bar), but that's not a reason to hide its real expense
+  // categories from the category breakdown table — expenses don't depend on
+  // sales having been entered. totalExpenses is derived from this same
+  // complete total further down, so the "Total expenses" hero figure always
+  // agrees with what the category table sums to.
+  const byCategoryAll = {};
+  const bySubcategoryAll = {};
   RESTAURANTS.forEach(r=>{
     if(restaurantFilter && restaurantFilter !== 'all' && restaurantFilter !== r.id) return;
     const salesData = salesAll[r.id] || {};
     const salesDays = Object.keys(salesData).filter(dateFilter);
-    if(salesDays.length === 0) return; // no sales entered for this period — fully excluded
-
     const sales = salesDays.reduce((s,d)=> s + (Number(salesData[d]) || 0), 0);
 
     const billsData = billsAll[r.id] || {};
@@ -219,16 +228,26 @@ async function computeSalesExpenseData(periodType, params, restaurantFilter){
         const amt = Number(e.amount || 0);
         expenses += amt;
         const cat = e.category || "Uncategorized";
+        const sub = e.subcategory || "";
         byCategory[cat] = (byCategory[cat] || 0) + amt;
+        byCategoryAll[cat] = (byCategoryAll[cat] || 0) + amt;
+        if(!bySubcategoryAll[cat]) bySubcategoryAll[cat] = {};
+        bySubcategoryAll[cat][sub] = (bySubcategoryAll[cat][sub] || 0) + amt;
       });
     });
+
+    if(salesDays.length === 0) return; // no sales entered — excluded from the chart/per-restaurant table only
 
     restaurants.push({ id: r.id, label: r.label, sales, expenses, profit: sales - expenses, byCategory });
   });
 
   const totalSales = restaurants.reduce((s,r)=>s+r.sales, 0);
-  const totalExpenses = restaurants.reduce((s,r)=>s+r.expenses, 0);
-  return { restaurants, totalSales, totalExpenses, totalProfit: totalSales - totalExpenses };
+  // Total expenses is the full byCategoryAll sum, not restaurants.reduce(...) —
+  // otherwise a restaurant with real bills but no sales entry would vanish
+  // from "Total expenses" while still showing up in the category table below,
+  // making the two numbers disagree.
+  const totalExpenses = Object.values(byCategoryAll).reduce((s,v)=>s+v, 0);
+  return { restaurants, totalSales, totalExpenses, totalProfit: totalSales - totalExpenses, byCategoryAll, bySubcategoryAll };
 }
 
 // Stable per-category color: assigned by alphabetical position among the app's
@@ -491,25 +510,58 @@ function renderDashTable(restaurants){
   wrap.appendChild(table);
 }
 
-// Sums byCategory across every restaurant currently in scope into one flat
-// list, each with its amount as a % of TOTAL sales for the scope — the same
-// ratio buildSegments() already computes per-restaurant for the chart, just
-// aggregated across the whole scope and shown as plain numbers instead of a
-// chart segment. Mirrors a manual Excel "spend by category, % of sales"
-// pivot the owner already used for this kind of monthly analysis.
-function aggregateCategorySpend(restaurants, totalSales){
-  const totals = {};
-  restaurants.forEach(r=>{
-    Object.keys(r.byCategory).forEach(cat=>{
-      totals[cat] = (totals[cat] || 0) + r.byCategory[cat];
-    });
-  });
-  return Object.keys(totals).map(cat=>({
-    category: cat,
-    amount: totals[cat],
-    pct: totalSales > 0 ? (totals[cat] / totalSales * 100) : 0
-  })).sort((a,b)=>b.amount-a.amount);
+// Turns the flat byCategoryAll/bySubcategoryAll totals from
+// computeSalesExpenseData() into a sorted list, each with its amount as a %
+// of TOTAL sales for the scope — the same ratio buildSegments() already
+// computes per-restaurant for the chart, just aggregated across the whole
+// scope and shown as plain numbers instead of a chart segment. Mirrors a
+// manual Excel "spend by category, % of sales" pivot the owner already used
+// for this kind of monthly analysis. Subcategories carry the same % of
+// sales, one level down, for the click-to-expand detail.
+function aggregateCategorySpend(byCategoryAll, bySubcategoryAll, totalSales){
+  return Object.keys(byCategoryAll).map(cat=>{
+    const subTotals = bySubcategoryAll[cat] || {};
+    const subcategories = Object.keys(subTotals).map(sub=>({
+      subcategory: sub || '(no subcategory)',
+      amount: subTotals[sub],
+      pct: totalSales > 0 ? (subTotals[sub] / totalSales * 100) : 0
+    })).sort((a,b)=>b.amount-a.amount);
+    return {
+      category: cat,
+      amount: byCategoryAll[cat],
+      pct: totalSales > 0 ? (byCategoryAll[cat] / totalSales * 100) : 0,
+      subcategories
+    };
+  }).sort((a,b)=>b.amount-a.amount);
 }
+
+function buildSubcategoryTable(subcategories){
+  const scroll = document.createElement('div');
+  scroll.className = 'vl-detail-scroll';
+  const table = document.createElement('table');
+  table.className = 'vl-detail-table';
+  const thead = document.createElement('thead');
+  const headRow = document.createElement('tr');
+  headRow.innerHTML = '<th>Subcategory</th><th class="num">Amount</th><th class="num">% of sales</th>';
+  thead.appendChild(headRow);
+  const tbody = document.createElement('tbody');
+  subcategories.forEach(s=>{
+    const tr = document.createElement('tr');
+    const tdSub = document.createElement('td'); tdSub.textContent = s.subcategory; tdSub.className = 'subcat';
+    const tdAmt = document.createElement('td'); tdAmt.className = 'amount'; tdAmt.textContent = fmtMoney(s.amount);
+    const tdPct = document.createElement('td'); tdPct.className = 'num'; tdPct.textContent = s.pct.toFixed(1) + '%';
+    tr.appendChild(tdSub); tr.appendChild(tdAmt); tr.appendChild(tdPct);
+    tbody.appendChild(tr);
+  });
+  table.appendChild(thead); table.appendChild(tbody);
+  scroll.appendChild(table);
+  return scroll;
+}
+
+// Click-to-expand accordion, one category open at a time, mirroring Vendor
+// Ledger's vlExpandedVendor pattern — except the expand state lives in this
+// closure rather than a module-level variable, since Compare-months renders
+// two of these tables side by side and each should expand independently.
 function buildCategoryTable(rows){
   if(rows.length === 0){
     const empty = document.createElement('div');
@@ -517,22 +569,60 @@ function buildCategoryTable(rows){
     empty.textContent = "No expenses logged for this period yet.";
     return empty;
   }
-  const table = document.createElement('table');
-  const thead = document.createElement('thead');
-  const headRow = document.createElement('tr');
-  headRow.innerHTML = '<th>Category</th><th class="num">Amount</th><th class="num">% of sales</th>';
-  thead.appendChild(headRow);
-  const tbody = document.createElement('tbody');
-  rows.forEach(r=>{
-    const tr = document.createElement('tr');
-    const tdCat = document.createElement('td'); tdCat.textContent = r.category; tdCat.className = 'supplier';
-    const tdAmt = document.createElement('td'); tdAmt.className = 'amount'; tdAmt.textContent = fmtMoney(r.amount);
-    const tdPct = document.createElement('td'); tdPct.className = 'num'; tdPct.textContent = r.pct.toFixed(1) + '%';
-    tr.appendChild(tdCat); tr.appendChild(tdAmt); tr.appendChild(tdPct);
-    tbody.appendChild(tr);
-  });
-  table.appendChild(thead); table.appendChild(tbody);
-  return table;
+  let expandedCategory = null;
+  const container = document.createElement('div');
+
+  function paint(){
+    container.innerHTML = "";
+    const table = document.createElement('table');
+    const thead = document.createElement('thead');
+    const headRow = document.createElement('tr');
+    headRow.innerHTML = '<th>Category</th><th class="num">Amount</th><th class="num">% of sales</th>';
+    thead.appendChild(headRow);
+    const tbody = document.createElement('tbody');
+    rows.forEach(r=>{
+      const expanded = expandedCategory === r.category;
+      const tr = document.createElement('tr');
+      tr.className = 'dash-cat-row';
+      tr.tabIndex = 0;
+      const tdCat = document.createElement('td');
+      tdCat.className = 'supplier';
+      tdCat.innerHTML = `<span class="vl-expand-caret">${expanded ? '▾' : '▸'}</span>${escapeHtml(r.category)}`;
+      const tdAmt = document.createElement('td'); tdAmt.className = 'amount'; tdAmt.textContent = fmtMoney(r.amount);
+      const tdPct = document.createElement('td'); tdPct.className = 'num'; tdPct.textContent = r.pct.toFixed(1) + '%';
+      tr.appendChild(tdCat); tr.appendChild(tdAmt); tr.appendChild(tdPct);
+
+      const toggleExpand = ()=>{
+        expandedCategory = (expandedCategory === r.category) ? null : r.category;
+        paint();
+      };
+      tr.addEventListener('click', toggleExpand);
+      tr.addEventListener('keydown', (ev)=>{
+        if(ev.key === 'Enter' || ev.key === ' '){ ev.preventDefault(); toggleExpand(); }
+      });
+      tbody.appendChild(tr);
+
+      if(expanded){
+        const detailTr = document.createElement('tr');
+        detailTr.className = 'vl-detail-row';
+        const detailTd = document.createElement('td');
+        detailTd.colSpan = 3;
+        if(r.subcategories.length > 0){
+          detailTd.appendChild(buildSubcategoryTable(r.subcategories));
+        } else {
+          detailTd.textContent = 'No subcategory set for these bills.';
+          detailTd.style.padding = '14px 16px 18px 40px';
+        }
+        detailTr.appendChild(detailTd);
+        tbody.appendChild(detailTr);
+      }
+    });
+    table.appendChild(thead); table.appendChild(tbody);
+    container.appendChild(table);
+  }
+
+  paint();
+  return container;
 }
 function setProfitPctText(el, profit, sales){
   if(sales > 0){
@@ -580,17 +670,13 @@ function buildDashCompareCol(month, data){
   stats.appendChild(mkStat('Profit %', profitPctText, profitPctCls));
   col.appendChild(stats);
 
-  if(data.restaurants.length === 0){
-    const empty = document.createElement('div');
-    empty.className = 'dash-empty';
-    empty.textContent = 'No sales recorded for this month.';
-    col.appendChild(empty);
-    return col;
-  }
-
+  // The category table is shown regardless of whether any restaurant logged
+  // a sales figure for this month — a month with expenses but no sales entry
+  // still has real expense categories worth seeing (buildCategoryTable()
+  // shows its own "no expenses" message when there's genuinely nothing).
   const tableWrap = document.createElement('div');
   tableWrap.className = 'plain-table-wrap';
-  tableWrap.appendChild(buildCategoryTable(aggregateCategorySpend(data.restaurants, data.totalSales)));
+  tableWrap.appendChild(buildCategoryTable(aggregateCategorySpend(data.byCategoryAll, data.bySubcategoryAll, data.totalSales)));
   col.appendChild(tableWrap);
   return col;
 }
@@ -638,9 +724,13 @@ async function renderDashboard(){
     setProfitPctText(document.getElementById('dashTotalProfitPct'), data.totalProfit, data.totalSales);
 
     const hasData = data.restaurants.length > 0;
+    const hasCategoryData = Object.keys(data.byCategoryAll).length > 0;
     document.getElementById('dashEmpty').style.display = hasData ? 'none' : 'block';
     document.getElementById('dashChartCard').style.display = hasData ? 'block' : 'none';
-    document.getElementById('dashCategoryCard').style.display = hasData ? 'block' : 'none';
+    // Category card has its own data source (byCategoryAll isn't gated by
+    // whether a restaurant logged sales), so it can stay visible even when
+    // the sales-driven chart above has nothing to show.
+    document.getElementById('dashCategoryCard').style.display = (hasData || hasCategoryData) ? 'block' : 'none';
 
     if(dashChartType === 'bar') renderBarView(data.restaurants);
     else renderPieView(data.restaurants);
@@ -649,7 +739,7 @@ async function renderDashboard(){
 
     const catWrap = document.getElementById('dashCategoryTableWrap');
     catWrap.innerHTML = "";
-    catWrap.appendChild(buildCategoryTable(aggregateCategorySpend(data.restaurants, data.totalSales)));
+    catWrap.appendChild(buildCategoryTable(aggregateCategorySpend(data.byCategoryAll, data.bySubcategoryAll, data.totalSales)));
   }catch(e){
     console.error('dashboard render failed', e);
   }finally{
