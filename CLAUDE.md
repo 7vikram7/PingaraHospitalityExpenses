@@ -34,18 +34,34 @@ whichever tenant you last deployed, and leaves it that way. Check
 modified from an unrelated tenant switch, `git restore app/tenant.js` first
 so you don't commit a tenant swap as a side effect of an unrelated change.
 
-**The two tenants are owned by two different Google accounts**, so the
-Firebase CLI login has to be switched between deploys:
-- `vendor-bills` (Pingara) → `akash2628@gmail.com`
-- `rk-twelve21` → `rktwelve21@gmail.com`
+**The two tenants are owned by two different Google accounts** —
+`vendor-bills` (Pingara) by `akash2628@gmail.com`, `rk-twelve21` by
+`rktwelve21@gmail.com`. Deploy each via its own **service account key**, not
+an interactive `firebase login` session — this needs *no* login/logout
+dance and works even with no interactive session active at all (confirmed:
+`GOOGLE_APPLICATION_CREDENTIALS` alone, no `firebase login`, authenticates
+fine for both `projects:list` and a real `deploy`):
+```
+export GOOGLE_APPLICATION_CREDENTIALS="<path to that tenant's key>"
+bash deploy.sh <tenant>
+```
+Key locations (outside the repo, per the isolation convention —
+never commit these):
+- Pingara: `C:\pingara vendor project\documents\vendor-bills-firebase-adminsdk-fbsvc-cddd5e0b76.json`
+- RK Twelve21: `C:\rktwelve21\documents\rk-twelve21-firebase-adminsdk-fbsvc-71086d442b.json`
 
-Check which is currently active with `firebase projects:list` before
-deploying — don't assume. To switch: `firebase.cmd logout` then
-`firebase.cmd login` (use the `.cmd` shim, not bare `firebase` — PowerShell's
-default execution policy blocks the npm `.ps1` wrapper). **`firebase login`
-needs a real interactive browser + terminal and can't be driven by an
-agent** — ask the human running the session to do it directly and confirm
-once logged in, don't attempt to script around it.
+**Only fall back to interactive `firebase login`** if a *stored* CLI login
+session is active and taking priority over the service account (it does —
+an active interactive session wins over `GOOGLE_APPLICATION_CREDENTIALS`
+even when it's the wrong account, which is what caused this problem
+originally). Run `firebase login:list` first — if it says "No authorized
+accounts," the service account alone is sufficient and nothing else is
+needed. If some other interactive session **is** active, prefer
+`firebase.cmd logout` (still doesn't need re-login) over touching whatever
+account is currently signed in. Never attempt `firebase login` yourself —
+it needs a real interactive browser + terminal and can't be driven by an
+agent; ask the human running the session to do it directly if it's ever
+genuinely required.
 
 See `CONTEXT.md`'s deploy notes for the Windows-specific PATH requirement
 (Git's `usr\bin` for `rm`/`cp` in the predeploy script) if running the
