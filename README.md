@@ -33,6 +33,10 @@ Firebase Hosting.
   range. Click a vendor to expand its individual bills (date, invoice #,
   amount, paid/unpaid) and flip paid status right there, with the paid
   date recorded alongside it
+- **Suppliers tab** (Owner only): every supplier with its category/
+  subcategory, shared across every restaurant on the account, plus adding
+  new ones. Editing a supplier's category/subcategory here retroactively
+  updates every past bill logged under that supplier too, not just new ones
 - **Offline-first**: every write lands in `localStorage` immediately and
   syncs to Firestore in the background, so a flaky connection never blocks
   data entry
@@ -84,6 +88,7 @@ app/
     ledger-ui.js             ledger table/totals rendering, restaurant select, Modify-bill dialog
     reports-dashboard.js     Reports tab password gate, tab switching, sales/expense charts
     vendor-ledger.js         Vendor Ledger tab — per-supplier spend by restaurant/period
+    suppliers-tab.js         Suppliers tab — list/add suppliers, retroactive category fixes
     auth.js                  login: Owner/Manager profile choice, per-restaurant passwords
     init.js                  app bootstrap — loaded last, after every other module
 firebase.json               Hosting config + the predeploy sync step

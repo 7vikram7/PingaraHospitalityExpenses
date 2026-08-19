@@ -282,6 +282,72 @@ async function getAvailableFYs(){
   return Array.from(set).sort((a,b)=>b-a); // most recent first
 }
 
+// Cross-restaurant discovery — like listBillMonthKeys() but across every
+// restaurant's bills, not just the currently active one. Used when a
+// supplier's category/subcategory changes and needs to be propagated to
+// every past bill under that supplier, everywhere, not just the current
+// restaurant's history.
+async function listAllRestaurantsBillMonthKeys(){
+  const out = new Set();
+  const pattern = /^rest:[^:]+:bills:\d{4}-\d{2}$/;
+  try{
+    for(let i=0;i<localStorage.length;i++){
+      const k = localStorage.key(i);
+      if(k && pattern.test(k)) out.add(k);
+    }
+  }catch(e){ console.error("storage list failed", e); }
+  if(firebaseConfigured()){
+    try{
+      const remoteKeys = await fbList('rest:'); // every restaurant's bills/sales/salesMeta keys
+      remoteKeys.forEach(k=>{ if(pattern.test(k)) out.add(k); });
+      renderFirebaseStatus("", false);
+    }catch(e){
+      console.error("firebase list failed", e);
+      renderFirebaseStatus("Couldn't reach your cloud storage — showing what's saved on this device.", true);
+    }
+  }
+  return Array.from(out); // each like "rest:<id>:bills:2026-07"
+}
+
+// Retroactively applies a supplier's new category/subcategory to every past
+// bill logged under that supplier, across every restaurant and every month —
+// not just new bills going forward. Returns how many bills were actually
+// changed. Bills are matched by supplierKey() (case/whitespace-insensitive),
+// same normalization supplierDefaults itself uses.
+async function propagateSupplierCategoryToAllBills(supplierName, newCategory, newSubcategory){
+  const key = supplierKey(supplierName);
+  const monthKeys = await listAllRestaurantsBillMonthKeys();
+  let updatedCount = 0;
+  for(const fullKey of monthKeys){
+    const isCachedCurrentMonth = fullKey === currentBillsMonthCacheKey;
+    const monthObj = isCachedCurrentMonth ? billsMonthCache
+      : (JSON.parse((await safeGet(fullKey)) || "{}") || {});
+    let changed = false;
+    Object.keys(monthObj).forEach(date=>{
+      (monthObj[date] || []).forEach(bill=>{
+        if(supplierKey(bill.supplier) === key &&
+           (bill.category !== newCategory || (bill.subcategory||"") !== (newSubcategory||""))){
+          bill.category = newCategory;
+          bill.subcategory = newSubcategory || "";
+          changed = true;
+          updatedCount++;
+        }
+      });
+    });
+    if(changed){
+      await safeSet(fullKey, JSON.stringify(monthObj));
+      // Objects are mutated in place, so `entries` (which shares references
+      // with billsMonthCache when it's the same month) is already correct —
+      // this just makes sure the Add Expenses tab's rendered DOM catches up
+      // if it's showing the month that was just changed underneath it.
+      if(isCachedCurrentMonth){
+        renderTable(); renderTotals(); renderBreakdown();
+      }
+    }
+  }
+  return updatedCount;
+}
+
 let saveErrorShown = false;
 function showSaveError(){
   if(saveErrorShown) return;

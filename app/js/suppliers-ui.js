@@ -97,9 +97,14 @@ function renderManageSupplierList(filterText){
     listEl.appendChild(empty);
     return;
   }
-  filtered.forEach(name=>{ listEl.appendChild(buildManageSupplierRow(name)); });
+  filtered.forEach(name=>{ listEl.appendChild(buildManageSupplierRow(name, renderManageSupplierList)); });
 }
-function buildManageSupplierRow(name){
+// Builds one supplier row. `onChange()` is called after a save/delete so the
+// caller's own list re-renders — shared between the Manage Suppliers modal
+// (Add Expenses toolbar, all profiles) and the owner-only Suppliers tab
+// (suppliers-tab.js), which are otherwise independent UI surfaces over the
+// same underlying supplier/category data.
+function buildManageSupplierRow(name, onChange){
   const row = document.createElement('div');
   row.className = 'manage-supplier-row';
 
@@ -139,7 +144,7 @@ function buildManageSupplierRow(name){
   editBtn.addEventListener('click', ()=>{
     const existing = row.querySelector('.msr-edit');
     if(existing){ existing.remove(); return; }
-    row.appendChild(buildManageSupplierEditForm(name));
+    row.appendChild(buildManageSupplierEditForm(name, onChange));
   });
 
   deleteBtn.addEventListener('click', async ()=>{
@@ -148,13 +153,13 @@ function buildManageSupplierRow(name){
     delete supplierDefaults[supplierKey(name)];
     await saveSuppliers();
     await saveSupplierDefaults();
-    renderManageSupplierList();
+    onChange();
     renderSupplierSelect();
   });
 
   return row;
 }
-function buildManageSupplierEditForm(name){
+function buildManageSupplierEditForm(name, onChange){
   const def = supplierDefaults[supplierKey(name)];
   const wrap = document.createElement('div');
   wrap.className = 'msr-edit';
@@ -220,7 +225,23 @@ function buildManageSupplierEditForm(name){
     supplierDefaults[supplierKey(newName)] = { category: newCat, subcategory: newSub };
     await saveSuppliers();
     await saveSupplierDefaults();
-    renderManageSupplierList();
+
+    // Retroactively fix every past bill logged under this supplier's OLD name
+    // (rename, if any, doesn't touch historical bills' supplier field — same
+    // as it never has — this only fixes category/subcategory) so a corrected
+    // category doesn't just apply going forward.
+    const categoryChanged = def && (def.category !== newCat || (def.subcategory||"") !== newSub);
+    if(categoryChanged){
+      saveBtn.disabled = true;
+      cancelBtn.disabled = true;
+      saveBtn.textContent = 'Updating past bills…';
+      const count = await propagateSupplierCategoryToAllBills(name, newCat, newSub);
+      if(count > 0){
+        alert(`Updated ${count} past bill${count === 1 ? '' : 's'} to match the new category.`);
+      }
+    }
+
+    onChange();
     renderSupplierSelect();
   });
   cancelBtn.addEventListener('click', ()=>{ wrap.remove(); });

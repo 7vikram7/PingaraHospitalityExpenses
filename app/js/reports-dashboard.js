@@ -74,12 +74,14 @@ function switchTab(tab){
   const btns = {
     expenses: document.getElementById('tabBtnExpenses'),
     reports: document.getElementById('tabBtnReports'),
-    ledger: document.getElementById('tabBtnLedger')
+    ledger: document.getElementById('tabBtnLedger'),
+    suppliers: document.getElementById('tabBtnSuppliers')
   };
   const panels = {
     expenses: document.getElementById('tabPanelExpenses'),
     reports: document.getElementById('tabPanelReports'),
-    ledger: document.getElementById('tabPanelLedger')
+    ledger: document.getElementById('tabPanelLedger'),
+    suppliers: document.getElementById('tabPanelSuppliers')
   };
   Object.keys(btns).forEach(key=>{
     const active = key === tab;
@@ -88,10 +90,12 @@ function switchTab(tab){
   });
   if(tab === 'reports') showReportsPanel();
   else if(tab === 'ledger') showVLPanel();
+  else if(tab === 'suppliers') showSuppliersTabPanel();
 }
 document.getElementById('tabBtnExpenses').addEventListener('click', ()=>switchTab('expenses'));
 document.getElementById('tabBtnReports').addEventListener('click', ()=>switchTab('reports'));
 document.getElementById('tabBtnLedger').addEventListener('click', ()=>switchTab('ledger'));
+document.getElementById('tabBtnSuppliers').addEventListener('click', ()=>switchTab('suppliers'));
 
 /* ---------- Reports dashboard: sales vs. expenses, by restaurant ----------
    Cross-restaurant, independent of the currently confirmed restaurant — reads

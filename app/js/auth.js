@@ -53,6 +53,7 @@ function updateTabVisibilityForProfile(){
   const owner = isOwnerProfile();
   document.getElementById('tabBtnReports').style.display = owner ? '' : 'none';
   document.getElementById('tabBtnLedger').style.display = owner ? '' : 'none';
+  document.getElementById('tabBtnSuppliers').style.display = owner ? '' : 'none';
   document.getElementById('expensesRestaurantControl').style.display = owner ? 'flex' : 'none';
   document.getElementById('restaurantChangeBtn').style.display = owner ? 'none' : '';
   if(!owner){

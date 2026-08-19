@@ -173,9 +173,10 @@ edit), a separate concept from the profile login itself, deliberately left
 as-is.
 
 ## Tab structure (Add Expenses added first; Reports added 2026-07-31; Vendor
-## Ledger added 2026-08-05)
-Three tab panels, switched by `.tab-bar` buttons (`tabBtnExpenses` /
-`tabBtnReports` / `tabBtnLedger`) via `switchTab()` in reports-dashboard.js:
+## Ledger added 2026-08-05; Suppliers added 2026-08-15)
+Four tab panels, switched by `.tab-bar` buttons (`tabBtnExpenses` /
+`tabBtnReports` / `tabBtnLedger` / `tabBtnSuppliers`) via `switchTab()` in
+reports-dashboard.js:
 - **"Add Expenses"** (`#tabPanelExpenses`, default/active tab) — a
   restaurant control (Manager: name-only, in `.restaurant-context-bar` above
   all tabs, "Change restaurant" re-triggers the password gate; Owner: an
@@ -236,6 +237,42 @@ Three tab panels, switched by `.tab-bar` buttons (`tabBtnExpenses` /
     — it reuses the month cache when it happens to be the same
     restaurant+month, otherwise fetches fresh, and syncs the live `entries`
     array too if it is the same day currently being viewed there.
+- **"Suppliers"** (`#tabPanelSuppliers`, `app/js/suppliers-tab.js`) —
+  owner-only, same tab-visibility toggle as Reports/Vendor Ledger
+  (`updateTabVisibilityForProfile()` in auth.js), no separate password
+  screen of its own since owner-only visibility already gates it. Lists
+  every supplier with its category/subcategory and lets you add a new one —
+  `suppliers`/`categories`/`supplierDefaults` were already unnamespaced by
+  restaurant (see Storage key structure above), so this list, and any edit
+  made here, is automatically shared across every restaurant on the account,
+  nothing extra needed for that part.
+  - **Reuses `buildManageSupplierRow()` / `buildManageSupplierEditForm()`**
+    (suppliers-ui.js) for the list and inline edit form — the exact same
+    functions the Add Expenses toolbar's "Manage Suppliers" modal already
+    used, refactored to take an `onChange()` callback instead of hardcoding
+    which list to re-render, so both surfaces share one implementation
+    rather than maintaining two. The "add a new supplier" form is a
+    parallel copy with its own element ids (`supTab*`) rather than shared,
+    since that logic wasn't already isolated from the modal's specific ids
+    without a bigger refactor.
+  - **Editing a supplier's category/subcategory retroactively updates every
+    past bill logged under that supplier** — not just new ones — across
+    every restaurant and every month, not just the current one. This is the
+    one genuinely new piece of logic (`propagateSupplierCategoryToAllBills()`
+    in data-store.js): it discovers every `rest:*:bills:*` month-document
+    key across every restaurant (`listAllRestaurantsBillMonthKeys()`, a
+    broad-prefix Firestore range query on `"rest:"` rather than one
+    restaurant's own prefix), loads each one that isn't already cached,
+    rewrites `category`/`subcategory` on every bill matching the supplier
+    (matched via `supplierKey()`, same case/whitespace-insensitive
+    normalization `supplierDefaults` itself uses), and only writes back the
+    documents that actually changed. Runs from `buildManageSupplierEditForm`'s
+    save handler whenever the category/subcategory actually changed, so it
+    also fires from the old Manage Suppliers modal, not just this tab —
+    edited from either surface, behavior is identical. Does **not** touch a
+    bill's `supplier` name field if the supplier was also renamed in the
+    same edit — same as before, a rename doesn't reach into history, only
+    category/subcategory do now.
 
 ## Modify a bill (added 2026-08-05)
 Each ledger row has a **Modify** button (`ledger-ui.js` renders it,
