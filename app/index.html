@@ -150,6 +150,10 @@ window.__firebaseSdkReady = (async ()=>{
           <button type="button" class="paid" id="editBillBtnPaid" data-status="paid">Paid</button>
         </div>
       </div>
+      <div class="field">
+        <label>Notes</label>
+        <input type="text" id="editBillNotes" placeholder="optional">
+      </div>
     </div>
     <p>Category/subcategory always follow the supplier's saved default — change the supplier's category from Manage Suppliers if it's wrong.</p>
     <div class="modal-error" id="editBillError">Please pick a supplier with a category set, a valid date, and an amount above 0.</div>
@@ -299,6 +303,10 @@ window.__firebaseSdkReady = (async ()=>{
             <button type="button" class="active unpaid" id="btnUnpaid" data-status="unpaid">Unpaid</button>
             <button type="button" class="paid" id="btnPaid" data-status="paid">Paid</button>
           </div>
+        </div>
+        <div class="field">
+          <label>Notes</label>
+          <input type="text" id="notesInput" placeholder="optional">
         </div>
         <button type="submit" class="add-btn">Add bill</button>
       </div>

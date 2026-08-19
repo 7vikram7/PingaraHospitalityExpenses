@@ -686,6 +686,7 @@ document.getElementById('quickAddForm').addEventListener('submit', async (ev)=>{
   const invoice = document.getElementById('invoiceInput').value.trim();
   const amount = parseFloat(document.getElementById('amountInput').value);
   const status = document.getElementById('btnPaid').classList.contains('active') ? 'paid' : 'unpaid';
+  const notes = document.getElementById('notesInput').value.trim();
 
   if(!supplier || !amount || amount <= 0){
     return;
@@ -707,6 +708,7 @@ document.getElementById('quickAddForm').addEventListener('submit', async (ev)=>{
     invoice: invoice,
     amount: amount,
     status: status,
+    notes: notes,
     paidAt: status === 'paid' ? Date.now() : null,
     createdAt: Date.now()
   };
@@ -717,9 +719,10 @@ document.getElementById('quickAddForm').addEventListener('submit', async (ev)=>{
   renderTotals();
   renderBreakdown();
 
-  // Reset for fast repeat entry — keep supplier & status selected, clear invoice/amount
+  // Reset for fast repeat entry — keep supplier & status selected, clear invoice/amount/notes
   document.getElementById('invoiceInput').value = "";
   document.getElementById('amountInput').value = "";
+  document.getElementById('notesInput').value = "";
   document.getElementById('invoiceInput').focus();
 });
 

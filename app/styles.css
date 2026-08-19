@@ -1005,6 +1005,7 @@ main{padding:24px 28px 60px;max-width:1400px;margin:0 auto;}
 .qa-rest-fields .field:nth-child(1){flex:1.3 1 160px;}
 .qa-rest-fields .field:nth-child(2){flex:1 1 130px;}
 .qa-rest-fields .field:nth-child(3){flex:1.6 1 170px;}
+.qa-rest-fields .field:nth-child(4){flex:2 1 200px;}
 .field{display:flex;flex-direction:column;gap:4px;min-width:0;}
 .field label{
   font-size:10px;
@@ -1279,6 +1280,7 @@ td.amount{
 }
 td.supplier{font-weight:600;}
 td.subcat{color:var(--ink-soft);}
+.note-indicator{cursor:help;}
 td.num{
   font-family:'IBM Plex Mono',monospace;
   text-align:right;

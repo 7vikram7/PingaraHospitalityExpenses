@@ -15,7 +15,7 @@ Firebase Hosting.
   *that restaurant's* password, and only ever sees the Add Expenses tab.
   Session-scoped — closing the browser logs you out.
 - **Supplier-first bill entry** — pick a supplier, its category/subcategory
-  auto-fills from a saved default
+  auto-fills from a saved default, with an optional free-text Notes field
 - **Restaurant lock** — confirm one restaurant before anything else is
   editable, so a stray tap can't misattribute a bill to the wrong restaurant
 - **Modify a bill** — freely editable for 1 hour after it's added; after

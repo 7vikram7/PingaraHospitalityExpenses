@@ -18,7 +18,7 @@ function renderTable(){
       <td>${escapeHtml(e.category)}</td>
       <td class="subcat">${escapeHtml(e.subcategory || '—')}</td>
       <td class="supplier">${escapeHtml(e.supplier)}</td>
-      <td class="subcat">${escapeHtml(e.invoice || '—')}</td>
+      <td class="subcat">${escapeHtml(e.invoice || '—')}${e.notes ? ` <span class="note-indicator" title="${escapeHtml(e.notes)}">📝</span>` : ''}</td>
       <td class="amount">${fmtMoney(e.amount)}</td>
       <td><button class="badge ${e.status}" data-id="${e.id}" data-action="toggle">${e.status}</button></td>
       <td><button class="modify-btn" data-id="${e.id}" data-action="modify"${modifyTitle}>${modifyLabel}</button></td>
@@ -127,6 +127,7 @@ function openEditBillModal(entry){
   document.getElementById('editBillDate').value = currentDate;
   document.getElementById('editBillInvoice').value = entry.invoice || "";
   document.getElementById('editBillAmount').value = entry.amount;
+  document.getElementById('editBillNotes').value = entry.notes || "";
   setEditBillStatus(entry.status);
   document.getElementById('editBillError').classList.remove('show');
   document.getElementById('editBillModal').classList.add('open');
@@ -246,6 +247,7 @@ document.getElementById('editBillSave').addEventListener('click', async ()=>{
   const invoice = document.getElementById('editBillInvoice').value.trim();
   const amount = parseFloat(document.getElementById('editBillAmount').value);
   const status = document.getElementById('editBillBtnPaid').classList.contains('active') ? 'paid' : 'unpaid';
+  const notes = document.getElementById('editBillNotes').value.trim();
   if(!supplier || !def || !categories[def.category] || !newDate || !amount || amount <= 0){
     document.getElementById('editBillError').classList.add('show');
     return;
@@ -257,6 +259,7 @@ document.getElementById('editBillSave').addEventListener('click', async ()=>{
   entry.invoice = invoice;
   entry.amount = amount;
   entry.status = status;
+  entry.notes = notes;
 
   if(newDate !== currentDate){
     await moveEntryDate(entry, newDate);

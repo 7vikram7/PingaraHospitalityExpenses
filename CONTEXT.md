@@ -74,11 +74,16 @@ below (ledger, totals, sales) is scoped to whichever restaurant is selected.
     its category/subcategory auto-fill)
 - **Per-restaurant, per-month bucketed** (this is the current, optimized design):
   - Bills: key = `rest:<restaurantId>:bills:<YYYY-MM>` → JSON object
-    `{ "<date YYYY-MM-DD>": [ {id, category, subcategory, supplier, invoice, amount, status, paidAt, createdAt}, ... ], ... }`.
+    `{ "<date YYYY-MM-DD>": [ {id, category, subcategory, supplier, invoice, amount, status, notes, paidAt, createdAt}, ... ], ... }`.
     `paidAt` (added 2026-08-05) is a timestamp set whenever `status` becomes
     `'paid'` (at creation if added already-paid, or via either toggle path
     below) and cleared back to `null` on `'unpaid'` — not a history log, just
-    "when did this bill *most recently* become paid."
+    "when did this bill *most recently* become paid." `notes` (added
+    2026-08-15) is a free-text string, always optional — `''` when not set,
+    never required by the add-bill form or the Modify dialog. Shown in the
+    ledger table as a small 📝 icon (`.note-indicator`) next to the invoice
+    cell, only rendered when `notes` is truthy, with the full text in a
+    `title` tooltip rather than its own always-visible column.
   - Sales: key = `rest:<restaurantId>:sales:<YYYY-MM>` → JSON object
     `{ "<date YYYY-MM-DD>": <number>, ... }`
 
