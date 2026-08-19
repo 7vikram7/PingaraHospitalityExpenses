@@ -109,7 +109,20 @@ let dashChartType = 'bar';   // 'bar' | 'pie'
 let dashPeriodType = 'day';  // 'day' | 'month' | 'range'
 let dashSelectedDate, dashSelectedMonth; // set from init(), after todayStr()/addDaysStr() exist
 let dashRangeFrom, dashRangeTo;
+let dashCompareMonthA, dashCompareMonthB;
 let dashRestaurantFilter = 'all'; // 'all' or a restaurant id
+
+function addMonthsStr(monthStr, delta){
+  const [y, m] = monthStr.split('-').map(Number);
+  const total = y * 12 + (m - 1) + delta;
+  const ny = Math.floor(total / 12);
+  const nm = (total % 12 + 12) % 12 + 1;
+  return ny + '-' + String(nm).padStart(2, '0');
+}
+function fmtMonthLabel(monthStr){
+  const [y, m] = monthStr.split('-').map(Number);
+  return new Date(y, m - 1, 1).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
+}
 
 function renderDashRestaurantSelect(){
   const sel = document.getElementById('dashRestaurantSelect');
@@ -478,19 +491,139 @@ function renderDashTable(restaurants){
   wrap.appendChild(table);
 }
 
+// Sums byCategory across every restaurant currently in scope into one flat
+// list, each with its amount as a % of TOTAL sales for the scope — the same
+// ratio buildSegments() already computes per-restaurant for the chart, just
+// aggregated across the whole scope and shown as plain numbers instead of a
+// chart segment. Mirrors a manual Excel "spend by category, % of sales"
+// pivot the owner already used for this kind of monthly analysis.
+function aggregateCategorySpend(restaurants, totalSales){
+  const totals = {};
+  restaurants.forEach(r=>{
+    Object.keys(r.byCategory).forEach(cat=>{
+      totals[cat] = (totals[cat] || 0) + r.byCategory[cat];
+    });
+  });
+  return Object.keys(totals).map(cat=>({
+    category: cat,
+    amount: totals[cat],
+    pct: totalSales > 0 ? (totals[cat] / totalSales * 100) : 0
+  })).sort((a,b)=>b.amount-a.amount);
+}
+function buildCategoryTable(rows){
+  if(rows.length === 0){
+    const empty = document.createElement('div');
+    empty.className = 'manage-empty';
+    empty.textContent = "No expenses logged for this period yet.";
+    return empty;
+  }
+  const table = document.createElement('table');
+  const thead = document.createElement('thead');
+  const headRow = document.createElement('tr');
+  headRow.innerHTML = '<th>Category</th><th class="num">Amount</th><th class="num">% of sales</th>';
+  thead.appendChild(headRow);
+  const tbody = document.createElement('tbody');
+  rows.forEach(r=>{
+    const tr = document.createElement('tr');
+    const tdCat = document.createElement('td'); tdCat.textContent = r.category; tdCat.className = 'supplier';
+    const tdAmt = document.createElement('td'); tdAmt.className = 'amount'; tdAmt.textContent = fmtMoney(r.amount);
+    const tdPct = document.createElement('td'); tdPct.className = 'num'; tdPct.textContent = r.pct.toFixed(1) + '%';
+    tr.appendChild(tdCat); tr.appendChild(tdAmt); tr.appendChild(tdPct);
+    tbody.appendChild(tr);
+  });
+  table.appendChild(thead); table.appendChild(tbody);
+  return table;
+}
+function setProfitPctText(el, profit, sales){
+  if(sales > 0){
+    const pct = profit / sales * 100;
+    el.textContent = pct.toFixed(1) + '%';
+    el.classList.toggle('negative', pct < 0);
+    el.classList.toggle('positive', pct > 0);
+  } else {
+    el.textContent = '—';
+    el.classList.remove('negative', 'positive');
+  }
+}
+
+// Compare-months view: two independent month lookups (via the existing
+// computeSalesExpenseData('month', ...) path, same restaurant-filter scope
+// as the single view) rendered as side-by-side stat+category-table columns,
+// mirroring the manual Excel sheet's Nov/Dec side-by-side layout this
+// feature was modeled on — except which two months is the user's choice,
+// not fixed to "this month vs last."
+function buildDashCompareCol(month, data){
+  const col = document.createElement('div');
+  col.className = 'dash-compare-col';
+
+  const title = document.createElement('h3');
+  title.className = 'dash-compare-col-title';
+  title.textContent = fmtMonthLabel(month);
+  col.appendChild(title);
+
+  const stats = document.createElement('div');
+  stats.className = 'dash-compare-stats';
+  const mkStat = (label, valueText, cls)=>{
+    const cell = document.createElement('div');
+    cell.className = 'dash-compare-stat';
+    const lbl = document.createElement('span'); lbl.textContent = label;
+    const val = document.createElement('b'); val.textContent = valueText;
+    if(cls) val.classList.add(cls);
+    cell.appendChild(lbl); cell.appendChild(val);
+    return cell;
+  };
+  stats.appendChild(mkStat('Sales', fmtMoney(data.totalSales)));
+  stats.appendChild(mkStat('Expenses', fmtMoney(data.totalExpenses)));
+  stats.appendChild(mkStat('Profit', fmtMoney(data.totalProfit), data.totalProfit < 0 ? 'negative' : data.totalProfit > 0 ? 'positive' : ''));
+  const profitPctText = data.totalSales > 0 ? (data.totalProfit / data.totalSales * 100).toFixed(1) + '%' : '—';
+  const profitPctCls = data.totalSales > 0 ? (data.totalProfit < 0 ? 'negative' : 'positive') : '';
+  stats.appendChild(mkStat('Profit %', profitPctText, profitPctCls));
+  col.appendChild(stats);
+
+  if(data.restaurants.length === 0){
+    const empty = document.createElement('div');
+    empty.className = 'dash-empty';
+    empty.textContent = 'No sales recorded for this month.';
+    col.appendChild(empty);
+    return col;
+  }
+
+  const tableWrap = document.createElement('div');
+  tableWrap.className = 'plain-table-wrap';
+  tableWrap.appendChild(buildCategoryTable(aggregateCategorySpend(data.restaurants, data.totalSales)));
+  col.appendChild(tableWrap);
+  return col;
+}
+async function renderDashCompareView(){
+  const cols = document.getElementById('dashCompareCols');
+  cols.innerHTML = "";
+  for(const month of [dashCompareMonthA, dashCompareMonthB]){
+    const data = await computeSalesExpenseData('month', { month }, dashRestaurantFilter);
+    cols.appendChild(buildDashCompareCol(month, data));
+  }
+}
+
 async function renderDashboard(){
   if(dashSelectedDate === undefined) dashSelectedDate = addDaysStr(todayStr(), -1);
   if(dashSelectedMonth === undefined) dashSelectedMonth = todayStr().slice(0,7);
   if(dashRangeFrom === undefined) dashRangeFrom = todayStr().slice(0,8) + '01'; // 1st of this month
   if(dashRangeTo === undefined) dashRangeTo = todayStr();
+  if(dashCompareMonthA === undefined) dashCompareMonthA = addMonthsStr(todayStr().slice(0,7), -1);
+  if(dashCompareMonthB === undefined) dashCompareMonthB = todayStr().slice(0,7);
   document.getElementById('dashDatePicker').value = dashSelectedDate;
   document.getElementById('dashMonthPicker').value = dashSelectedMonth;
   document.getElementById('dashRangeFromPicker').value = dashRangeFrom;
   document.getElementById('dashRangeToPicker').value = dashRangeTo;
+  document.getElementById('dashCompareMonthA').value = dashCompareMonthA;
+  document.getElementById('dashCompareMonthB').value = dashCompareMonthB;
 
   const panel = document.getElementById('reportsDashboard');
   panel.classList.add('dash-loading');
   try{
+    if(dashPeriodType === 'compare'){
+      await renderDashCompareView();
+      return;
+    }
     const params = dashPeriodType === 'day' ? { date: dashSelectedDate }
       : dashPeriodType === 'range' ? { from: dashRangeFrom, to: dashRangeTo }
       : { month: dashSelectedMonth };
@@ -502,15 +635,21 @@ async function renderDashboard(){
     profitEl.textContent = fmtMoney(data.totalProfit);
     profitEl.classList.toggle('negative', data.totalProfit < 0);
     profitEl.classList.toggle('positive', data.totalProfit > 0);
+    setProfitPctText(document.getElementById('dashTotalProfitPct'), data.totalProfit, data.totalSales);
 
     const hasData = data.restaurants.length > 0;
     document.getElementById('dashEmpty').style.display = hasData ? 'none' : 'block';
     document.getElementById('dashChartCard').style.display = hasData ? 'block' : 'none';
+    document.getElementById('dashCategoryCard').style.display = hasData ? 'block' : 'none';
 
     if(dashChartType === 'bar') renderBarView(data.restaurants);
     else renderPieView(data.restaurants);
     renderDashLegend(data.restaurants);
     renderDashTable(data.restaurants);
+
+    const catWrap = document.getElementById('dashCategoryTableWrap');
+    catWrap.innerHTML = "";
+    catWrap.appendChild(buildCategoryTable(aggregateCategorySpend(data.restaurants, data.totalSales)));
   }catch(e){
     console.error('dashboard render failed', e);
   }finally{
@@ -542,11 +681,12 @@ document.getElementById('dashRestaurantSelect').addEventListener('change', (ev)=
   renderDashboard();
 });
 
-const DASH_PERIOD_BTNS = { day: 'dashPeriodDay', month: 'dashPeriodMonth', range: 'dashPeriodRange' };
+const DASH_PERIOD_BTNS = { day: 'dashPeriodDay', month: 'dashPeriodMonth', range: 'dashPeriodRange', compare: 'dashPeriodCompare' };
 const DASH_PERIOD_FIELDS = {
   day: ['dashDatePicker'],
   month: ['dashMonthPicker'],
-  range: ['dashRangeFromLabel', 'dashRangeFromPicker', 'dashRangeToLabel', 'dashRangeToPicker']
+  range: ['dashRangeFromLabel', 'dashRangeFromPicker', 'dashRangeToLabel', 'dashRangeToPicker'],
+  compare: ['dashCompareALabel', 'dashCompareMonthA', 'dashCompareBLabel', 'dashCompareMonthB']
 };
 function setDashPeriodType(type){
   dashPeriodType = type;
@@ -557,11 +697,19 @@ function setDashPeriodType(type){
     const display = key === type ? '' : 'none';
     DASH_PERIOD_FIELDS[key].forEach(id=>{ document.getElementById(id).style.display = display; });
   });
+  // Compare mode replaces the whole chart+hero+category view with two
+  // side-by-side month columns — the Bar/Pie toggle has nothing to act on
+  // there, so it's hidden rather than left sitting inert.
+  const isCompare = type === 'compare';
+  document.getElementById('dashSingleView').style.display = isCompare ? 'none' : '';
+  document.getElementById('dashCompareView').style.display = isCompare ? '' : 'none';
+  document.getElementById('dashChartTypeGroup').style.display = isCompare ? 'none' : '';
   renderDashboard();
 }
 document.getElementById('dashPeriodDay').addEventListener('click', ()=>setDashPeriodType('day'));
 document.getElementById('dashPeriodMonth').addEventListener('click', ()=>setDashPeriodType('month'));
 document.getElementById('dashPeriodRange').addEventListener('click', ()=>setDashPeriodType('range'));
+document.getElementById('dashPeriodCompare').addEventListener('click', ()=>setDashPeriodType('compare'));
 
 document.getElementById('dashDatePicker').addEventListener('change', (ev)=>{
   if(ev.target.value){ dashSelectedDate = ev.target.value; renderDashboard(); }
@@ -574,6 +722,12 @@ document.getElementById('dashRangeFromPicker').addEventListener('change', (ev)=>
 });
 document.getElementById('dashRangeToPicker').addEventListener('change', (ev)=>{
   if(ev.target.value){ dashRangeTo = ev.target.value; renderDashboard(); }
+});
+document.getElementById('dashCompareMonthA').addEventListener('change', (ev)=>{
+  if(ev.target.value){ dashCompareMonthA = ev.target.value; renderDashboard(); }
+});
+document.getElementById('dashCompareMonthB').addEventListener('change', (ev)=>{
+  if(ev.target.value){ dashCompareMonthB = ev.target.value; renderDashboard(); }
 });
 document.getElementById('dashTableToggle').addEventListener('click', (ev)=>{
   const wrap = document.getElementById('dashTableWrap');

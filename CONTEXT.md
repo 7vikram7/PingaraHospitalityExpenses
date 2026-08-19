@@ -213,6 +213,29 @@ reports-dashboard.js:
     so the underlying data was never protected by this gate. If real
     per-role access control is ever needed, that requires Firebase Auth +
     server-enforced rules, not a client-side password.
+  - **"Spend by category" table + Profit %** (added 2026-08-20, modeled on a
+    manual Excel cost-ratio analysis the owner already used for Umami):
+    `aggregateCategorySpend()` sums each restaurant's `byCategory` (already
+    computed for the chart) into one flat list per category — amount and %
+    **of total sales for the scope**, same ratio `buildSegments()` already
+    uses per-restaurant for the chart, just surfaced as plain numbers in
+    `#dashCategoryTableWrap` (`buildCategoryTable()`, reused by the compare
+    view below) instead of only a chart segment. The hero row gained a 4th
+    stat, Profit % (`setProfitPctText()`), alongside the existing ₹ figures.
+  - **"Compare months" period mode** (`dashPeriodCompare`, same 2026-08-20
+    change) — a 4th option alongside Day/Month/Date-range. Two independent
+    `<input type="month">` pickers (`dashCompareMonthA`/`B`, no relationship
+    to each other — deliberately not "this month vs last," the owner picks
+    both), each queried via the existing `computeSalesExpenseData('month', …)`
+    path and rendered as its own stats+category-table column
+    (`buildDashCompareCol()`) inside `#dashCompareCols`. Selecting Compare
+    swaps the whole chart+hero+category block (`#dashSingleView`) for the
+    two-column view (`#dashCompareView`) and hides the now-meaningless
+    Bar/Pie toggle (`#dashChartTypeGroup`) — the restaurant selector still
+    applies to both columns. This is a live, in-app version of the "two
+    months side by side, category breakdown + Sales/Expense/Profit/Profit%"
+    pivot table the owner already built by hand in Excel for Umami — same
+    underlying ratios, no download/Excel step needed to see it.
   - The financial-year picker modal (`#fyModal`, triggered by
     `downloadExcelBtn`) lives as a page-level sibling (not nested inside any
     tab-panel div) specifically so it isn't hidden by `display:none` when the

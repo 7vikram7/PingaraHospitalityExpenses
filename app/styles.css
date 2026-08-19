@@ -818,6 +818,56 @@ h1{
 }
 .dash-table-toggle:hover{border-color:var(--brass);color:var(--brass-deep);}
 
+/* ---------- Reports: compare-months view ---------- */
+.dash-compare-cols{
+  display:flex;
+  gap:20px;
+  flex-wrap:wrap;
+  align-items:flex-start;
+}
+.dash-compare-col{
+  flex:1 1 320px;
+  min-width:280px;
+  background:#fff;
+  border:1.5px solid var(--paper-line);
+  border-radius:6px;
+  padding:16px 18px;
+}
+.dash-compare-col-title{
+  font-family:'Fraunces',serif;
+  font-size:17px;
+  font-weight:600;
+  margin:0 0 12px;
+}
+.dash-compare-stats{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:10px;
+  margin-bottom:16px;
+}
+.dash-compare-stat{
+  background:var(--paper-dark);
+  border-radius:4px;
+  padding:8px 10px;
+}
+.dash-compare-stat span{
+  display:block;
+  font-family:'IBM Plex Mono',monospace;
+  font-size:10px;
+  text-transform:uppercase;
+  letter-spacing:0.06em;
+  color:var(--ink-soft);
+  margin-bottom:2px;
+}
+.dash-compare-stat b{
+  font-family:'IBM Plex Mono',monospace;
+  font-size:16px;
+  font-weight:600;
+  color:var(--ink);
+}
+.dash-compare-stat b.negative{color:var(--red);}
+.dash-compare-stat b.positive{color:var(--green);}
+
 /* -- bar view: one column per restaurant, height = sales, stacked by expense
       category with a neutral "profit" cap -- */
 .dash-bar-chart{

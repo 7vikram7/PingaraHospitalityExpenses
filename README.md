@@ -25,9 +25,13 @@ Firebase Hosting.
 - **Daily sales tracking** alongside purchases, with the same 1-hour-then-
   password rule once a day's figure has been saved
 - **Reports tab** (Owner only): a spend dashboard (by restaurant, by
-  category, Yesterday/Month-to-date toggle) plus Excel/CSV export —
-  including a live-linked `.xlsx` file (Chrome/Edge desktop only) and a
-  full financial-year register (Apr–Mar, Indian FY convention)
+  category, Day/Month/Date-range toggle) plus Excel/CSV export — including
+  a live-linked `.xlsx` file (Chrome/Edge desktop only) and a full
+  financial-year register (Apr–Mar, Indian FY convention). Also shows a
+  plain "spend by category" table (amount + % of sales) and Profit %
+  alongside the chart, and a "Compare months" mode — pick any two months
+  to see them side by side, each with its own Sales/Expenses/Profit/
+  Profit % and category breakdown
 - **Vendor Ledger tab** (Owner only): bills grouped by supplier instead of
   by day, across all restaurants or one, for a day, month, or custom date
   range. Click a vendor to expand its individual bills (date, invoice #,

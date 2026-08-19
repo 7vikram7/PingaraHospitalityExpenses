@@ -355,7 +355,7 @@ window.__firebaseSdkReady = (async ()=>{
       <div class="viz-root dash-panel" id="reportsDashboard">
         <div class="dash-filter-row">
           <select id="dashRestaurantSelect" class="dash-date-input"></select>
-          <div class="dash-toggle-group" role="group" aria-label="Chart type">
+          <div class="dash-toggle-group" role="group" aria-label="Chart type" id="dashChartTypeGroup">
             <button type="button" class="dash-toggle-btn active" id="dashChartBar" data-chart="bar">Bar view</button>
             <button type="button" class="dash-toggle-btn" id="dashChartPie" data-chart="pie">Pie view</button>
           </div>
@@ -363,6 +363,7 @@ window.__firebaseSdkReady = (async ()=>{
             <button type="button" class="dash-toggle-btn active" id="dashPeriodDay" data-period="day">Day</button>
             <button type="button" class="dash-toggle-btn" id="dashPeriodMonth" data-period="month">Month</button>
             <button type="button" class="dash-toggle-btn" id="dashPeriodRange" data-period="range">Date range</button>
+            <button type="button" class="dash-toggle-btn" id="dashPeriodCompare" data-period="compare">Compare months</button>
           </div>
           <input type="date" id="dashDatePicker" class="dash-date-input">
           <input type="month" id="dashMonthPicker" class="dash-date-input" style="display:none;">
@@ -370,34 +371,55 @@ window.__firebaseSdkReady = (async ()=>{
           <input type="date" id="dashRangeFromPicker" class="dash-date-input" style="display:none;">
           <span class="toolbar-label" id="dashRangeToLabel" style="display:none;">To</span>
           <input type="date" id="dashRangeToPicker" class="dash-date-input" style="display:none;">
+          <span class="toolbar-label" id="dashCompareALabel" style="display:none;">Month A</span>
+          <input type="month" id="dashCompareMonthA" class="dash-date-input" style="display:none;">
+          <span class="toolbar-label" id="dashCompareBLabel" style="display:none;">Month B</span>
+          <input type="month" id="dashCompareMonthB" class="dash-date-input" style="display:none;">
         </div>
 
-        <div class="dash-hero-row">
-          <div class="dash-hero">
-            <div class="dash-hero-label">Total sales</div>
-            <div class="dash-hero-value" id="dashTotalSales">₹0.00</div>
+        <div id="dashSingleView">
+          <div class="dash-hero-row">
+            <div class="dash-hero">
+              <div class="dash-hero-label">Total sales</div>
+              <div class="dash-hero-value" id="dashTotalSales">₹0.00</div>
+            </div>
+            <div class="dash-hero">
+              <div class="dash-hero-label">Total expenses</div>
+              <div class="dash-hero-value" id="dashTotalExpenses">₹0.00</div>
+            </div>
+            <div class="dash-hero">
+              <div class="dash-hero-label">Profit</div>
+              <div class="dash-hero-value" id="dashTotalProfit">₹0.00</div>
+            </div>
+            <div class="dash-hero">
+              <div class="dash-hero-label">Profit %</div>
+              <div class="dash-hero-value" id="dashTotalProfitPct">—</div>
+            </div>
           </div>
-          <div class="dash-hero">
-            <div class="dash-hero-label">Total expenses</div>
-            <div class="dash-hero-value" id="dashTotalExpenses">₹0.00</div>
+
+          <div class="dash-empty" id="dashEmpty" style="display:none;">No sales recorded for this period yet — charts populate once at least one restaurant logs its sales for the selected day/month.</div>
+
+          <div class="dash-card" id="dashChartCard">
+            <div class="dash-card-head">
+              <h3 id="dashChartTitle">Sales vs. expenses by restaurant</h3>
+              <button type="button" class="dash-table-toggle" id="dashTableToggle">View as table</button>
+            </div>
+            <div class="dash-bar-chart" id="dashBarChart"></div>
+            <div class="dash-pie-grid" id="dashPieGrid" style="display:none;"></div>
+            <div class="dash-legend" id="dashCatLegend"></div>
+            <div class="dash-table-wrap" id="dashTableWrap" style="display:none;"></div>
           </div>
-          <div class="dash-hero">
-            <div class="dash-hero-label">Profit</div>
-            <div class="dash-hero-value" id="dashTotalProfit">₹0.00</div>
+
+          <div class="dash-card" id="dashCategoryCard">
+            <div class="dash-card-head">
+              <h3>Spend by category</h3>
+            </div>
+            <div class="plain-table-wrap" id="dashCategoryTableWrap"></div>
           </div>
         </div>
 
-        <div class="dash-empty" id="dashEmpty" style="display:none;">No sales recorded for this period yet — charts populate once at least one restaurant logs its sales for the selected day/month.</div>
-
-        <div class="dash-card" id="dashChartCard">
-          <div class="dash-card-head">
-            <h3 id="dashChartTitle">Sales vs. expenses by restaurant</h3>
-            <button type="button" class="dash-table-toggle" id="dashTableToggle">View as table</button>
-          </div>
-          <div class="dash-bar-chart" id="dashBarChart"></div>
-          <div class="dash-pie-grid" id="dashPieGrid" style="display:none;"></div>
-          <div class="dash-legend" id="dashCatLegend"></div>
-          <div class="dash-table-wrap" id="dashTableWrap" style="display:none;"></div>
+        <div id="dashCompareView" style="display:none;">
+          <div class="dash-compare-cols" id="dashCompareCols"></div>
         </div>
       </div>
 
