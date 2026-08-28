@@ -47,7 +47,7 @@ document.getElementById('vlUnlockBtn').addEventListener('click', async ()=>{
   errEl.classList.remove('show');
   const hash = await sha256Hex(input.value);
   if(hash === REPORTS_PASSWORD_HASH){
-    try{ sessionStorage.setItem(REPORTS_UNLOCK_KEY, '1'); }catch(e){}
+    try{ localStorage.setItem(REPORTS_UNLOCK_KEY, '1'); }catch(e){}
     input.value = '';
     showVLPanel();
   } else {

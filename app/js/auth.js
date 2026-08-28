@@ -93,7 +93,7 @@ document.getElementById('ownerLoginBtn').addEventListener('click', async ()=>{
     setProfile('owner');
     // Owner login also satisfies the Reports/Vendor Ledger tabs' own password gate —
     // "once the owner logs in, no other passwords are required" applies there too.
-    try{ sessionStorage.setItem(REPORTS_UNLOCK_KEY, '1'); }catch(e){}
+    try{ localStorage.setItem(REPORTS_UNLOCK_KEY, '1'); }catch(e){}
     updateTabVisibilityForProfile();
     // No restaurant gate for the owner — straight into the app. Whichever
     // restaurant was last active (or the default) is already selected; the
@@ -131,8 +131,13 @@ document.getElementById('restaurantChangeBtn').addEventListener('click', ()=>{
   setUnlockedRestaurantId(null);
   showRestaurantGateStep();
 });
+// The one and only way back to the login screens now that profile/restaurant/
+// reports-unlock state all persist in localStorage (2026-08-28) instead of
+// resetting on browser close — clears every piece of login state so a fresh
+// login is a genuinely clean slate, not just profile/restaurant.
 document.getElementById('switchProfileBtn').addEventListener('click', ()=>{
   setProfile(null);
   setUnlockedRestaurantId(null);
+  try{ localStorage.removeItem(REPORTS_UNLOCK_KEY); }catch(e){}
   showProfileGate();
 });

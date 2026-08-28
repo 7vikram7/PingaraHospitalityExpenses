@@ -13,7 +13,14 @@ Firebase Hosting.
 - **Login: Owner or Manager profile** — Owner enters one password and gets
   every tab and every restaurant; Manager picks a restaurant and enters
   *that restaurant's* password, and only ever sees the Add Expenses tab.
-  Session-scoped — closing the browser logs you out.
+  Persists across closing the browser/tab, backgrounding, or reopening from
+  the home screen — since most use is on mobile, staying logged in matters
+  more than re-prompting on every app switch. The only way back to the
+  login screens is the explicit **Logout** button.
+- **Installable as a mobile app** — manifest.json + iOS meta tags let you
+  "Add to Home Screen" on Android/iPhone and it opens full-screen, no
+  browser chrome, with its own icon. Layout (tab bar, stat rows, tables)
+  is built for phone widths, not just scaled-down desktop.
 - **Supplier-first bill entry** — pick a supplier, its category/subcategory
   auto-fills from a saved default, with an optional free-text Notes field
 - **Restaurant lock** — confirm one restaurant before anything else is
@@ -89,6 +96,13 @@ app/
   index.html               markup + tab/modal structure
   styles.css                all CSS
   logo.png                  Pingara Hospitality logo (was inline base64, extracted for readability)
+  manifest.json             PWA manifest (active tenant's copy — see tenants/ below)
+  icon-192.png, icon-512.png  home-screen icons (active tenant's copy)
+  tenants/
+    <tenant>.js               branding/restaurant list/Firebase config/passwords
+    <tenant>-manifest.json     PWA manifest, per tenant (app name, theme color)
+    <tenant>-icon-192.png,
+    <tenant>-icon-512.png      home-screen icon, per tenant
   js/
     core.js                 constants, app state, Firebase config/init, date/money utils
     excel-export.js         CSV/Excel export, live-linked spreadsheet sync

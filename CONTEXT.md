@@ -114,15 +114,27 @@ a cost/scaling discussion:
 Before any tab is reachable, `app/js/auth.js` runs a small client-side login
 flow — still the same "soft deterrent, not real security" model as everything
 else in this app (see Known limitations), just applied one level earlier than
-before. Session-scoped (`sessionStorage`), so it re-prompts on every fresh
-browser session, matching how the Reports-tab password already behaved.
+before.
+
+**Persisted in `localStorage`, not `sessionStorage` (changed 2026-08-28).**
+Originally session-scoped, re-prompting on every browser close to match the
+Reports-tab password's existing behavior — but since most real usage is on a
+phone, that meant re-logging in every time the browser or home-screen app got
+backgrounded and reopened, which reads as broken on mobile even though it was
+working as designed. Login now persists indefinitely — across closing the
+browser/tab, backgrounding, force-closing a home-screen-installed instance,
+even reinstalling — until the user explicitly taps **Logout**. The three keys
+involved (`profileType`, `unlockedRestaurantId` in core.js;
+`reportsUnlockedSession` in reports-dashboard.js) all moved together; Logout
+(`switchProfileBtn`'s handler in auth.js) clears all three so it's a
+genuinely clean slate, not just profile+restaurant.
 
 Screens (all in `index.html`, siblings before `#appTabsWrap`):
 1. **`#profileGate`** — "Who's logging in?" Owner or Manager.
 2. **`#ownerLoginGate`** (Owner only) — one password, SHA-256-compared against
    `REPORTS_PASSWORD_HASH` in `core.js` — **the same hash the Reports tab
    already used**, reused deliberately so the owner has one password, not two.
-   Success sets `sessionStorage.profileType = 'owner'` and *also* sets the
+   Success sets `localStorage.profileType = 'owner'` and *also* sets the
    Reports tab's own unlock flag (`reportsUnlockedSession`), so Reports and
    Vendor Ledger open with no further prompt.
 3. **`#restaurantGate`** — pick a restaurant, then Continue. **Manager only**
@@ -130,9 +142,12 @@ Screens (all in `index.html`, siblings before `#appTabsWrap`):
    `RESTAURANT_PASSWORD_HASH[restaurantId]` in `core.js` (one hash per
    restaurant — a manager only knows their own restaurant's password, so this
    is a practical boundary between locations even though Firestore itself
-   doesn't enforce it). Confirming sets `sessionStorage.unlockedRestaurantId`
+   doesn't enforce it). Confirming sets `localStorage.unlockedRestaurantId`
    to that restaurant, which `isRestaurantUnlockedForSession()` (core.js)
-   checks on every reload to decide whether to show the gate again.
+   checks on every reload to decide whether to show the gate again — the
+   function name kept its old "ForSession" wording even though it's no
+   longer session-scoped, since renaming it would touch far more call sites
+   than the behavior change warranted.
    **An Owner never sees this screen at all** — `ownerLoginBtn`'s success
    handler calls `showConfirmedRestaurant()` directly, and
    `isRestaurantUnlockedForSession()` short-circuits true for
@@ -143,13 +158,15 @@ Screens (all in `index.html`, siblings before `#appTabsWrap`):
    request since the owner instead gets a restaurant selector directly in the
    Add Expenses toolbar, see below.)
 4. Main app — `restaurantConfirmedBar` shows the current restaurant name plus
-   **"Switch profile"** (clears both session flags, returns to
-   `#profileGate`) for both profiles, and **"Change restaurant"** (re-shows
-   the gate) for a **Manager only** — hidden for an Owner, since re-showing a
-   gate the owner never goes through wouldn't do anything useful.
-   `updateTabVisibilityForProfile()` (auth.js) toggles both buttons plus the
-   Add Expenses toolbar's `#expensesRestaurantControl` (owner-only) between
-   profiles.
+   **"Logout"** (labeled "Switch profile" until 2026-08-28 — same button/id
+   `switchProfileBtn`, relabeled once login became persistent so it reads as
+   the deliberate way out rather than an incidental one; clears all three
+   login keys, returns to `#profileGate`) for both profiles, and **"Change
+   restaurant"** (re-shows the gate) for a **Manager only** — hidden for an
+   Owner, since re-showing a gate the owner never goes through wouldn't do
+   anything useful. `updateTabVisibilityForProfile()` (auth.js) toggles both
+   buttons plus the Add Expenses toolbar's `#expensesRestaurantControl`
+   (owner-only) between profiles.
 
 **Add Expenses toolbar restaurant selector (added 2026-08-06,
 `#expensesRestaurantSelect`)** — owner-only (same `updateTabVisibilityForProfile()`
@@ -176,6 +193,62 @@ than the 1-hour window. A Manager still sees those prompts normally — that's
 a per-action escalation (type the owner password to override just this one
 edit), a separate concept from the profile login itself, deliberately left
 as-is.
+
+## Mobile: PWA install + phone-width layout (added 2026-08-28)
+Prompted by "this is mostly used on mobile" — two separate pieces:
+
+**Installable as a mobile app.** `app/manifest.json` + `app/icon-192.png`/
+`icon-512.png` are per-tenant files, following the exact same pattern as
+`app/tenant.js`: the source of truth lives in `app/tenants/<tenant>-manifest.json`
+and `app/tenants/<tenant>-icon-{192,512}.png`, and `deploy.sh` copies the
+active tenant's copies over the fixed `app/manifest.json`/`icon-*.png`
+filenames before deploying — so `git status` can show these three as
+"modified" after a deploy exactly like `app/tenant.js` does, and the same
+`git restore` habit applies to all four together, not just `tenant.js`.
+`index.html`'s `<head>` links the manifest and sets `apple-mobile-web-app-*`
+meta tags — Android/Chrome honors the manifest's `display:standalone`
+directly, iOS Safari ignores the manifest for install behavior and needs
+those meta tags plus an explicit `<link rel="apple-touch-icon">` instead.
+Pingara's icon is the fan mark cropped out of the left of `logo.png` (which
+is a wide wordmark lockup, not a square icon) onto a paper-cream square background
+— generated by rendering a small HTML crop in headless Chromium and
+screenshotting it at exact pixel sizes, since no image-editing tool was
+available on this machine. RK Twelve21 has no logo file yet (`TENANT_LOGO:
+null`), so its icon is a placeholder "RK" monogram in the app's own dark-ink/
+brass palette — replace `app/tenants/rk-twelve21-icon-*.png` once a real
+logo exists, same as `TENANT_LOGO` itself is waiting on one.
+
+**Phone-width layout fixes.** A screenshot survey at 390px/375px width (the
+actual previous behavior, not a hypothetical) found three real breakages,
+all now fixed:
+- `.tab-bar` (Add Expenses/Reports/Vendor Ledger/Suppliers) had no overflow
+  handling — at phone width it just clipped past the viewport edge with the
+  Suppliers button unreachable. Now `overflow-x:auto` with `flex:0 0 auto`
+  tab buttons, so it's a swipeable strip instead.
+- `.dash-hero-row` (the 4-cell Sales/Expenses/Profit/Profit% stat row used by
+  both Reports and Vendor Ledger totals) was a single flex row with
+  `overflow:hidden` — at phone width the cells couldn't shrink enough to fit
+  and the last one or two values were silently clipped off (Profit/Profit%
+  went missing, looked like a data bug, was actually a layout bug). Fixed
+  with a `@media (max-width:980px)` override to a 2x2 grid plus a smaller
+  value font-size, mirroring the pattern `.dash-compare-stats` (the
+  Compare-months stat cells) already used successfully.
+- Wide tables (`.ledger-wrap`, `.dash-table-wrap`, `.plain-table-wrap`) had
+  no horizontal-scroll handling of their own, which combined with a missing
+  page-level safety net meant a too-wide table could push the *entire page*
+  wider than the viewport (sideways-scrollable page, easy to trigger by
+  accident while trying to tap something). Fixed two ways together: a global
+  `html,body{overflow-x:hidden}` safety net so no single element can do that
+  again, plus `overflow-x:auto` on all three table-wrapper classes so a wide
+  table scrolls *within its own box* instead of either overflowing the page
+  or (now that the page-level net exists) getting silently clipped.
+  `.plain-table-wrap` specifically needed `overflow-x:auto` layered on top
+  of its existing `overflow:hidden` shorthand rather than replacing it —
+  `overflow-y` needs to stay `hidden` for its rounded-corner-clipping trick
+  on the table's square corners to keep working.
+- `.brand-block` (logo + eyebrow/title in the header) gained `flex-wrap:wrap`
+  so the logo and title stack instead of forcing the row wider than the
+  viewport when there isn't room for both side by side.
 
 ## Tab structure (Add Expenses added first; Reports added 2026-07-31; Vendor
 ## Ledger added 2026-08-05; Suppliers added 2026-08-15)

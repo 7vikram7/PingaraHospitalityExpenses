@@ -166,31 +166,36 @@ function billWithinModifyWindow(entry){
   return isOwnerProfile() || (Date.now() - entry.createdAt) < MODIFY_WINDOW_MS;
 }
 
-/* ---------- Login: profile (owner/manager) + per-restaurant session state ----------
-   Session-scoped (sessionStorage) to match the existing Reports-tab password's
-   behavior — closing the browser/tab requires logging in again. See auth.js for
-   the login screens and flow; these are just the storage primitives, kept here
+/* ---------- Login: profile (owner/manager) + per-restaurant login state ----------
+   Persisted in localStorage (changed 2026-08-28, was sessionStorage) so the
+   app behaves like a real mobile app that stays logged in across closing the
+   browser/tab, backgrounding, or reopening from the home screen — the whole
+   point of most of this codebase's usage being on mobile. The ONLY way back
+   to the login screens is the explicit Logout button (see auth.js's
+   switchProfileBtn handler, which clears every one of these keys plus
+   REPORTS_UNLOCK_KEY in reports-dashboard.js). See auth.js for the login
+   screens and flow; these are just the storage primitives, kept here
    alongside the other small state accessors (getCurrentRestaurantId etc). */
 const PROFILE_KEY = "profileType"; // 'owner' | 'manager'
 function getProfile(){
-  try{ return sessionStorage.getItem(PROFILE_KEY); }catch(e){ return null; }
+  try{ return localStorage.getItem(PROFILE_KEY); }catch(e){ return null; }
 }
 function setProfile(p){
   try{
-    if(p) sessionStorage.setItem(PROFILE_KEY, p);
-    else sessionStorage.removeItem(PROFILE_KEY);
+    if(p) localStorage.setItem(PROFILE_KEY, p);
+    else localStorage.removeItem(PROFILE_KEY);
   }catch(e){}
 }
 function isOwnerProfile(){ return getProfile() === 'owner'; }
 
-const UNLOCKED_RESTAURANT_KEY = "unlockedRestaurantId"; // which restaurant a manager verified this session
+const UNLOCKED_RESTAURANT_KEY = "unlockedRestaurantId"; // which restaurant a manager verified, persists until logout
 function getUnlockedRestaurantId(){
-  try{ return sessionStorage.getItem(UNLOCKED_RESTAURANT_KEY); }catch(e){ return null; }
+  try{ return localStorage.getItem(UNLOCKED_RESTAURANT_KEY); }catch(e){ return null; }
 }
 function setUnlockedRestaurantId(id){
   try{
-    if(id) sessionStorage.setItem(UNLOCKED_RESTAURANT_KEY, id);
-    else sessionStorage.removeItem(UNLOCKED_RESTAURANT_KEY);
+    if(id) localStorage.setItem(UNLOCKED_RESTAURANT_KEY, id);
+    else localStorage.removeItem(UNLOCKED_RESTAURANT_KEY);
   }catch(e){}
 }
 // Whether `id` is usable without going through the restaurant gate. An owner
@@ -198,7 +203,10 @@ function setUnlockedRestaurantId(id){
 // entirely at login — see auth.js — and instead gets a restaurant selector
 // directly in the Add Expenses toolbar, matching how Reports/Vendor Ledger
 // already have their own independent selectors). A manager still needs to
-// have confirmed `id` specifically THIS session, via its password.
+// have confirmed `id` specifically, via its password — that confirmation now
+// persists until Logout (see UNLOCKED_RESTAURANT_KEY above), not just for
+// one browser session. Name kept as-is; "session" here now means "since
+// last login," not "since last browser close."
 function isRestaurantUnlockedForSession(id){
   return isOwnerProfile() || getUnlockedRestaurantId() === id;
 }

@@ -45,6 +45,9 @@ esac
 
 echo "Activating tenant: $TENANT"
 cp "$TENANT_FILE" app/tenant.js
+cp "app/tenants/${TENANT}-manifest.json" app/manifest.json
+cp "app/tenants/${TENANT}-icon-192.png" app/icon-192.png
+cp "app/tenants/${TENANT}-icon-512.png" app/icon-512.png
 
 echo "Deploying to Firebase project: $PROJECT"
 firebase deploy --only hosting --project "$PROJECT"

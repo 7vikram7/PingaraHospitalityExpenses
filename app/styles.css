@@ -21,6 +21,14 @@
   --led-dim:#5C6355;
 }
 *{box-sizing:border-box;}
+html,body{
+  /* Safety net against any single element overflowing viewport width (a
+     fixed-width child inside a flex row, a wide table, etc.) turning the
+     whole page sideways-scrollable on mobile -- content should scroll
+     inside its own container (tables already do, see .plain-table-wrap
+     etc.), never the page itself. */
+  overflow-x:hidden;
+}
 body{
   margin:0;
   background:var(--paper-dark);
@@ -44,6 +52,7 @@ header{
 .brand-block{
   display:flex;
   align-items:center;
+  flex-wrap:wrap;
   gap:18px;
 }
 .brand-logo{
@@ -1256,6 +1265,18 @@ main{padding:24px 28px 60px;max-width:1400px;margin:0 auto;}
   border:1.5px solid var(--ink);
   border-radius:6px;
   overflow:hidden;
+  /* Override just the X axis so a table wider than its wrapper (common on
+     phone-width screens) scrolls horizontally inside this box instead of
+     either blowing out the page width or (with the global html/body
+     overflow-x:hidden safety net) getting silently clipped. overflow-y
+     stays hidden from the shorthand above, which is what actually clips the
+     table's square corners to this wrapper's border-radius. */
+  overflow-x:auto;
+  -webkit-overflow-scrolling:touch;
+}
+.ledger-wrap, .dash-table-wrap{
+  overflow-x:auto;
+  -webkit-overflow-scrolling:touch;
 }
 
 /* ---------- Vendor Ledger: expandable per-vendor bill detail ---------- */
@@ -1456,4 +1477,22 @@ td.num{
   header{padding:18px 16px;}
   main{padding:16px;}
   .led-strip{padding:14px 16px;}
+
+  /* Four tabs plus text-heavy labels don't fit a phone-width bar -- scroll
+     it horizontally instead of letting it clip/overflow the page (which is
+     what was happening: the Suppliers tab button was unreachable). */
+  .tab-bar{overflow-x:auto;-webkit-overflow-scrolling:touch;}
+  .tab-btn{flex:0 0 auto;white-space:nowrap;padding:14px 14px;}
+
+  /* The 4-cell hero stat rows (Reports totals, Vendor Ledger totals) used a
+     single flex row with overflow:hidden -- at phone widths the cells
+     couldn't shrink enough and the last one or two got silently clipped
+     (Profit/Profit % went missing). A 2x2 grid with a smaller value size
+     fits comfortably instead. */
+  .dash-hero-row{display:grid;grid-template-columns:1fr 1fr;}
+  .dash-hero{padding:10px 12px;}
+  .dash-hero-value{font-size:22px;}
+
+  h1{font-size:24px;}
+  .brand-logo{height:46px;}
 }

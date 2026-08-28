@@ -3,7 +3,21 @@
 <head>
 <meta charset="UTF-8">
 <title>Vendor Bill Ledger</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+
+<!-- PWA / "add to home screen" -- manifest.json and icon-*.png are per-tenant
+     files activated by deploy.sh (same copy-over-a-fixed-name pattern as
+     app/tenant.js, see CONTEXT.md's Multi-tenant section). display:standalone
+     in the manifest covers Android/Chrome; iOS Safari ignores the manifest
+     for install behavior and needs these apple-* meta tags/link instead. -->
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#1C2117">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-512.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Vendor Ledger">
+
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
 // Some networks/ad-blockers block Google's gstatic.com CDN. Try it first,
@@ -97,7 +111,7 @@ window.__firebaseSdkReady = (async ()=>{
 <div class="restaurant-context-bar" id="restaurantConfirmedBar" style="display:none;">
   <h2 class="restaurant-context-name" id="restaurantConfirmedName"></h2>
   <button type="button" class="restaurant-change-btn" id="restaurantChangeBtn">Change restaurant</button>
-  <button type="button" class="restaurant-change-btn" id="switchProfileBtn">Switch profile</button>
+  <button type="button" class="restaurant-change-btn" id="switchProfileBtn">Logout</button>
 </div>
 
 <div id="appTabsWrap" style="display:none;">

@@ -28,11 +28,16 @@ both and should generally be **deployed to both**, one `deploy.sh` call each.
 Don't hand-run `firebase deploy` directly — `deploy.sh` is what activates the
 right tenant config first.
 
-**Gotcha:** `deploy.sh` overwrites the git-tracked `app/tenant.js` with
-whichever tenant you last deployed, and leaves it that way. Check
-`git status` before committing anything else — if `app/tenant.js` shows as
-modified from an unrelated tenant switch, `git restore app/tenant.js` first
-so you don't commit a tenant swap as a side effect of an unrelated change.
+**Gotcha:** `deploy.sh` overwrites four git-tracked files with whichever
+tenant you last deployed, and leaves them that way: `app/tenant.js`,
+`app/manifest.json`, `app/icon-192.png`, `app/icon-512.png` (the last three
+added 2026-08-28 for the PWA/"add to home screen" setup — same
+copy-over-a-fixed-name pattern as `tenant.js`, see CONTEXT.md's Mobile
+section). Check `git status` before committing anything else — if any of
+these four show as modified from an unrelated tenant switch,
+`git restore app/tenant.js app/manifest.json app/icon-192.png app/icon-512.png`
+first so you don't commit a tenant swap as a side effect of an unrelated
+change.
 
 **The two tenants are owned by two different Google accounts** —
 `vendor-bills` (Pingara) by `akash2628@gmail.com`, `rk-twelve21` by

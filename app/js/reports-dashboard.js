@@ -4,10 +4,13 @@ async function sha256Hex(str){
   return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
 }
 const REPORTS_PASSWORD_HASH = TENANT_REPORTS_PASSWORD_HASH;
+// localStorage, not sessionStorage (changed 2026-08-28) -- persists across
+// browser/tab close like the rest of the login state (see core.js), cleared
+// only by the Logout button (auth.js's switchProfileBtn handler).
 const REPORTS_UNLOCK_KEY = "reportsUnlockedSession";
 
 function reportsUnlocked(){
-  try{ return sessionStorage.getItem(REPORTS_UNLOCK_KEY) === '1'; }catch(e){ return false; }
+  try{ return localStorage.getItem(REPORTS_UNLOCK_KEY) === '1'; }catch(e){ return false; }
 }
 function showReportsPanel(){
   const unlocked = reportsUnlocked();
@@ -24,7 +27,7 @@ document.getElementById('reportsUnlockBtn').addEventListener('click', async ()=>
   errEl.classList.remove('show');
   const hash = await sha256Hex(input.value);
   if(hash === REPORTS_PASSWORD_HASH){
-    try{ sessionStorage.setItem(REPORTS_UNLOCK_KEY, '1'); }catch(e){}
+    try{ localStorage.setItem(REPORTS_UNLOCK_KEY, '1'); }catch(e){}
     input.value = '';
     showReportsPanel();
   } else {
