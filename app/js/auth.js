@@ -131,6 +131,10 @@ document.getElementById('restaurantChangeBtn').addEventListener('click', ()=>{
   setUnlockedRestaurantId(null);
   showRestaurantGateStep();
 });
+document.getElementById('desktopViewToggle').addEventListener('click', ()=>{
+  setDesktopViewEnabled(!isDesktopViewEnabled());
+  applyViewportMode();
+});
 // The one and only way back to the login screens now that profile/restaurant/
 // reports-unlock state all persist in localStorage (2026-08-28) instead of
 // resetting on browser close — clears every piece of login state so a fresh

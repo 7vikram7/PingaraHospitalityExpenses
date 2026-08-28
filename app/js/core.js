@@ -211,3 +211,41 @@ function isRestaurantUnlockedForSession(id){
   return isOwnerProfile() || getUnlockedRestaurantId() === id;
 }
 
+/* ---------- Desktop view toggle (added 2026-08-28) ----------
+   Vendor Ledger's table (and a couple others) is wide enough that mobile's
+   narrow layout means a lot of horizontal scrolling to see everything at
+   once. Phone browsers used to have a built-in "Request desktop site" option
+   for this -- what that actually does under the hood (this app has no
+   server-side rendering to change) is override the page's own <meta
+   viewport> to a fixed wide width, so CSS media queries see a wide "layout
+   viewport" and render their normal (non-mobile) layout, which the browser
+   then scales down to fit the physical screen -- the user pinches/zooms to
+   read any one part. Doing the same thing explicitly, in-app, via
+   #viewportMeta means it works the same way from an installed home-screen
+   PWA too, where there's no browser chrome/menu to find that toggle in.
+   A device/display preference, not login state -- deliberately NOT cleared
+   by Logout, same as a browser's own "desktop site" setting wouldn't be. */
+const DESKTOP_VIEW_KEY = "desktopViewEnabled";
+const DESKTOP_VIEWPORT_CONTENT = "width=1200";
+const MOBILE_VIEWPORT_CONTENT = "width=device-width, initial-scale=1.0, viewport-fit=cover";
+
+function isDesktopViewEnabled(){
+  try{ return localStorage.getItem(DESKTOP_VIEW_KEY) === '1'; }catch(e){ return false; }
+}
+function setDesktopViewEnabled(on){
+  try{
+    if(on) localStorage.setItem(DESKTOP_VIEW_KEY, '1');
+    else localStorage.removeItem(DESKTOP_VIEW_KEY);
+  }catch(e){}
+}
+function applyViewportMode(){
+  const on = isDesktopViewEnabled();
+  const meta = document.getElementById('viewportMeta');
+  if(meta) meta.setAttribute('content', on ? DESKTOP_VIEWPORT_CONTENT : MOBILE_VIEWPORT_CONTENT);
+  const btn = document.getElementById('desktopViewToggle');
+  if(btn) btn.textContent = on ? 'Mobile view' : 'Desktop view';
+}
+// Applied immediately (not gated on login) so the preference already shows
+// correctly on the login screens themselves, not just after signing in.
+applyViewportMode();
+

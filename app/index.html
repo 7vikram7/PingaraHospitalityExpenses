@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <title>Vendor Bill Ledger</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="viewport" id="viewportMeta" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 
 <!-- PWA / "add to home screen" -- manifest.json and icon-*.png are per-tenant
      files activated by deploy.sh (same copy-over-a-fixed-name pattern as
@@ -111,6 +111,7 @@ window.__firebaseSdkReady = (async ()=>{
 <div class="restaurant-context-bar" id="restaurantConfirmedBar" style="display:none;">
   <h2 class="restaurant-context-name" id="restaurantConfirmedName"></h2>
   <button type="button" class="restaurant-change-btn" id="restaurantChangeBtn">Change restaurant</button>
+  <button type="button" class="restaurant-change-btn" id="desktopViewToggle">Desktop view</button>
   <button type="button" class="restaurant-change-btn" id="switchProfileBtn">Logout</button>
 </div>
 

@@ -250,6 +250,29 @@ all now fixed:
   so the logo and title stack instead of forcing the row wider than the
   viewport when there isn't room for both side by side.
 
+**Desktop view toggle** (`#desktopViewToggle`, next to Logout in
+`restaurantConfirmedBar`, added same day as a follow-up: Vendor Ledger's
+table is wide enough that the phone-width layout above means real
+horizontal scrolling to see it all). Phone browsers' old "Request desktop
+site" menu option did this by overriding the page's `<meta viewport>` to a
+fixed wide width, which makes CSS media queries see a wide *layout*
+viewport and render their normal (non-mobile) layout, scaled down by the
+browser to fit the actual screen — the user pinches/zooms to read one part
+at a time. `applyViewportMode()` (core.js) does the identical thing
+explicitly, in-app: swaps `#viewportMeta`'s `content` between
+`width=device-width, initial-scale=1.0, viewport-fit=cover` (mobile) and
+`width=1200` (desktop — comfortably clears the `max-width:980px` breakpoint
+used throughout the mobile CSS above) via `DESKTOP_VIEW_KEY` in
+localStorage. Doing this in-app rather than relying on the browser's own
+toggle matters because it also works from an installed home-screen PWA,
+where there's no browser chrome/menu to find "Request desktop site" in at
+all. Applied immediately on script load (`applyViewportMode()` runs
+unconditionally at the bottom of core.js, not gated on login) so it's
+already correct on the login screens themselves. **Deliberately not cleared
+by Logout** — this is a device/display preference, not login state, same
+as a real browser wouldn't reset its own desktop-site setting on logging
+out of a site.
+
 ## Tab structure (Add Expenses added first; Reports added 2026-07-31; Vendor
 ## Ledger added 2026-08-05; Suppliers added 2026-08-15)
 Four tab panels, switched by `.tab-bar` buttons (`tabBtnExpenses` /

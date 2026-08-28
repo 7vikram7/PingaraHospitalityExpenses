@@ -21,6 +21,12 @@ Firebase Hosting.
   "Add to Home Screen" on Android/iPhone and it opens full-screen, no
   browser chrome, with its own icon. Layout (tab bar, stat rows, tables)
   is built for phone widths, not just scaled-down desktop.
+- **Desktop view toggle** — an in-app button next to Logout that renders
+  the full desktop layout (all Vendor Ledger columns, etc. at once) scaled
+  to fit the phone screen, for when a wide table is easier to read zoomed
+  out than scrolled sideways. Works the same from an installed home-screen
+  app too, where a browser's own "Request desktop site" menu isn't
+  available. A device preference, not login state — survives Logout.
 - **Supplier-first bill entry** — pick a supplier, its category/subcategory
   auto-fills from a saved default, with an optional free-text Notes field
 - **Restaurant lock** — confirm one restaurant before anything else is
