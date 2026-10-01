@@ -1065,6 +1065,7 @@ main{padding:24px 28px 60px;max-width:1400px;margin:0 auto;}
 .qa-rest-fields .field:nth-child(2){flex:1 1 130px;}
 .qa-rest-fields .field:nth-child(3){flex:1.6 1 170px;}
 .qa-rest-fields .field:nth-child(4){flex:2 1 200px;}
+.qa-rest-fields .field:nth-child(5){flex:2 1 220px;}
 .field{display:flex;flex-direction:column;gap:4px;min-width:0;}
 .field label{
   font-size:10px;
@@ -1354,6 +1355,47 @@ td.amount{
 td.supplier{font-weight:600;}
 td.subcat{color:var(--ink-soft);}
 .note-indicator{cursor:help;}
+.attachment-indicator{text-decoration:none;}
+
+/* ---------- Bill attachments: camera/file buttons + preview chip (added 2026-10-01) ---------- */
+.attachment-buttons{display:flex; gap:8px; flex-wrap:wrap;}
+.attachment-preview{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  margin-top:6px;
+  background:var(--paper);
+  border:1px solid var(--paper-line);
+  border-radius:4px;
+  padding:6px 8px;
+  font-size:12px;
+}
+.attachment-preview img{
+  width:36px; height:36px;
+  object-fit:cover;
+  border-radius:4px;
+  flex:0 0 auto;
+}
+.attachment-preview span, .attachment-preview a{
+  flex:1;
+  min-width:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  color:var(--ink);
+}
+.attachment-preview a{color:var(--brass-deep); font-weight:600;}
+.attachment-remove-btn{
+  background:transparent;
+  border:none;
+  color:var(--red);
+  cursor:pointer;
+  font-size:14px;
+  line-height:1;
+  flex:0 0 auto;
+  padding:2px 6px;
+}
+.attachment-remove-btn:hover{color:var(--margin-red);}
 td.num{
   font-family:'IBM Plex Mono',monospace;
   text-align:right;

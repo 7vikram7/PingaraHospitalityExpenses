@@ -28,13 +28,21 @@ Firebase Hosting.
   app too, where a browser's own "Request desktop site" menu isn't
   available. A device preference, not login state — survives Logout.
 - **Supplier-first bill entry** — pick a supplier, its category/subcategory
-  auto-fills from a saved default, with an optional free-text Notes field
+  auto-fills from a saved default, with an optional free-text Notes field.
+  **Invoice # is required**; attaching a photo or PDF of the bill is
+  optional — "Take Photo" opens the camera directly, "Attach file" opens
+  the normal file/photo picker (also accepts PDFs). Photos are downscaled
+  client-side before upload to keep it fast on restaurant wifi/mobile data.
+  A bill with an attachment shows a small 📄/🖼️ icon next to its invoice #
+  in the ledger, linking straight to the file.
 - **Restaurant lock** — confirm one restaurant before anything else is
   editable, so a stray tap can't misattribute a bill to the wrong restaurant
 - **Modify a bill** — freely editable for 1 hour after it's added; after
   that, a Manager needs the owner password, an Owner never does. Category/
   subcategory always follow the supplier's default and aren't directly
   editable; the date can be changed, moving the bill to a different day.
+  The attachment can be added, replaced, or removed here too, not just at
+  the moment the bill is first created.
 - **Daily sales tracking** alongside purchases, with the same 1-hour-then-
   password rule once a day's figure has been saved
 - **Reports tab** (Owner only): a spend dashboard (by restaurant, by
@@ -82,6 +90,7 @@ Firebase Hosting.
 |---|---|
 | UI | Plain HTML/CSS/JS — no framework, no bundler |
 | Data | Firebase Firestore (config is hardcoded — this app intentionally has no "connect to a different project" UI) |
+| Files | Firebase Storage — bill attachment photos/PDFs only; everything else stays in Firestore |
 | Hosting | Firebase Hosting |
 | Excel export | [SheetJS](https://sheetjs.com/) via CDN |
 
@@ -108,6 +117,13 @@ design: nothing else in this repo, or anywhere else on the machine this is
 deployed from, can end up on the live site by accident. Adding a new file to
 `app/` gets it deployed automatically — no changes to `firebase.json` needed.
 
+`firestore.rules` and `storage.rules` are **not** part of `deploy.sh`'s
+routine hosting deploy — they rarely change, so they're deployed as their
+own one-off command, per project, whenever they actually do:
+```
+firebase deploy --only firestore:rules,storage --project <project>
+```
+
 ## Project structure
 
 ```
@@ -126,6 +142,7 @@ app/
     core.js                 constants, app state, Firebase config/init, date/money utils
     excel-export.js         CSV/Excel export, live-linked spreadsheet sync
     data-store.js           safeGet/safeSet + category/supplier/bill/sales persistence
+    attachments.js          bill photo/PDF upload to Firebase Storage, shared picker UI
     suppliers-ui.js         supplier dropdown, Manage Suppliers modal
     ledger-ui.js             ledger table/totals rendering, restaurant select, Modify-bill dialog
     reports-dashboard.js     Reports tab password gate, tab switching, sales/expense charts
@@ -135,6 +152,8 @@ app/
     auth.js                  login: Owner/Manager profile choice, per-restaurant passwords
     init.js                  app bootstrap — loaded last, after every other module
 firebase.json               Hosting config + the predeploy sync step
+firestore.rules              Firestore security rules (deliberately open, see below)
+storage.rules                 Storage security rules (same tradeoff, see below)
 .firebaserc                 Firebase project id (vendor-bills)
 CONTEXT.md                  architecture notes, data model, design decisions, known limitations
 ```
@@ -158,6 +177,11 @@ running list of known limitations — see [`CONTEXT.md`](./CONTEXT.md).
   Anyone with the deployed URL can read/write all restaurants' data over the
   network. See `CONTEXT.md` for the reasoning and what a stricter setup
   would require.
+- **Storage security rules are equally open** (`storage.rules`, same
+  `allow read, write: if true`) — bill attachment photos/PDFs carry the
+  same tradeoff. A download URL is an unguessable long token, but anyone
+  who obtains one (e.g. it leaks via a shared screenshot) can view that file
+  indefinitely; there's no per-file expiry or access revocation.
 - **Every password (owner, all 7 restaurants) is a UI deterrent, not access
   control.** All client-side SHA-256 comparisons in a static file with no
   backend — they gate what the UI shows, not what's reachable over the

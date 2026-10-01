@@ -1,0 +1,15 @@
+rules_version = '2';
+// Deliberately open — same tradeoff as firestore.rules, for the same reason:
+// this app has no Firebase Auth, so access control is the client-side
+// password gating in app/js/auth.js/reports-dashboard.js (a soft deterrent,
+// not real security; see CONTEXT.md). Holds bill attachment photos/PDFs
+// (added 2026-10-01) under rest/<restaurantId>/bills/<billId>/<filename>.
+// Shared across every tenant, deployed via
+// `firebase deploy --only storage --project <project>`.
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /{allPaths=**} {
+      allow read, write: if true;
+    }
+  }
+}

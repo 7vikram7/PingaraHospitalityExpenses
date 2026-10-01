@@ -47,6 +47,10 @@ window.__firebaseSdkReady = (async ()=>{
       "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js",
       "https://cdnjs.cloudflare.com/ajax/libs/firebase/10.12.2/firebase-firestore-compat.js"
     ]);
+    await __loadScriptWithFallback([
+      "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js",
+      "https://cdnjs.cloudflare.com/ajax/libs/firebase/10.12.2/firebase-storage-compat.js"
+    ]);
     return true;
   }catch(e){
     console.error("Firebase SDK failed to load from all sources", e);
@@ -169,6 +173,20 @@ window.__firebaseSdkReady = (async ()=>{
       <div class="field">
         <label>Notes</label>
         <input type="text" id="editBillNotes" placeholder="optional">
+      </div>
+      <div class="field attachment-field">
+        <label>Bill photo / PDF <span class="count-hint">(optional)</span></label>
+        <div class="attachment-buttons">
+          <button type="button" class="history-btn" id="editBillTakePhotoBtn">📷 Take Photo</button>
+          <button type="button" class="history-btn" id="editBillAttachFileBtn">📎 Attach file</button>
+        </div>
+        <input type="file" id="editBillTakePhotoInput" accept="image/*" capture="environment" style="display:none;">
+        <input type="file" id="editBillAttachFileInput" accept="image/*,application/pdf" style="display:none;">
+        <div class="attachment-preview" id="editBillAttachmentPreview" style="display:none;">
+          <img id="editBillAttachmentPreviewImg" style="display:none;" alt="">
+          <span id="editBillAttachmentPreviewName"></span>
+          <button type="button" class="attachment-remove-btn" id="editBillAttachmentRemoveBtn" title="Remove">✕</button>
+        </div>
       </div>
     </div>
     <p>Category/subcategory always follow the supplier's saved default — change the supplier's category from Manage Suppliers if it's wrong.</p>
@@ -307,7 +325,7 @@ window.__firebaseSdkReady = (async ()=>{
       <div class="qa-rest-fields" id="qaRestFields">
         <div class="field">
           <label>Invoice #</label>
-          <input type="text" id="invoiceInput" placeholder="optional">
+          <input type="text" id="invoiceInput" placeholder="required" required>
         </div>
         <div class="field">
           <label>Amount</label>
@@ -323,6 +341,20 @@ window.__firebaseSdkReady = (async ()=>{
         <div class="field">
           <label>Notes</label>
           <input type="text" id="notesInput" placeholder="optional">
+        </div>
+        <div class="field attachment-field">
+          <label>Bill photo / PDF <span class="count-hint">(optional)</span></label>
+          <div class="attachment-buttons">
+            <button type="button" class="history-btn" id="takePhotoBtn">📷 Take Photo</button>
+            <button type="button" class="history-btn" id="attachFileBtn">📎 Attach file</button>
+          </div>
+          <input type="file" id="takePhotoInput" accept="image/*" capture="environment" style="display:none;">
+          <input type="file" id="attachFileInput" accept="image/*,application/pdf" style="display:none;">
+          <div class="attachment-preview" id="attachmentPreview" style="display:none;">
+            <img id="attachmentPreviewImg" style="display:none;" alt="">
+            <span id="attachmentPreviewName"></span>
+            <button type="button" class="attachment-remove-btn" id="attachmentRemoveBtn" title="Remove">✕</button>
+          </div>
         </div>
         <button type="submit" class="add-btn">Add bill</button>
       </div>
@@ -653,6 +685,7 @@ window.__firebaseSdkReady = (async ()=>{
 <script src="js/core.js"></script>
 <script src="js/excel-export.js"></script>
 <script src="js/data-store.js"></script>
+<script src="js/attachments.js"></script>
 <script src="js/suppliers-ui.js"></script>
 <script src="js/ledger-ui.js"></script>
 <script src="js/reports-dashboard.js"></script>

@@ -103,6 +103,28 @@ async function initFirebase(){
   }
 }
 
+// ---- Firebase Storage (added 2026-10-01, bill attachments) ----
+// Binary files (photos/PDFs) don't fit Firestore's 1 MiB document cap or
+// localStorage's quota, so attachments use actual Cloud Storage instead —
+// the one place this app uses a Firebase service other than Firestore.
+// Reuses the same initialized app as initFirebase() above rather than a
+// separate one.
+let firebaseStorageRef = null;
+async function initFirebaseStorage(){
+  const cfg = getFirebaseConfig();
+  if(!cfg) { firebaseStorageRef = null; return null; }
+  try{
+    await ensureFirebaseSdkLoaded();
+    await initFirebase(); // ensures firebase.initializeApp() has already run
+    firebaseStorageRef = firebase.storage();
+    return firebaseStorageRef;
+  }catch(e){
+    console.error("firebase storage init failed", e);
+    firebaseStorageRef = null;
+    return null;
+  }
+}
+
 function renderFirebaseStatus(text, isError){
   const bar = document.getElementById('cloudStatusBar');
   if(!text){ bar.style.display = 'none'; return; }

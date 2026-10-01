@@ -574,6 +574,98 @@ unaffected) tracks when each date's figure was first saved; past the 1-hour
 window the Save button becomes a "🔒 Unlock" prompt for a manager, and is
 never locked at all for an owner.
 
+## Bill attachments (added 2026-10-01)
+A bill can have one photo or PDF attached — a camera-captured or
+already-on-device image of the paper invoice — plus **Invoice # became
+required** the same day (was previously optional; `#invoiceInput` just
+gained `required` and the browser's own constraint validation handles the
+rest, same mechanism the Supplier/Amount fields already relied on, no new
+JS check needed). The attachment itself is optional.
+
+**This is the one place this app uses a Firebase service other than
+Firestore.** Binary files don't fit Firestore's 1 MiB document cap or
+localStorage's quota, so photos/PDFs live in actual **Cloud Storage for
+Firebase** instead — only the resulting download URL (plus the Storage
+object path, kept for later deletion) gets written onto the bill entry
+itself, the same "small document, external blob" split every other large
+thing in this app already uses (Excel files live in the user's own
+Google Drive/OneDrive via the File System Access API, not in Firestore
+either). `storage.rules` mirrors `firestore.rules` exactly — fully open
+(`allow read, write: if true`), same documented tradeoff, deployed
+separately from hosting (`firebase deploy --only storage --project
+<project>`, not part of `deploy.sh`) since rules rarely change.
+
+- **`app/js/attachments.js`** is the whole feature in one file:
+  - `uploadBillAttachment(restaurantId, billId, file)` — uploads to
+    `rest/<restaurantId>/bills/<billId>/<timestamp>_<sanitized filename>`
+    and returns `{url, path, name, type}`. Throws (caller shows the message
+    via `alert()`) if the file exceeds `ATTACHMENT_MAX_BYTES` (15 MB) or if
+    Storage can't be reached — a failed upload **blocks the bill from
+    saving at all**, deliberately: silently saving the bill without the
+    photo the user explicitly attached would be a worse surprise than
+    making them retry.
+  - `compressImageFile(file)` — downscales to `ATTACHMENT_IMAGE_MAX_DIM`
+    (1600px longest side) and re-encodes as JPEG at
+    `ATTACHMENT_IMAGE_QUALITY` (0.75) via an off-screen canvas, before
+    upload. A phone camera photo can be 5-10+ MB; restaurant wifi/mobile
+    data makes that slow both to upload and to view later. Only used if the
+    result is actually smaller than the original; PDFs pass through
+    unchanged (no cheap client-side PDF recompression). **Fails closed, not
+    open** — if `createImageBitmap()` can't decode the file for any reason,
+    the catch block logs and falls back to uploading the original
+    untouched, rather than blocking the whole bill over a compression
+    hiccup.
+  - `deleteBillAttachmentByPath(path)` — best-effort delete (used when a
+    bill is deleted, or its attachment is replaced/removed via Modify).
+    Swallows errors; a dangling Storage file costs a little quota but
+    should never block the user's actual action.
+  - `wireAttachmentPicker(ids)` — the shared UI: two buttons ("📷 Take
+    Photo" → a hidden `<input type="file" accept="image/*"
+    capture="environment">`, which opens the camera directly on mobile;
+    "📎 Attach file" → a hidden `<input type="file"
+    accept="image/*,application/pdf">` with no `capture` attribute, opening
+    the normal file/photo picker, which also covers PDFs since a camera
+    obviously can't produce one) plus a preview chip (thumbnail for images,
+    filename always) with a remove button. One instance is wired for the
+    Add Expenses quick-add form (`quickAddAttachmentPicker` in
+    reports-dashboard.js) and a second, independent instance for the
+    Modify-bill dialog (`editBillAttachmentPicker` in ledger-ui.js) — same
+    function, different element-id sets, since both forms need their own
+    picker state.
+  - The returned API distinguishes three outcomes the Modify dialog's save
+    handler needs to tell apart: **nothing changed** (leave the entry's
+    attachment fields alone), **replaced** (`getFile()` returns the new
+    File — upload it, then delete the old Storage object only *after* the
+    new upload succeeds, so a failed replacement never leaves the bill
+    attachment-less), and **explicitly removed with no replacement**
+    (`wasExistingRemoved()` — true only when an attachment was present on
+    open, nothing new was picked, and the remove button was clicked; this
+    is why `hadExisting` is tracked as its own flag rather than inferred
+    from whether the preview is currently visible, which alone can't
+    distinguish "never had one" from "had one, removed it").
+- **Ledger table indicator**: a bill with `attachmentUrl` set shows a small
+  📄 (PDF) or 🖼️ (image) link next to its invoice # (`renderTable()` in
+  ledger-ui.js), opening the file in a new tab — same cell/pattern as the
+  existing 📝 notes indicator, just a real link instead of a tooltip.
+- **Deleting a bill deletes its attachment too** — the `tableBody` delete
+  handler (reports-dashboard.js) now calls `deleteBillAttachmentByPath()`
+  after removing the entry, so attachments don't silently accumulate as
+  orphaned Storage objects for bills that no longer exist.
+- **Not covered by automated tests the normal way**: Playwright's
+  established practice here blocks all `firebase`/`googleapis` network
+  calls so tests never touch live production data — but Storage uploads
+  have no localStorage fallback the way Firestore writes do, so a blocked
+  upload simply fails outright. Verified instead by overriding
+  `window.initFirebaseStorage` in the test page to return a fake
+  `{ref(path) => {put, getDownloadURL, delete}}` stub, which lets the
+  *real* `uploadBillAttachment()`/`compressImageFile()` run (including
+  real image compression against a real PNG) while swapping out only the
+  one genuinely network-dependent leaf. The real camera-capture flow
+  itself (as opposed to the `capture="environment"` attribute being
+  present and wired to the right hidden input, which *is* tested) can't be
+  exercised from headless Chromium at all and needs a real device to
+  confirm end to end.
+
 ## Financial year convention
 Indian FY: **April → March**. See `fyStartYearForDate()`, `monthsForFY()`,
 `fyLabel()`. A "financial year" is labeled by its start year, e.g. FY2026 =

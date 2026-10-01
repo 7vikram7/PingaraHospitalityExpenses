@@ -18,7 +18,7 @@ function renderTable(){
       <td>${escapeHtml(e.category)}</td>
       <td class="subcat">${escapeHtml(e.subcategory || '—')}</td>
       <td class="supplier">${escapeHtml(e.supplier)}</td>
-      <td class="subcat">${escapeHtml(e.invoice || '—')}${e.notes ? ` <span class="note-indicator" title="${escapeHtml(e.notes)}">📝</span>` : ''}</td>
+      <td class="subcat">${escapeHtml(e.invoice || '—')}${e.notes ? ` <span class="note-indicator" title="${escapeHtml(e.notes)}">📝</span>` : ''}${e.attachmentUrl ? ` <a class="attachment-indicator" href="${escapeHtml(e.attachmentUrl)}" target="_blank" rel="noopener" title="${escapeHtml(e.attachmentName || 'View attachment')}">${e.attachmentType === 'pdf' ? '📄' : '🖼️'}</a>` : ''}</td>
       <td class="amount">${fmtMoney(e.amount)}</td>
       <td><button class="badge ${e.status}" data-id="${e.id}" data-action="toggle">${e.status}</button></td>
       <td><button class="modify-btn" data-id="${e.id}" data-action="modify"${modifyTitle}>${modifyLabel}</button></td>
@@ -120,6 +120,15 @@ function setEditBillStatus(s){
   document.getElementById('editBillBtnUnpaid').classList.toggle('active', s === 'unpaid');
   document.getElementById('editBillBtnPaid').classList.toggle('active', s === 'paid');
 }
+// Same shared picker as the Add Expenses quick-add form (attachments.js) --
+// pre-populated with the entry's existing attachment, if any, via
+// showExisting() so the user can view it, replace it, or remove it.
+const editBillAttachmentPicker = wireAttachmentPicker({
+  takePhotoBtn: 'editBillTakePhotoBtn', takePhotoInput: 'editBillTakePhotoInput',
+  attachFileBtn: 'editBillAttachFileBtn', attachFileInput: 'editBillAttachFileInput',
+  preview: 'editBillAttachmentPreview', previewImg: 'editBillAttachmentPreviewImg',
+  previewName: 'editBillAttachmentPreviewName', removeBtn: 'editBillAttachmentRemoveBtn'
+});
 function openEditBillModal(entry){
   editBillId = entry.id;
   renderEditBillSupplierSelect(entry.supplier);
@@ -129,6 +138,10 @@ function openEditBillModal(entry){
   document.getElementById('editBillAmount').value = entry.amount;
   document.getElementById('editBillNotes').value = entry.notes || "";
   setEditBillStatus(entry.status);
+  editBillAttachmentPicker.reset();
+  if(entry.attachmentUrl){
+    editBillAttachmentPicker.showExisting(entry.attachmentName || 'Attachment', entry.attachmentUrl, entry.attachmentType !== 'pdf');
+  }
   document.getElementById('editBillError').classList.remove('show');
   document.getElementById('editBillModal').classList.add('open');
 }
@@ -253,6 +266,41 @@ document.getElementById('editBillSave').addEventListener('click', async ()=>{
     return;
   }
   document.getElementById('editBillError').classList.remove('show');
+
+  // Attachment: a newly-picked file replaces whatever was there (old one
+  // deleted only after the new upload succeeds); explicit removal with no
+  // replacement clears the fields and deletes the old file; otherwise the
+  // existing attachment (if any) is left exactly as it was.
+  const newFile = editBillAttachmentPicker.getFile();
+  const oldAttachmentPath = entry.attachmentPath;
+  if(newFile){
+    const saveBtn = document.getElementById('editBillSave');
+    saveBtn.disabled = true;
+    const originalLabel = saveBtn.textContent;
+    saveBtn.textContent = 'Uploading…';
+    try{
+      const attachment = await uploadBillAttachment(currentRestaurantId, entry.id, newFile);
+      entry.attachmentUrl = attachment.url;
+      entry.attachmentPath = attachment.path;
+      entry.attachmentName = attachment.name;
+      entry.attachmentType = attachment.type;
+    }catch(e){
+      alert(e.message || "Couldn't upload the attachment. Try again.");
+      saveBtn.disabled = false;
+      saveBtn.textContent = originalLabel;
+      return;
+    }
+    saveBtn.disabled = false;
+    saveBtn.textContent = originalLabel;
+    if(oldAttachmentPath) await deleteBillAttachmentByPath(oldAttachmentPath);
+  } else if(editBillAttachmentPicker.wasExistingRemoved()){
+    entry.attachmentUrl = null;
+    entry.attachmentPath = null;
+    entry.attachmentName = null;
+    entry.attachmentType = null;
+    if(oldAttachmentPath) await deleteBillAttachmentByPath(oldAttachmentPath);
+  }
+
   entry.supplier = supplier;
   entry.category = def.category;
   entry.subcategory = def.subcategory || "";
@@ -269,6 +317,7 @@ document.getElementById('editBillSave').addEventListener('click', async ()=>{
   renderTable();
   renderTotals();
   renderBreakdown();
+  editBillAttachmentPicker.reset();
   closeEditBillModal();
   if(newDate !== currentDate){
     alert(`Moved to ${fmtDateLabel(newDate)} — it no longer appears in this day's ledger. Navigate to that date to see it.`);

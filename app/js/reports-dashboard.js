@@ -931,6 +931,16 @@ document.getElementById('saveSupplierBtn').addEventListener('click', async ()=>{
   document.getElementById('invoiceInput').focus();
 });
 
+// Add Expenses' attachment picker -- camera button + file-picker button,
+// optional (unlike Invoice #, which became required the same day). See
+// attachments.js for the shared wiring this and the Modify dialog both use.
+const quickAddAttachmentPicker = wireAttachmentPicker({
+  takePhotoBtn: 'takePhotoBtn', takePhotoInput: 'takePhotoInput',
+  attachFileBtn: 'attachFileBtn', attachFileInput: 'attachFileInput',
+  preview: 'attachmentPreview', previewImg: 'attachmentPreviewImg',
+  previewName: 'attachmentPreviewName', removeBtn: 'attachmentRemoveBtn'
+});
+
 document.getElementById('quickAddForm').addEventListener('submit', async (ev)=>{
   ev.preventDefault();
   const supplier = document.getElementById('supplierSelect').value;
@@ -939,7 +949,7 @@ document.getElementById('quickAddForm').addEventListener('submit', async (ev)=>{
   const status = document.getElementById('btnPaid').classList.contains('active') ? 'paid' : 'unpaid';
   const notes = document.getElementById('notesInput').value.trim();
 
-  if(!supplier || !amount || amount <= 0){
+  if(!supplier || !invoice || !amount || amount <= 0){
     return;
   }
   const def = supplierDefaults[supplierKey(supplier)];
@@ -950,9 +960,33 @@ document.getElementById('quickAddForm').addEventListener('submit', async (ev)=>{
   }
   const cat = def.category;
   const sub = def.subcategory || "";
+  const billId = uid();
+
+  // Upload the attachment (if any) before saving the bill, so the entry is
+  // never left half-complete -- a failed upload blocks the save entirely
+  // rather than silently saving the bill without the photo the user
+  // explicitly attached.
+  const pendingFile = quickAddAttachmentPicker.getFile();
+  let attachment = null;
+  const submitBtn = document.querySelector('#quickAddForm .add-btn');
+  if(pendingFile){
+    submitBtn.disabled = true;
+    const originalLabel = submitBtn.textContent;
+    submitBtn.textContent = 'Uploading…';
+    try{
+      attachment = await uploadBillAttachment(currentRestaurantId, billId, pendingFile);
+    }catch(e){
+      alert(e.message || "Couldn't upload the attachment. Try again.");
+      submitBtn.disabled = false;
+      submitBtn.textContent = originalLabel;
+      return;
+    }
+    submitBtn.disabled = false;
+    submitBtn.textContent = originalLabel;
+  }
 
   const entry = {
-    id: uid(),
+    id: billId,
     category: cat,
     subcategory: sub,
     supplier: supplier,
@@ -960,6 +994,10 @@ document.getElementById('quickAddForm').addEventListener('submit', async (ev)=>{
     amount: amount,
     status: status,
     notes: notes,
+    attachmentUrl: attachment ? attachment.url : null,
+    attachmentPath: attachment ? attachment.path : null,
+    attachmentName: attachment ? attachment.name : null,
+    attachmentType: attachment ? attachment.type : null,
     paidAt: status === 'paid' ? Date.now() : null,
     createdAt: Date.now()
   };
@@ -970,10 +1008,11 @@ document.getElementById('quickAddForm').addEventListener('submit', async (ev)=>{
   renderTotals();
   renderBreakdown();
 
-  // Reset for fast repeat entry — keep supplier & status selected, clear invoice/amount/notes
+  // Reset for fast repeat entry — keep supplier & status selected, clear invoice/amount/notes/attachment
   document.getElementById('invoiceInput').value = "";
   document.getElementById('amountInput').value = "";
   document.getElementById('notesInput').value = "";
+  quickAddAttachmentPicker.reset();
   document.getElementById('invoiceInput').focus();
 });
 
@@ -998,8 +1037,10 @@ document.getElementById('tableBody').addEventListener('click', async (ev)=>{
     else openModifyAuthModal(()=>openEditBillModal(e));
   } else if(action === 'delete'){
     if(btn.classList.contains('confirming')){
+      const deleted = entries.find(x=>x.id === id);
       entries = entries.filter(x=>x.id !== id);
       await saveEntries();
+      if(deleted && deleted.attachmentPath) await deleteBillAttachmentByPath(deleted.attachmentPath);
       renderTable();
       renderTotals();
       renderBreakdown();
