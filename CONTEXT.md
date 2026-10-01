@@ -646,21 +646,21 @@ Five tab panels, switched by `.tab-bar` buttons (`tabBtnExpenses` /
       bottom instead — purely a markup reorder (`<section>` moved in
       index.html), no element ids or JS touched, so nothing downstream
       needed updating.
-    - **Per-list submit/lock, same day**: each of the three lists can be
-      "submitted" independently for its current date
-      (`staffOtSubmitBtn`/`staffIncentiveSubmitBtn`/`staffTipsSubmitBtn`,
-      confirmed via a native `confirm()` before it takes effect). Once
-      submitted, `rest:<id>:otSubmitted:<YYYY-MM>` (data-store.js) records
-      `{ "<date>": { <type>: true } }` — a separate key from the entries
-      themselves, so the entries' own shape never needed to change.
-      `staffCanEditDaily(submitted)` (staff-tab.js) is the single gate:
-      `isOwnerProfile() || !submitted`. When it's false (Manager, on a
-      submitted list/date), `renderStaffDailyTable()` disables that list's
-      employee select, amount input, and Add button, plus every existing
-      row's paid-toggle and Delete button — all via the native `disabled`
-      attribute, not just hiding click handlers, so there's no way to
-      interact even via devtools without the attribute showing up. The
-      Owner profile is **never** gated by this flag, by design — the
+    - **Per-list submit/lock, same day**: each list can be "submitted"
+      independently for its current date
+      (`staffOtSubmitBtn`/`staffIncentiveSubmitBtn`/`staffTipsSubmitBtn`/
+      `staffAdvanceSubmitBtn`, confirmed via a native `confirm()` before it
+      takes effect). Once submitted, `rest:<id>:otSubmitted:<YYYY-MM>`
+      (data-store.js) records `{ "<date>": { <type>: true } }` — a separate
+      key from the entries themselves, so the entries' own shape never
+      needed to change. `staffCanEditDaily(submitted)` (staff-tab.js) is
+      the single gate: `isOwnerProfile() || !submitted`. When it's false
+      (Manager, on a submitted list/date), `renderStaffDailyTable()`
+      disables that list's employee select, amount input, and Add button,
+      plus every existing row's Delete button — all via the native
+      `disabled` attribute, not just hiding click handlers, so there's no
+      way to interact even via devtools without the attribute showing up.
+      The Owner profile is **never** gated by this flag, by design — the
       explicit answer to "how can a mistake be fixed later" was "only the
       Owner, logged in as Owner, no other way," so there's deliberately no
       in-app "unsubmit" control for anyone, Owner included; an Owner who
@@ -669,19 +669,54 @@ Five tab panels, switched by `.tab-bar` buttons (`tabBtnExpenses` /
       The Submit button itself disappears once clicked, replaced by a
       status badge whose text differs by profile (Manager sees "locked,
       contact the Owner"; Owner sees "still editable by you"). Submission
-      is independent per list (OT finalized doesn't touch Incentive/Tips),
-      per date (a new day always starts unsubmitted), and per restaurant
-      (same key-per-restaurant convention as everything else in this tab).
-      Verified with a dedicated Playwright test covering all of the above
-      plus the full existing staff/supplier suite re-run clean afterward.
+      is independent per list (OT finalized doesn't touch Incentive/Tips/
+      Advance), per date (a new day always starts unsubmitted), and per
+      restaurant (same key-per-restaurant convention as everything else in
+      this tab). Verified with a dedicated Playwright test covering all of
+      the above plus the full existing staff/supplier suite re-run clean
+      afterward.
+    - **Paid/unpaid status removed entirely, same day**: every OT/
+      Incentive/Tips entry used to carry a `status` ('paid'/'unpaid') with
+      a toggle badge in the table (`toggleOTPaid()`), and the combined
+      report had an "Unpaid entries only" checkbox filtering by it. Both
+      removed outright by explicit request — `toggleOTPaid()` deleted from
+      data-store.js (it had exactly one caller, now gone), the Status
+      table column and badge button removed from
+      `renderStaffDailyTable()`, the checkbox removed from index.html, and
+      `downloadStaffCombinedReport()` no longer filters by it (every
+      qualifying entry in the date range always counts). `addOTEntry()` no
+      longer writes `status`/`paidAt` on new entries at all — unlike the
+      Monthly salary hide above, this is a genuine removal, not a
+      `display:none`, since the request was specifically to *remove* the
+      options, not hide them. Pre-existing entries that still carry old
+      `status`/`paidAt` fields in Firestore are harmless, unread dead data
+      — no migration was needed or performed.
+    - **Staff Advance added as a fourth list, same day**: reuses the exact
+      same `STAFF_DAILY_TYPES`-parameterized machinery as OT/Incentive/
+      Tips (own roster/"Manage employees in this list", own add-form,
+      own table, own independent submit/lock) — adding it was a matter of
+      appending one more config object to `STAFF_DAILY_TYPES` plus one
+      more markup block in index.html; every render/add/submit function
+      already iterates the array generically, so nothing else needed
+      changing. Entries use `type: 'advance'` in the same
+      `rest:<id>:ot:<YYYY-MM>` collection as the other three (no new
+      Firestore key). Deliberately **excluded from the Combined
+      OT/Incentive/Tips report** — an advance is money already paid out
+      to an employee, not a future payout to calculate, so summing it
+      alongside OT/Incentive/Tips into one "Total" would overstate what's
+      actually owed; `downloadStaffCombinedReport()` explicitly skips
+      `type === 'advance'` entries before they're even added to the
+      per-employee totals object, so an employee with only an advance in
+      range doesn't show up as a bogus all-zero report row either.
   - **Combined OT/Incentive/Tips report** (added 2026-10-02,
-    `downloadStaffCombinedReport()`) — a From/To date-range picker plus an
-    "Unpaid entries only" checkbox (checked by default — the common real
-    case is "what do I still owe," not a full historical record) above a
-    "Download combined report (CSV)" button. Scans `rest:<id>:ot:<YYYY-MM>`
-    across every month the range touches (`monthsBetween()`, reused from
+    `downloadStaffCombinedReport()`) — a From/To date-range picker above a
+    "Download combined report (CSV)" button (originally also had an
+    "Unpaid entries only" checkbox; removed the same day the paid/unpaid
+    concept was removed entirely, see above — every qualifying entry in
+    range always counts now). Scans `rest:<id>:ot:<YYYY-MM>` across every
+    month the range touches (`monthsBetween()`, reused from
     vendor-ledger.js), sums each employee's OT/Captain Incentive/Waiter
-    Tips separately (respecting the unpaid-only filter), then joins that
+    Tips separately (skipping `type === 'advance'` entries), then joins that
     against `currentStaffList` for bank name/branch/account
     number/IFSC/designation/department/mobile — a payment-ready sheet for
     whenever the owner actually needs to process these payouts, not just a

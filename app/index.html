@@ -677,6 +677,30 @@ window.__firebaseSdkReady = (async ()=>{
           <button type="button" id="staffTipsSubmitBtn">Submit Waiter Tips for this day</button>
           <span class="head-submit-badge" id="staffTipsSubmitBadge" style="display:none;"></span>
         </div>
+
+        <h4 class="staff-daily-subhead">Staff Advance</h4>
+        <div class="head-roster-row">
+          <div class="head-roster-chips" id="staffAdvanceRosterChips"></div>
+          <span class="addlink" id="staffAdvanceManageLink">+ Manage employees in this list</span>
+        </div>
+        <div class="head-roster-box" id="staffAdvanceManageBox">
+          <div class="head-roster-checklist" id="staffAdvanceManageList"></div>
+          <div class="head-roster-actions">
+            <button type="button" class="msr-save-btn" id="staffAdvanceManageSaveBtn">Save</button>
+            <button type="button" class="msr-cancel-btn" id="staffAdvanceManageCancelBtn">Cancel</button>
+          </div>
+        </div>
+        <div class="new-supplier-box open">
+          <select id="staffAdvanceEmployeeSelect"></select>
+          <input type="number" id="staffAdvanceAmount" placeholder="Advance amount (₹)" min="0" step="1">
+          <button type="button" id="staffAdvanceAddBtn">Add Advance</button>
+        </div>
+        <div class="dash-empty" id="staffAdvanceEmpty" style="display:none;">No advances logged for this day yet.</div>
+        <div class="plain-table-wrap" id="staffAdvanceTableWrap"></div>
+        <div class="head-submit-row">
+          <button type="button" id="staffAdvanceSubmitBtn">Submit Staff Advance for this day</button>
+          <span class="head-submit-badge" id="staffAdvanceSubmitBadge" style="display:none;"></span>
+        </div>
       </section>
 
       <section class="manage-section">
@@ -690,10 +714,6 @@ window.__firebaseSdkReady = (async ()=>{
           <span class="toolbar-label">To</span>
           <input type="date" id="staffReportTo">
         </div>
-        <label class="staff-report-checkbox">
-          <input type="checkbox" id="staffReportUnpaidOnly" checked>
-          Unpaid entries only
-        </label>
         <button type="button" class="history-btn" id="staffReportDownloadBtn">Download combined report (CSV)</button>
       </section>
 

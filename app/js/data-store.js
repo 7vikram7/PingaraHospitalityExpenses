@@ -465,20 +465,24 @@ function rememberBankDefault(bankName, ifscCode, bankBranch){
   return true;
 }
 
-// ---- Daily OT / Captain Incentive / Waiter Tips (added 2026-10-01, extended
-// 2026-10-02 with the latter two "types") ----
+// ---- Daily OT / Captain Incentive / Waiter Tips / Staff Advance (added
+// 2026-10-01, extended 2026-10-02 with Captain Incentive + Waiter Tips, then
+// again the same day with Staff Advance) ----
 // Month-bucketed exactly like bills — `rest:<id>:ot:<YYYY-MM>` ->
-// { "<date>": [...entries for that day] } — since all three are logged day
-// by day ("we give out daily OT"), not once a month. The Firestore key stays
-// "ot" (not renamed to something more generic) purely for backward
-// compatibility with data already saved under it before the other two types
-// existed — `type` distinguishes them now, defaulting to 'ot' for any
-// pre-existing entry that predates this field. Each entry carries a
-// denormalized `employeeName` snapshot alongside `employeeId` (the
-// employee's internal uid(), not their editable "Employee ID" text field) so
-// a later-renamed or removed employee doesn't leave past entries pointing at
-// a name that can no longer be found — same convention bills already use for
-// supplier names.
+// { "<date>": [...entries for that day] } — since all four are logged day
+// by day, not once a month. The Firestore key stays "ot" (not renamed to
+// something more generic) purely for backward compatibility with data
+// already saved under it before the other types existed — `type`
+// distinguishes them now, defaulting to 'ot' for any pre-existing entry
+// that predates this field. Each entry carries a denormalized
+// `employeeName` snapshot alongside `employeeId` (the employee's internal
+// uid(), not their editable "Employee ID" text field) so a later-renamed or
+// removed employee doesn't leave past entries pointing at a name that can
+// no longer be found — same convention bills already use for supplier
+// names. There is deliberately no paid/unpaid status on these entries
+// (removed 2026-10-02, along with the toggle UI and the Combined report's
+// "unpaid only" filter) -- unlike bills/sales, nothing here tracks payment
+// status at all.
 function otMonthKeyFor(restaurantId, monthKey){ return "rest:" + restaurantId + ":ot:" + monthKey; }
 async function loadOTMonth(restaurantId, monthKey){
   const raw = await safeGet(otMonthKeyFor(restaurantId, monthKey));
@@ -489,19 +493,8 @@ async function addOTEntry(restaurantId, date, employeeId, employeeName, amount, 
   const monthKey = date.slice(0,7);
   const month = await loadOTMonth(restaurantId, monthKey);
   if(!month[date]) month[date] = [];
-  const entry = { id: uid(), employeeId, employeeName, amount: Number(amount), type: type || 'ot', status: 'unpaid', paidAt: null, createdAt: Date.now() };
+  const entry = { id: uid(), employeeId, employeeName, amount: Number(amount), type: type || 'ot', createdAt: Date.now() };
   month[date].push(entry);
-  await safeSet(otMonthKeyFor(restaurantId, monthKey), JSON.stringify(month));
-  return entry;
-}
-async function toggleOTPaid(restaurantId, date, otId){
-  const monthKey = date.slice(0,7);
-  const month = await loadOTMonth(restaurantId, monthKey);
-  const dayEntries = month[date] || [];
-  const entry = dayEntries.find(e => e.id === otId);
-  if(!entry) return null;
-  entry.status = entry.status === 'paid' ? 'unpaid' : 'paid';
-  entry.paidAt = entry.status === 'paid' ? Date.now() : null;
   await safeSet(otMonthKeyFor(restaurantId, monthKey), JSON.stringify(month));
   return entry;
 }
@@ -512,14 +505,14 @@ async function deleteOTEntry(restaurantId, date, otId){
   await safeSet(otMonthKeyFor(restaurantId, monthKey), JSON.stringify(month));
 }
 
-// ---- Per-day submit/lock for OT / Captain Incentive / Waiter Tips (added
-// 2026-10-02) ---- A separate key (not a field on the entries themselves) so
-// the entries' own shape never needs to change. `rest:<id>:otSubmitted:
-// <YYYY-MM>` -> { "<date>": { ot: true, captain_incentive: true, ... } },
-// one flag per type per date, since each of the three lists is submitted
-// independently. Once true, the Manager profile can no longer add, edit,
-// delete, or toggle paid status for that type on that date -- the Owner
-// profile is never restricted by this flag (see staff-tab.js's
+// ---- Per-day submit/lock for OT / Captain Incentive / Waiter Tips / Staff
+// Advance (added 2026-10-02) ---- A separate key (not a field on the
+// entries themselves) so the entries' own shape never needs to change.
+// `rest:<id>:otSubmitted:<YYYY-MM>` -> { "<date>": { ot: true,
+// captain_incentive: true, ... } }, one flag per type per date, since each
+// of the four lists is submitted independently. Once true, the Manager
+// profile can no longer add, edit, or delete entries for that type on that
+// date -- the Owner profile is never restricted by this flag (see staff-tab.js's
 // staffCanEditDaily()) and there is deliberately no "unsubmit" action in the
 // UI at all -- an Owner who needs to fix something just edits directly,
 // logged in as Owner, rather than reopening the list first.

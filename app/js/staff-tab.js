@@ -467,10 +467,13 @@ document.getElementById('staffUploadBtn').addEventListener('click', async ()=>{
   }
 });
 
-/* ---------- Daily OT / Captain Incentive / Waiter Tips — three separate
-   lists sharing one date (split back out from a single shared-type-selector
-   section, 2026-10-02) ---------- */
-const STAFF_OT_TYPE_LABELS = { ot: 'OT', captain_incentive: 'Captain Incentive', waiter_tips: 'Waiter Tips' };
+/* ---------- Daily OT / Captain Incentive / Waiter Tips / Staff Advance —
+   four separate lists sharing one date (OT/Incentive/Tips split back out
+   from a single shared-type-selector section, 2026-10-02; Staff Advance
+   added the same day as a fourth list reusing the exact same machinery —
+   no paid/unpaid status on any of them, that concept was removed entirely
+   the same day too, see renderStaffDailyTable()) ---------- */
+const STAFF_OT_TYPE_LABELS = { ot: 'OT', captain_incentive: 'Captain Incentive', waiter_tips: 'Waiter Tips', advance: 'Staff Advance' };
 function staffOtTypeLabel(type){ return STAFF_OT_TYPE_LABELS[type] || STAFF_OT_TYPE_LABELS.ot; }
 // One config per list — same underlying `rest:<id>:ot:<YYYY-MM>` data,
 // each list just reads/writes its own `type` and its own set of element ids.
@@ -503,7 +506,13 @@ const STAFF_DAILY_TYPES = [
     tableWrapId: 'staffTipsTableWrap', emptyId: 'staffTipsEmpty',
     rosterChipsId: 'staffTipsRosterChips', manageLinkId: 'staffTipsManageLink', manageBoxId: 'staffTipsManageBox',
     manageListId: 'staffTipsManageList', manageSaveBtnId: 'staffTipsManageSaveBtn', manageCancelBtnId: 'staffTipsManageCancelBtn',
-    submitBtnId: 'staffTipsSubmitBtn', submitBadgeId: 'staffTipsSubmitBadge' }
+    submitBtnId: 'staffTipsSubmitBtn', submitBadgeId: 'staffTipsSubmitBadge' },
+  { type: 'advance', label: 'Staff Advance',
+    employeeSelectId: 'staffAdvanceEmployeeSelect', amountId: 'staffAdvanceAmount', addBtnId: 'staffAdvanceAddBtn',
+    tableWrapId: 'staffAdvanceTableWrap', emptyId: 'staffAdvanceEmpty',
+    rosterChipsId: 'staffAdvanceRosterChips', manageLinkId: 'staffAdvanceManageLink', manageBoxId: 'staffAdvanceManageBox',
+    manageListId: 'staffAdvanceManageList', manageSaveBtnId: 'staffAdvanceManageSaveBtn', manageCancelBtnId: 'staffAdvanceManageCancelBtn',
+    submitBtnId: 'staffAdvanceSubmitBtn', submitBadgeId: 'staffAdvanceSubmitBadge' }
 ];
 function employeeInHead(emp, type){ return (emp.heads || []).includes(type); }
 function renderStaffDailyEmployeeSelects(){
@@ -606,9 +615,9 @@ STAFF_DAILY_TYPES.forEach(cfg=>{
   });
 });
 // Once a (date, type) is submitted, only the Owner profile can still add,
-// edit, delete, or toggle paid status for it -- Manager loses all of that,
-// permanently, with no in-app unlock (see data-store.js's note on
-// otSubmissionKeyFor). isOwnerProfile() always wins regardless of the flag.
+// edit, or delete entries for it -- Manager loses all of that, permanently,
+// with no in-app unlock (see data-store.js's note on otSubmissionKeyFor).
+// isOwnerProfile() always wins regardless of the flag.
 function staffCanEditDaily(submitted){ return isOwnerProfile() || !submitted; }
 async function renderStaffDailyTable(cfg){
   const restId = getStaffActiveRestaurantId();
@@ -644,23 +653,12 @@ async function renderStaffDailyTable(cfg){
   empty.style.display = 'none';
   const table = document.createElement('table');
   const thead = document.createElement('thead');
-  thead.innerHTML = '<tr><th>Employee</th><th class="num">Amount</th><th>Status</th><th></th></tr>';
+  thead.innerHTML = '<tr><th>Employee</th><th class="num">Amount</th><th></th></tr>';
   const tbody = document.createElement('tbody');
   dayEntries.slice().sort((a,b)=>a.createdAt-b.createdAt).forEach(e=>{
     const tr = document.createElement('tr');
     const tdName = document.createElement('td'); tdName.textContent = e.employeeName; tdName.className = 'supplier';
     const tdAmt = document.createElement('td'); tdAmt.className = 'amount'; tdAmt.textContent = fmtMoney(e.amount);
-
-    const tdStatus = document.createElement('td');
-    const statusBtn = document.createElement('button');
-    statusBtn.type = 'button'; statusBtn.className = 'badge ' + e.status; statusBtn.textContent = e.status;
-    statusBtn.disabled = !canEdit;
-    statusBtn.addEventListener('click', async ()=>{
-      statusBtn.disabled = true;
-      await toggleOTPaid(restId, staffOtSelectedDate, e.id);
-      await renderStaffDailyTable(cfg);
-    });
-    tdStatus.appendChild(statusBtn);
 
     const tdDel = document.createElement('td');
     const delBtn = document.createElement('button');
@@ -673,7 +671,7 @@ async function renderStaffDailyTable(cfg){
     });
     tdDel.appendChild(delBtn);
 
-    tr.appendChild(tdName); tr.appendChild(tdAmt); tr.appendChild(tdStatus); tr.appendChild(tdDel);
+    tr.appendChild(tdName); tr.appendChild(tdAmt); tr.appendChild(tdDel);
     tbody.appendChild(tr);
   });
   table.appendChild(thead); table.appendChild(tbody);
@@ -736,17 +734,15 @@ async function downloadStaffCombinedReport(){
     alert("Pick a valid From and To date first.");
     return;
   }
-  const unpaidOnly = document.getElementById('staffReportUnpaidOnly').checked;
-
   const totals = {}; // employeeId -> {name, ot, captain_incentive, waiter_tips}
   for(const mk of monthsBetween(from, to)){
     const month = await loadOTMonth(restId, mk);
     Object.keys(month).forEach(date=>{
       if(date < from || date > to) return;
       (month[date] || []).forEach(e=>{
-        if(unpaidOnly && e.status === 'paid') return;
-        if(!totals[e.employeeId]) totals[e.employeeId] = { name: e.employeeName, ot: 0, captain_incentive: 0, waiter_tips: 0 };
         const t = e.type || 'ot';
+        if(t === 'advance') return; // advances aren't part of this payout report
+        if(!totals[e.employeeId]) totals[e.employeeId] = { name: e.employeeName, ot: 0, captain_incentive: 0, waiter_tips: 0 };
         totals[e.employeeId][t] += Number(e.amount || 0);
       });
     });
@@ -754,7 +750,7 @@ async function downloadStaffCombinedReport(){
 
   const employeeIds = Object.keys(totals);
   if(employeeIds.length === 0){
-    alert(`No ${unpaidOnly ? 'unpaid ' : ''}OT/Incentive/Tips entries found for that date range.`);
+    alert("No OT/Incentive/Tips entries found for that date range.");
     return;
   }
 

@@ -326,15 +326,6 @@ h1{
   border-top:1px solid var(--paper-line);
 }
 .staff-daily-subhead:first-of-type{margin-top:16px;padding-top:0;border-top:none;}
-.staff-report-checkbox{
-  display:flex;
-  align-items:center;
-  gap:6px;
-  font-size:12px;
-  color:var(--ink-soft);
-  margin:10px 0;
-  cursor:pointer;
-}
 .manage-section-head{
   display:flex;
   align-items:center;
