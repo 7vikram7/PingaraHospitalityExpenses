@@ -910,7 +910,8 @@ document.getElementById('saveSupplierBtn').addEventListener('click', async ()=>{
     alert("Please enter a supplier name and pick a category.");
     return;
   }
-  if(!suppliers.includes(name)){
+  const alreadyExisted = suppliers.includes(name);
+  if(!alreadyExisted){
     suppliers.push(name);
     await saveSuppliers();
   }
@@ -920,6 +921,18 @@ document.getElementById('saveSupplierBtn').addEventListener('click', async ()=>{
   }
   supplierDefaults[supplierKey(name)] = { category: cat, subcategory: sub };
   await saveSupplierDefaults();
+  // Only an EXISTING supplier (already used by some other restaurant, so
+  // not covered by the "never billed anywhere" exemption) needs this
+  // restaurant explicitly granted visibility here — a genuinely brand-new
+  // name stays in the zero-usage-anywhere bucket, which already means
+  // "visible everywhere" on its own; recording usage for it too would
+  // wrongly narrow it to just this restaurant immediately, which is not
+  // what "freshly added" should mean. Without this, a restaurant with no
+  // bill history for an existing supplier could type its exact name here
+  // and still not see it selectable afterward — the .value = name line
+  // right below would silently no-op against a dropdown that still
+  // excludes it.
+  if(alreadyExisted) recordSupplierUsage(name, currentRestaurantId);
 
   renderSupplierSelect();
   document.getElementById('supplierSelect').value = name;

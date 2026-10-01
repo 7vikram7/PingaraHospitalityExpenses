@@ -456,9 +456,27 @@ Five tab panels, switched by `.tab-bar` buttons (`tabBtnExpenses` /
       unrestricted, so the only visible effect of the scan still running
       is the dropdown briefly showing more than it will a moment later,
       never less) and kept current afterward via `recordSupplierUsage()`
-      (called right after a bill save in both the quick-add submit handler
-      and the Modify-bill save handler) rather than rebuilt from scratch on
-      every render. **Deliberately never persisted to Firestore** — it's
+      rather than rebuilt from scratch on every render — called from three
+      places, each only when it's actually appropriate: the quick-add
+      submit handler and the Modify-bill save handler (a bill was actually
+      saved against that supplier), and `saveSupplierBtn`'s handler (the
+      Add Expenses toolbar's Manage Suppliers modal) **but only when the
+      submitted name already existed in `suppliers`** — a genuinely
+      brand-new name stays unclaimed (zero usage = visible everywhere) by
+      design. That distinction matters: without it, a restaurant with no
+      bill history for an *already-existing* supplier (used elsewhere, so
+      the "never billed anywhere" exemption doesn't cover it) had no way
+      to make it selectable again — typing its exact name into "Add a new
+      supplier" was a no-op against `suppliers` (already present) and the
+      dropdown still excluded it, so `.value = name` right after silently
+      failed to select anything. Calling `recordSupplierUsage()` only for
+      the pre-existing case fixes that without also narrowing a truly new
+      supplier's visibility down to just whichever restaurant happened to
+      add it — caught by testing both cases together after an initial fix
+      accidentally did the latter too. The Suppliers tab's own add form
+      (no restaurant context at all, being the account-wide admin view)
+      deliberately does **not** call `recordSupplierUsage()` either way.
+      **Deliberately never persisted to Firestore** — it's
       rebuilt fresh from the bills (the authoritative source) at the start
       of every session specifically so it can never drift out of sync with
       them the way a separately-saved derived structure could — see "Known
