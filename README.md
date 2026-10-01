@@ -86,13 +86,17 @@ Firebase Hosting.
   so a file already maintained elsewhere can be dropped in with no
   reformatting ("Add a new employee" lives at the bottom of the tab).
   **OT, Captain Incentive, and Waiter Tips** are three separate lists
-  sharing one date — each its own add-form and table, employees picked
-  only from that restaurant's own staff directory (no quick-add shortcut
-  here — an employee can only be created via the directory's own add form
-  or bulk upload, so there's exactly one place that can put someone into
-  a restaurant's list) — a flat amount per employee per entry (not hours ×
-  rate), with its own paid/unpaid status. Each restaurant's staff list,
-  daily entries, and salary records are fully independent of every other
+  sharing one date — each its own add-form and table, a flat amount per
+  employee per entry (not hours × rate), with its own paid/unpaid status.
+  Each list only offers employees who've been explicitly added to *that*
+  list — not every restaurant employee needs OT, or is a captain, or is a
+  waiter — via a "Manage employees in this list" control right there in
+  the section (pick from the restaurant's full staff directory, no limit
+  on how many lists one employee belongs to). This never creates a new
+  employee, only assigns/unassigns an existing one — the directory's own
+  add form or bulk upload is still the one place a new employee is
+  actually created. Each restaurant's staff list, daily entries, list
+  memberships, and salary records are fully independent of every other
   restaurant's — switching the restaurant selector never carries data over.
   A **combined report** downloads a payment-ready CSV for a date range —
   one row per employee with their bank name/branch/account/IFSC plus

@@ -1172,6 +1172,22 @@ main{padding:24px 28px 60px;max-width:1400px;margin:0 auto;}
 .inline-add-mini.open{display:flex; flex-wrap:wrap; align-items:center;}
 .inline-add-mini input{flex:1; font-size:12px; padding:5px 7px; border:1.5px dashed var(--brass); border-radius:4px;}
 .inline-add-mini button{background:var(--brass); color:#fff; border:none; border-radius:4px; padding:0 8px; font-size:11px; cursor:pointer;}
+
+/* ---------- Per-head employee roster (OT/Captain Incentive/Waiter Tips lists
+   only show employees assigned to them, added 2026-10-02) ---------- */
+.head-roster-row{display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin:4px 0 8px;}
+.head-roster-chips{display:flex; flex-wrap:wrap; gap:6px;}
+.head-roster-chip{font-family:'IBM Plex Mono',monospace; font-size:12px; background:#fff; border:1px solid var(--paper-line); border-radius:20px; padding:4px 6px 4px 10px; display:flex; align-items:center; gap:6px;}
+.head-roster-chip button{background:none; border:none; color:var(--ink-soft); cursor:pointer; font-size:13px; line-height:1; padding:0;}
+.head-roster-chip button:hover{color:#b23b3b;}
+.head-roster-empty{font-size:12px; color:var(--ink-soft); font-style:italic;}
+.head-roster-row .addlink{color:var(--brass); cursor:pointer; font-size:11px; font-weight:600;}
+.head-roster-row .addlink:hover{color:var(--brass-deep);}
+.head-roster-box{display:none; margin:6px 0 14px; padding:10px; border:1.5px dashed var(--brass); border-radius:6px; background:#fffdf7;}
+.head-roster-box.open{display:block;}
+.head-roster-checklist{max-height:200px; overflow-y:auto; display:flex; flex-direction:column; gap:4px; margin-bottom:10px;}
+.head-roster-checklist label{display:flex; align-items:center; gap:6px; font-size:12px; color:var(--ink-soft); cursor:pointer;}
+.head-roster-actions{display:flex; gap:8px;}
 .field input, .field select{
   font-family:'Inter',sans-serif;
   font-size:14px;

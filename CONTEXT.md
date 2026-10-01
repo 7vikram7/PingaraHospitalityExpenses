@@ -614,6 +614,33 @@ Five tab panels, switched by `.tab-bar` buttons (`tabBtnExpenses` /
       2026-10-02 supplier-list data-loss incident (see "Known
       limitations"), this tab's restaurant-scoping gets the same
       scrutiny going forward as the supplier-usage-index.
+    - **Per-head employee rosters, same day (2026-10-02)**: not every
+      restaurant employee needs OT, is a captain, or is a waiter, so each
+      of the three lists' employee dropdown now only offers employees
+      explicitly assigned to *that* list, rather than the full staff
+      directory. Membership lives directly on the employee record
+      (`emp.heads`, an array of type codes — `'ot'`/`'captain_incentive'`/
+      `'waiter_tips'` — so it's already covered by the existing
+      `rest:<id>:staff` restaurant-scoping and persistence, no new
+      Firestore key). Each section shows a chip row of its current
+      members (with a one-click "×" to unassign) and a "+ Manage
+      employees in this list" link revealing a checkbox list of every
+      employee in the directory — checking/unchecking and hitting Save
+      writes the change back to every affected employee's `heads` array
+      in one `saveStaffList()` call; Cancel discards. An employee can
+      belong to any combination of the three lists at once (e.g. someone
+      who does both OT and waits tables). New employees start on NO
+      list (opt-in, not opt-out) — the bulk-upload result message says
+      so explicitly, since this is the one place a new batch of staff
+      could otherwise look like it "did nothing" in the daily lists.
+      Unassigning someone from a list does NOT touch past entries already
+      logged for them — removal is roster-only, not retroactive — same
+      principle as removing someone from the Staff directory entirely
+      (buildStaffRow's delete confirm already says this). Verified with a
+      dedicated Playwright test (assign/unassign via chip and via
+      checklist, Cancel discards, one employee in multiple lists
+      simultaneously, and roster membership/checklist contents don't leak
+      across restaurants either).
   - **Combined OT/Incentive/Tips report** (added 2026-10-02,
     `downloadStaffCombinedReport()`) — a From/To date-range picker plus an
     "Unpaid entries only" checkbox (checked by default — the common real

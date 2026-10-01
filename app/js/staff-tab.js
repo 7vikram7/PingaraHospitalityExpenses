@@ -77,6 +77,7 @@ async function renderStaffPanel(){
   renderStaffList();
   renderStaffBankDatalists();
   renderStaffDailyEmployeeSelects();
+  renderAllHeadRosters();
   await renderAllStaffDailyTables();
   await renderStaffSalaryTable();
 }
@@ -344,7 +345,7 @@ document.getElementById('staffSaveEmployeeBtn').addEventListener('click', async 
   const restId = getStaffActiveRestaurantId();
   currentStaffList.push({
     id: uid(), name, employeeId, designation, department, gender, mobile,
-    bankName, bankBranch, accountNumber, ifscCode, salary
+    bankName, bankBranch, accountNumber, ifscCode, salary, heads: []
   });
   await saveStaffList(restId, currentStaffList);
   if(rememberBankDefault(bankName, ifscCode, bankBranch)) await saveStaffBankDefaults();
@@ -352,6 +353,7 @@ document.getElementById('staffSaveEmployeeBtn').addEventListener('click', async 
   renderStaffList();
   renderStaffBankDatalists();
   renderStaffDailyEmployeeSelects();
+  renderAllHeadRosters();
   await renderStaffSalaryTable();
 
   document.getElementById('staffNewName').value = "";
@@ -440,7 +442,7 @@ document.getElementById('staffUploadBtn').addEventListener('click', async ()=>{
       const salary = Number(get(row, "Monthly Salary", "Salary")) || 0;
       currentStaffList.push({
         id: uid(), name, employeeId, designation, department, gender, mobile,
-        bankName, bankBranch, accountNumber, ifscCode, salary
+        bankName, bankBranch, accountNumber, ifscCode, salary, heads: []
       });
       added++;
       if(rememberBankDefault(bankName, ifscCode, bankBranch)) bankDefaultsChanged = true;
@@ -450,11 +452,13 @@ document.getElementById('staffUploadBtn').addEventListener('click', async ()=>{
     if(bankDefaultsChanged) await saveStaffBankDefaults();
 
     resultEl.textContent = `Added ${added} employee${added===1?'':'s'}` +
-      (skipped > 0 ? `, skipped ${skipped} row${skipped===1?'':'s'} with no name.` : '.');
+      (skipped > 0 ? `, skipped ${skipped} row${skipped===1?'':'s'} with no name.` : '.') +
+      (added > 0 ? ` New employees aren't in the OT/Incentive/Tips lists yet — use "Manage employees in this list" in each one to add them.` : '');
 
     renderStaffList();
     renderStaffBankDatalists();
     renderStaffDailyEmployeeSelects();
+    renderAllHeadRosters();
     await renderStaffSalaryTable();
     fileInput.value = "";
   }catch(e){
@@ -472,37 +476,132 @@ function staffOtTypeLabel(type){ return STAFF_OT_TYPE_LABELS[type] || STAFF_OT_T
 // each list just reads/writes its own `type` and its own set of element ids.
 // Employee options come strictly from `currentStaffList` (the active
 // restaurant's own staff — see getStaffActiveRestaurantId()/
-// renderStaffPanel()), nothing else. These lists deliberately do NOT offer
-// an "add new employee" shortcut of their own (tried briefly, removed
-// 2026-10-02) — staff only get added via the one real directory (the
-// Staff section's own add form / bulk upload), so there's exactly one
-// place that can ever put an employee into a restaurant's list, not two.
+// renderStaffPanel()), filtered further to whoever is on THIS head's own
+// roster (emp.heads, an array of type codes stored right on the employee
+// record — added 2026-10-02 so not every restaurant employee clutters
+// every list; e.g. only kitchen staff need to show under OT). These lists
+// still deliberately do NOT offer a way to CREATE a brand new employee of
+// their own (tried briefly, removed 2026-10-02) — staff only get added via
+// the one real directory (the Staff section's own add form / bulk upload);
+// "Manage employees in this list" here only assigns/unassigns EXISTING
+// employees to/from this head, it never creates one.
 const STAFF_DAILY_TYPES = [
   { type: 'ot', label: 'OT',
     employeeSelectId: 'staffOtEmployeeSelect', amountId: 'staffOtAmount', addBtnId: 'staffOtAddBtn',
-    tableWrapId: 'staffOtTableWrap', emptyId: 'staffOtEmpty' },
+    tableWrapId: 'staffOtTableWrap', emptyId: 'staffOtEmpty',
+    rosterChipsId: 'staffOtRosterChips', manageLinkId: 'staffOtManageLink', manageBoxId: 'staffOtManageBox',
+    manageListId: 'staffOtManageList', manageSaveBtnId: 'staffOtManageSaveBtn', manageCancelBtnId: 'staffOtManageCancelBtn' },
   { type: 'captain_incentive', label: 'Captain Incentive',
     employeeSelectId: 'staffIncentiveEmployeeSelect', amountId: 'staffIncentiveAmount', addBtnId: 'staffIncentiveAddBtn',
-    tableWrapId: 'staffIncentiveTableWrap', emptyId: 'staffIncentiveEmpty' },
+    tableWrapId: 'staffIncentiveTableWrap', emptyId: 'staffIncentiveEmpty',
+    rosterChipsId: 'staffIncentiveRosterChips', manageLinkId: 'staffIncentiveManageLink', manageBoxId: 'staffIncentiveManageBox',
+    manageListId: 'staffIncentiveManageList', manageSaveBtnId: 'staffIncentiveManageSaveBtn', manageCancelBtnId: 'staffIncentiveManageCancelBtn' },
   { type: 'waiter_tips', label: 'Waiter Tips',
     employeeSelectId: 'staffTipsEmployeeSelect', amountId: 'staffTipsAmount', addBtnId: 'staffTipsAddBtn',
-    tableWrapId: 'staffTipsTableWrap', emptyId: 'staffTipsEmpty' }
+    tableWrapId: 'staffTipsTableWrap', emptyId: 'staffTipsEmpty',
+    rosterChipsId: 'staffTipsRosterChips', manageLinkId: 'staffTipsManageLink', manageBoxId: 'staffTipsManageBox',
+    manageListId: 'staffTipsManageList', manageSaveBtnId: 'staffTipsManageSaveBtn', manageCancelBtnId: 'staffTipsManageCancelBtn' }
 ];
+function employeeInHead(emp, type){ return (emp.heads || []).includes(type); }
 function renderStaffDailyEmployeeSelects(){
   STAFF_DAILY_TYPES.forEach(cfg=>{
     const sel = document.getElementById(cfg.employeeSelectId);
     const prev = sel.value;
-    sel.innerHTML = currentStaffList.length === 0
-      ? '<option value="">No staff added yet</option>'
+    const members = currentStaffList.filter(e => employeeInHead(e, cfg.type));
+    sel.innerHTML = members.length === 0
+      ? '<option value="">No employees in this list yet — add some above</option>'
       : '<option value="">Select employee…</option>';
-    [...currentStaffList].sort((a,b)=>a.name.localeCompare(b.name)).forEach(emp=>{
+    [...members].sort((a,b)=>a.name.localeCompare(b.name)).forEach(emp=>{
       const opt = document.createElement('option');
       opt.value = emp.id; opt.textContent = emp.name;
       sel.appendChild(opt);
     });
-    if(prev && currentStaffList.some(e=>e.id === prev)) sel.value = prev;
+    if(prev && members.some(e=>e.id === prev)) sel.value = prev;
   });
 }
+
+/* ---------- Per-head employee roster: who's in OT / Captain Incentive /
+   Waiter Tips (added 2026-10-02) ---------- */
+function renderHeadRoster(cfg){
+  const chipsEl = document.getElementById(cfg.rosterChipsId);
+  chipsEl.innerHTML = "";
+  const members = currentStaffList.filter(e => employeeInHead(e, cfg.type)).sort((a,b)=>a.name.localeCompare(b.name));
+  if(members.length === 0){
+    const empty = document.createElement('span');
+    empty.className = 'head-roster-empty';
+    empty.textContent = 'No employees in this list yet.';
+    chipsEl.appendChild(empty);
+    return;
+  }
+  members.forEach(emp=>{
+    const chip = document.createElement('span');
+    chip.className = 'head-roster-chip';
+    const name = document.createElement('span');
+    name.textContent = emp.name;
+    const removeBtn = document.createElement('button');
+    removeBtn.type = 'button'; removeBtn.textContent = '×';
+    removeBtn.title = `Remove ${emp.name} from this list`;
+    removeBtn.addEventListener('click', async ()=>{
+      emp.heads = (emp.heads || []).filter(h => h !== cfg.type);
+      const restId = getStaffActiveRestaurantId();
+      await saveStaffList(restId, currentStaffList);
+      renderHeadRoster(cfg);
+      renderStaffDailyEmployeeSelects();
+    });
+    chip.appendChild(name); chip.appendChild(removeBtn);
+    chipsEl.appendChild(chip);
+  });
+}
+function renderAllHeadRosters(){
+  STAFF_DAILY_TYPES.forEach(cfg => renderHeadRoster(cfg));
+}
+function renderHeadManageChecklist(cfg){
+  const listEl = document.getElementById(cfg.manageListId);
+  listEl.innerHTML = "";
+  if(currentStaffList.length === 0){
+    const empty = document.createElement('span');
+    empty.className = 'head-roster-empty';
+    empty.textContent = 'No staff in the directory yet — add one at the bottom of the tab first.';
+    listEl.appendChild(empty);
+    return;
+  }
+  [...currentStaffList].sort((a,b)=>a.name.localeCompare(b.name)).forEach(emp=>{
+    const label = document.createElement('label');
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.value = emp.id;
+    checkbox.checked = employeeInHead(emp, cfg.type);
+    label.appendChild(checkbox);
+    label.appendChild(document.createTextNode(emp.name));
+    listEl.appendChild(label);
+  });
+}
+STAFF_DAILY_TYPES.forEach(cfg=>{
+  document.getElementById(cfg.manageLinkId).addEventListener('click', ()=>{
+    const box = document.getElementById(cfg.manageBoxId);
+    const opening = !box.classList.contains('open');
+    if(opening) renderHeadManageChecklist(cfg);
+    box.classList.toggle('open', opening);
+  });
+  document.getElementById(cfg.manageCancelBtnId).addEventListener('click', ()=>{
+    document.getElementById(cfg.manageBoxId).classList.remove('open');
+  });
+  document.getElementById(cfg.manageSaveBtnId).addEventListener('click', async ()=>{
+    const checkedIds = new Set(
+      [...document.querySelectorAll('#' + cfg.manageListId + ' input[type="checkbox"]:checked')].map(cb => cb.value)
+    );
+    currentStaffList.forEach(emp=>{
+      const heads = new Set(emp.heads || []);
+      if(checkedIds.has(emp.id)) heads.add(cfg.type); else heads.delete(cfg.type);
+      emp.heads = Array.from(heads);
+    });
+    const restId = getStaffActiveRestaurantId();
+    await saveStaffList(restId, currentStaffList);
+    renderHeadRoster(cfg);
+    renderStaffDailyEmployeeSelects();
+    document.getElementById(cfg.manageBoxId).classList.remove('open');
+  });
+});
 async function renderStaffDailyTable(cfg){
   const restId = getStaffActiveRestaurantId();
   const monthKey = staffOtSelectedDate.slice(0,7);
