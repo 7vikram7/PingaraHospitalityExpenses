@@ -581,16 +581,33 @@ window.__firebaseSdkReady = (async ()=>{
         <div class="new-supplier-box open">
           <input type="text" id="staffNewName" placeholder="Employee name">
           <div class="row">
-            <input type="text" id="staffNewEmpId" placeholder="Employee ID (optional)">
+            <input type="text" id="staffNewEmpId" placeholder="Employee ID / Code (optional)">
+            <input type="text" id="staffNewDesignation" placeholder="Designation (optional)">
+          </div>
+          <div class="row">
+            <input type="text" id="staffNewDepartment" placeholder="Department (optional)">
+            <select id="staffNewGender">
+              <option value="">Gender (optional)</option>
+              <option value="Male">Male</option>
+              <option value="Female">Female</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+          <div class="row">
+            <input type="tel" id="staffNewMobile" placeholder="Mobile number (optional)">
             <input type="number" id="staffNewSalary" placeholder="Default monthly salary (₹)" min="0" step="1">
           </div>
           <div class="row">
             <input type="text" id="staffNewBankName" list="staffBankNameList" placeholder="Bank name">
             <datalist id="staffBankNameList"></datalist>
+            <input type="text" id="staffNewBankBranch" list="staffBankBranchList" placeholder="Bank branch (optional)">
+            <datalist id="staffBankBranchList"></datalist>
+          </div>
+          <div class="row">
             <input type="text" id="staffNewIfsc" list="staffIfscList" placeholder="IFSC code">
             <datalist id="staffIfscList"></datalist>
+            <input type="text" id="staffNewAccount" placeholder="Account number">
           </div>
-          <input type="text" id="staffNewAccount" placeholder="Account number">
           <button type="button" id="staffSaveEmployeeBtn">Save employee</button>
         </div>
         <span class="addlink" id="staffBulkUploadLink">+ bulk upload a list</span>

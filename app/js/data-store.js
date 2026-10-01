@@ -368,28 +368,35 @@ async function saveStaffList(restaurantId, list){
   await safeSet(staffKeyFor(restaurantId), JSON.stringify(list));
 }
 
-// Shared, account-wide memory of {bankName, ifscCode} pairs already used for
-// some employee, somewhere — deliberately NOT restaurant-scoped, since a
-// bank branch is a real-world entity that can plausibly serve employees at
-// more than one of the account's restaurants. Mirrors supplierDefaults'
-// "remember it so the next entry is a pick, not a retype" role, just for a
-// pair of fields instead of one.
+// Shared, account-wide memory of {bankName, ifscCode, bankBranch} triples
+// already used for some employee, somewhere — deliberately NOT
+// restaurant-scoped, since a bank branch is a real-world entity that can
+// plausibly serve employees at more than one of the account's restaurants.
+// Mirrors supplierDefaults' "remember it so the next entry is a pick, not a
+// retype" role, just for a few fields instead of one. bankBranch isn't part
+// of the dedup key (IFSC alone already uniquely identifies the branch in
+// reality) — it's just carried along, and opportunistically backfilled onto
+// an existing pair that didn't have one yet.
 const STAFF_BANK_DEFAULTS_KEY = "staffBankDefaults";
-let staffBankDefaults = []; // [{bankName, ifscCode}]
+let staffBankDefaults = []; // [{bankName, ifscCode, bankBranch}]
 async function loadStaffBankDefaults(){
   const raw = await safeGet(STAFF_BANK_DEFAULTS_KEY);
   if(raw){ try{ staffBankDefaults = JSON.parse(raw) || []; return; }catch(e){} }
   staffBankDefaults = [];
 }
 async function saveStaffBankDefaults(){ await safeSet(STAFF_BANK_DEFAULTS_KEY, JSON.stringify(staffBankDefaults)); }
-// Returns true if this was a genuinely new pair (caller can skip re-saving otherwise).
-function rememberBankDefault(bankName, ifscCode){
+// Returns true if this created a new pair or filled in a previously-missing
+// branch on an existing one (caller can skip re-saving otherwise).
+function rememberBankDefault(bankName, ifscCode, bankBranch){
   if(!bankName || !ifscCode) return false;
-  const exists = staffBankDefaults.some(b =>
+  const existing = staffBankDefaults.find(b =>
     b.bankName.trim().toLowerCase() === bankName.trim().toLowerCase() &&
     b.ifscCode.trim().toUpperCase() === ifscCode.trim().toUpperCase());
-  if(exists) return false;
-  staffBankDefaults.push({ bankName: bankName.trim(), ifscCode: ifscCode.trim().toUpperCase() });
+  if(existing){
+    if(bankBranch && !existing.bankBranch){ existing.bankBranch = bankBranch.trim(); return true; }
+    return false;
+  }
+  staffBankDefaults.push({ bankName: bankName.trim(), ifscCode: ifscCode.trim().toUpperCase(), bankBranch: (bankBranch||"").trim() });
   return true;
 }
 

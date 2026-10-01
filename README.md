@@ -60,14 +60,18 @@ Firebase Hosting.
   new ones. Editing a supplier's category/subcategory here retroactively
   updates every past bill logged under that supplier too, not just new ones
 - **Staff OT & Salary tab** (Owner, or Manager for their own restaurant
-  only): a staff directory per restaurant — name, employee ID, bank name,
+  only): a staff directory per restaurant — name, employee ID/code,
+  designation, department, gender, mobile number, bank name, bank branch,
   account number, IFSC code, and a default monthly salary — with bank
-  name/IFSC remembered account-wide so the next employee is a pick, not a
-  retype. Add one at a time or bulk-upload a CSV/Excel list (template
-  provided). OT is logged daily (a flat amount per employee per entry, not
-  hours × rate) with its own paid/unpaid status; salary is tracked per
-  month, pre-filled from each employee's default and editable per month,
-  with its own paid/unpaid status and paid date
+  name/branch/IFSC remembered account-wide so the next employee is a pick,
+  not a retype. Add one at a time or bulk-upload a CSV/Excel list; the
+  downloadable template matches an existing payroll-system export format
+  (`Code*`, `Employee Name*`, `Mobile No*`, `Gender*`, `Department Name*`,
+  `Designation Name*`, etc.) so a file already maintained elsewhere can be
+  dropped in with no reformatting. OT is logged daily (a flat amount per
+  employee per entry, not hours × rate) with its own paid/unpaid status;
+  salary is tracked per month, pre-filled from each employee's default and
+  editable per month, with its own paid/unpaid status and paid date
 - **Offline-first**: every write lands in `localStorage` immediately and
   syncs to Firestore in the background, so a flaky connection never blocks
   data entry

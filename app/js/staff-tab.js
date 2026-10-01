@@ -106,10 +106,19 @@ function buildStaffRow(emp, onChange){
   idEl.className = emp.employeeId ? 'msr-cat' : 'msr-cat missing';
   idEl.textContent = emp.employeeId ? ('ID ' + emp.employeeId) : 'No employee ID';
 
+  const roleEl = document.createElement('span');
+  const roleText = [emp.designation, emp.department].filter(Boolean).join(' · ');
+  roleEl.className = roleText ? 'msr-cat' : 'msr-cat missing';
+  roleEl.textContent = roleText || 'No designation/department set';
+
+  const mobileEl = document.createElement('span');
+  mobileEl.className = emp.mobile ? 'msr-cat' : 'msr-cat missing';
+  mobileEl.textContent = emp.mobile ? ('Mobile ' + emp.mobile + (emp.gender ? ' • ' + emp.gender : '')) : (emp.gender || 'No mobile/gender set');
+
   const bankEl = document.createElement('span');
   bankEl.className = emp.bankName ? 'msr-cat' : 'msr-cat missing';
   bankEl.textContent = emp.bankName
-    ? `${emp.bankName} • ${maskAccountNumber(emp.accountNumber)} • ${emp.ifscCode || '—'}`
+    ? `${emp.bankName}${emp.bankBranch ? ' (' + emp.bankBranch + ')' : ''} • ${maskAccountNumber(emp.accountNumber)} • ${emp.ifscCode || '—'}`
     : 'No bank details set';
 
   const salaryEl = document.createElement('span');
@@ -122,7 +131,8 @@ function buildStaffRow(emp, onChange){
   const deleteBtn = document.createElement('button');
   deleteBtn.type = 'button'; deleteBtn.className = 'msr-delete-btn'; deleteBtn.textContent = 'Remove';
 
-  view.appendChild(nameEl); view.appendChild(idEl); view.appendChild(bankEl); view.appendChild(salaryEl);
+  view.appendChild(nameEl); view.appendChild(idEl); view.appendChild(roleEl); view.appendChild(mobileEl);
+  view.appendChild(bankEl); view.appendChild(salaryEl);
   view.appendChild(editBtn); view.appendChild(deleteBtn);
   row.appendChild(view);
 
@@ -150,7 +160,24 @@ function buildStaffEditForm(emp, onChange){
   nameInput.type = 'text'; nameInput.value = emp.name; nameInput.placeholder = 'Employee name';
 
   const idInput = document.createElement('input');
-  idInput.type = 'text'; idInput.value = emp.employeeId || ''; idInput.placeholder = 'Employee ID';
+  idInput.type = 'text'; idInput.value = emp.employeeId || ''; idInput.placeholder = 'Employee ID / Code';
+
+  const designationInput = document.createElement('input');
+  designationInput.type = 'text'; designationInput.value = emp.designation || ''; designationInput.placeholder = 'Designation';
+
+  const departmentInput = document.createElement('input');
+  departmentInput.type = 'text'; departmentInput.value = emp.department || ''; departmentInput.placeholder = 'Department';
+
+  const genderSelect = document.createElement('select');
+  ['', 'Male', 'Female', 'Other'].forEach(g=>{
+    const opt = document.createElement('option');
+    opt.value = g; opt.textContent = g || 'Gender';
+    genderSelect.appendChild(opt);
+  });
+  genderSelect.value = emp.gender || '';
+
+  const mobileInput = document.createElement('input');
+  mobileInput.type = 'tel'; mobileInput.value = emp.mobile || ''; mobileInput.placeholder = 'Mobile number';
 
   const bankInput = document.createElement('input');
   bankInput.type = 'text'; bankInput.value = emp.bankName || ''; bankInput.placeholder = 'Bank name';
@@ -162,22 +189,33 @@ function buildStaffEditForm(emp, onChange){
     const opt = document.createElement('option'); opt.value = n; bankDatalist.appendChild(opt);
   });
 
+  const branchInput = document.createElement('input');
+  branchInput.type = 'text'; branchInput.value = emp.bankBranch || ''; branchInput.placeholder = 'Bank branch';
+  const branchListId = 'staffEditBranchList_' + Math.random().toString(36).slice(2,8);
+  branchInput.setAttribute('list', branchListId);
+  const branchDatalist = document.createElement('datalist');
+  branchDatalist.id = branchListId;
+
   const ifscInput = document.createElement('input');
   ifscInput.type = 'text'; ifscInput.value = emp.ifscCode || ''; ifscInput.placeholder = 'IFSC code';
   const ifscListId = 'staffEditIfscList_' + Math.random().toString(36).slice(2,8);
   ifscInput.setAttribute('list', ifscListId);
   const ifscDatalist = document.createElement('datalist');
   ifscDatalist.id = ifscListId;
-  function refreshIfscOptions(){
+  function refreshBankOptions(){
     ifscDatalist.innerHTML = "";
+    branchDatalist.innerHTML = "";
     const bankName = bankInput.value.trim().toLowerCase();
     const matches = staffBankDefaults.filter(b => !bankName || b.bankName.toLowerCase() === bankName);
     [...new Set(matches.map(b=>b.ifscCode))].forEach(code=>{
       const opt = document.createElement('option'); opt.value = code; ifscDatalist.appendChild(opt);
     });
+    [...new Set(matches.map(b=>b.bankBranch).filter(Boolean))].forEach(br=>{
+      const opt = document.createElement('option'); opt.value = br; branchDatalist.appendChild(opt);
+    });
   }
-  refreshIfscOptions();
-  bankInput.addEventListener('input', refreshIfscOptions);
+  refreshBankOptions();
+  bankInput.addEventListener('input', refreshBankOptions);
 
   const accountInput = document.createElement('input');
   accountInput.type = 'text'; accountInput.value = emp.accountNumber || ''; accountInput.placeholder = 'Account number';
@@ -199,24 +237,35 @@ function buildStaffEditForm(emp, onChange){
     if(idx === -1) return;
     const bankName = bankInput.value.trim();
     const ifscCode = ifscInput.value.trim().toUpperCase();
+    const bankBranch = branchInput.value.trim();
     currentStaffList[idx] = {
       ...currentStaffList[idx],
       name: newName,
       employeeId: idInput.value.trim(),
-      bankName, ifscCode,
+      designation: designationInput.value.trim(),
+      department: departmentInput.value.trim(),
+      gender: genderSelect.value,
+      mobile: mobileInput.value.trim(),
+      bankName, ifscCode, bankBranch,
       accountNumber: accountInput.value.trim(),
       salary: Number(salaryInput.value) || 0
     };
     await saveStaffList(restId, currentStaffList);
-    if(rememberBankDefault(bankName, ifscCode)) await saveStaffBankDefaults();
+    if(rememberBankDefault(bankName, ifscCode, bankBranch)) await saveStaffBankDefaults();
     onChange();
   });
   cancelBtn.addEventListener('click', ()=>{ wrap.remove(); });
 
   wrap.appendChild(nameInput);
   wrap.appendChild(idInput);
+  wrap.appendChild(designationInput);
+  wrap.appendChild(departmentInput);
+  wrap.appendChild(genderSelect);
+  wrap.appendChild(mobileInput);
   wrap.appendChild(bankInput);
   wrap.appendChild(bankDatalist);
+  wrap.appendChild(branchInput);
+  wrap.appendChild(branchDatalist);
   wrap.appendChild(ifscInput);
   wrap.appendChild(ifscDatalist);
   wrap.appendChild(accountInput);
@@ -226,47 +275,65 @@ function buildStaffEditForm(emp, onChange){
   return wrap;
 }
 
-/* ---------- Bank/IFSC memory for the Add-employee form ---------- */
+/* ---------- Bank/IFSC/Branch memory for the Add-employee form ---------- */
 function renderStaffBankDatalists(){
   const nameList = document.getElementById('staffBankNameList');
   nameList.innerHTML = "";
   [...new Set(staffBankDefaults.map(b=>b.bankName))].sort((a,b)=>a.localeCompare(b)).forEach(n=>{
     const opt = document.createElement('option'); opt.value = n; nameList.appendChild(opt);
   });
-  refreshStaffNewIfscDatalist();
+  refreshStaffNewBankOptions();
 }
-function refreshStaffNewIfscDatalist(){
+function refreshStaffNewBankOptions(){
   const bankName = document.getElementById('staffNewBankName').value.trim().toLowerCase();
   const ifscListEl = document.getElementById('staffIfscList');
+  const branchListEl = document.getElementById('staffBankBranchList');
   ifscListEl.innerHTML = "";
+  branchListEl.innerHTML = "";
   const matches = staffBankDefaults.filter(b => !bankName || b.bankName.toLowerCase() === bankName);
   const uniqueIfscs = [...new Set(matches.map(b=>b.ifscCode))];
   uniqueIfscs.forEach(code=>{
     const opt = document.createElement('option'); opt.value = code; ifscListEl.appendChild(opt);
   });
-  // Auto-fill only when there's exactly one known IFSC for this bank name and
+  const uniqueBranches = [...new Set(matches.map(b=>b.bankBranch).filter(Boolean))];
+  uniqueBranches.forEach(br=>{
+    const opt = document.createElement('option'); opt.value = br; branchListEl.appendChild(opt);
+  });
+  // Auto-fill only when there's exactly one known value for this bank name and
   // the field is still empty -- never overwrite something the user already typed.
   const ifscInput = document.getElementById('staffNewIfsc');
   if(bankName && uniqueIfscs.length === 1 && !ifscInput.value.trim()){
     ifscInput.value = uniqueIfscs[0];
   }
+  const branchInput = document.getElementById('staffNewBankBranch');
+  if(bankName && uniqueBranches.length === 1 && !branchInput.value.trim()){
+    branchInput.value = uniqueBranches[0];
+  }
 }
-document.getElementById('staffNewBankName').addEventListener('input', refreshStaffNewIfscDatalist);
+document.getElementById('staffNewBankName').addEventListener('input', refreshStaffNewBankOptions);
 
 /* ---------- Add a new employee ---------- */
 document.getElementById('staffSaveEmployeeBtn').addEventListener('click', async ()=>{
   const name = document.getElementById('staffNewName').value.trim();
   if(!name){ alert("Please enter the employee's name."); return; }
   const employeeId = document.getElementById('staffNewEmpId').value.trim();
+  const designation = document.getElementById('staffNewDesignation').value.trim();
+  const department = document.getElementById('staffNewDepartment').value.trim();
+  const gender = document.getElementById('staffNewGender').value;
+  const mobile = document.getElementById('staffNewMobile').value.trim();
   const bankName = document.getElementById('staffNewBankName').value.trim();
+  const bankBranch = document.getElementById('staffNewBankBranch').value.trim();
   const ifscCode = document.getElementById('staffNewIfsc').value.trim().toUpperCase();
   const accountNumber = document.getElementById('staffNewAccount').value.trim();
   const salary = Number(document.getElementById('staffNewSalary').value) || 0;
 
   const restId = getStaffActiveRestaurantId();
-  currentStaffList.push({ id: uid(), name, employeeId, bankName, accountNumber, ifscCode, salary });
+  currentStaffList.push({
+    id: uid(), name, employeeId, designation, department, gender, mobile,
+    bankName, bankBranch, accountNumber, ifscCode, salary
+  });
   await saveStaffList(restId, currentStaffList);
-  if(rememberBankDefault(bankName, ifscCode)) await saveStaffBankDefaults();
+  if(rememberBankDefault(bankName, ifscCode, bankBranch)) await saveStaffBankDefaults();
 
   renderStaffList();
   renderStaffBankDatalists();
@@ -275,7 +342,12 @@ document.getElementById('staffSaveEmployeeBtn').addEventListener('click', async 
 
   document.getElementById('staffNewName').value = "";
   document.getElementById('staffNewEmpId').value = "";
+  document.getElementById('staffNewDesignation').value = "";
+  document.getElementById('staffNewDepartment').value = "";
+  document.getElementById('staffNewGender').value = "";
+  document.getElementById('staffNewMobile').value = "";
   document.getElementById('staffNewBankName').value = "";
+  document.getElementById('staffNewBankBranch').value = "";
   document.getElementById('staffNewIfsc').value = "";
   document.getElementById('staffNewAccount').value = "";
   document.getElementById('staffNewSalary').value = "";
@@ -286,8 +358,20 @@ document.getElementById('staffSaveEmployeeBtn').addEventListener('click', async 
 document.getElementById('staffBulkUploadLink').addEventListener('click', ()=>{
   document.getElementById('staffBulkUploadBox').classList.toggle('open');
 });
+// Header row matches the owner's existing payroll-system export format
+// verbatim (added 2026-10-01, replacing an earlier app-invented header set)
+// so a file already maintained there can be dropped in with zero
+// reformatting. "Display Name" and "Mobile country code" are read (the
+// latter combined with "Mobile No") but have no field of their own beyond
+// that — kept in the template anyway so the two stay interchangeable in
+// both directions.
+const STAFF_TEMPLATE_HEADERS = [
+  "Code*", "Employee Name*", "Display Name", "Mobile country code", "Mobile No*",
+  "Gender*", "Department Name*", "Designation Name*", "Salary",
+  "Bank Name", "Account Number", "IFSC Code", "Bank Branch"
+];
 document.getElementById('staffDownloadTemplateBtn').addEventListener('click', ()=>{
-  const csv = "Name,Employee ID,Bank Name,Account Number,IFSC Code,Monthly Salary\n";
+  const csv = STAFF_TEMPLATE_HEADERS.join(",") + "\n";
   const blob = new Blob([csv], {type:"text/csv;charset=utf-8;"});
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -307,9 +391,14 @@ document.getElementById('staffUploadBtn').addEventListener('click', async ()=>{
     const sheet = wb.Sheets[wb.SheetNames[0]];
     const rows = XLSX.utils.sheet_to_json(sheet, { defval: "" });
 
+    // Matches header text case-insensitively and ignores a trailing "*"
+    // (the owner's source system marks required columns that way), so both
+    // "Code*" and a plain "Code"/"Employee ID" work as the same field.
     const get = (row, ...keys) => {
+      const wanted = keys.map(k => k.toLowerCase());
       for(const k of Object.keys(row)){
-        if(keys.some(want => want.toLowerCase() === k.trim().toLowerCase())) return String(row[k]).trim();
+        const normalized = k.trim().replace(/\*$/, '').trim().toLowerCase();
+        if(wanted.includes(normalized)) return String(row[k]).trim();
       }
       return "";
     };
@@ -319,14 +408,28 @@ document.getElementById('staffUploadBtn').addEventListener('click', async ()=>{
     rows.forEach(row=>{
       const name = get(row, "Name", "Employee Name");
       if(!name){ skipped++; return; }
-      const employeeId = get(row, "Employee ID", "EmployeeId", "ID");
+      const employeeId = get(row, "Employee ID", "EmployeeId", "ID", "Code");
+      const designation = get(row, "Designation", "Designation Name");
+      const department = get(row, "Department", "Department Name");
+      const gender = get(row, "Gender");
+      // SheetJS reads a bare "+91" cell as the number 91, dropping the "+"
+      // (spreadsheet numeric parsing, not a bug in this code) -- re-add it
+      // when a country code is present but wasn't already prefixed.
+      let countryCode = get(row, "Mobile country code", "Country Code");
+      if(countryCode && !countryCode.startsWith('+')) countryCode = '+' + countryCode;
+      const mobileNo = get(row, "Mobile No", "Mobile", "Phone");
+      const mobile = countryCode && mobileNo ? `${countryCode} ${mobileNo}` : (mobileNo || countryCode);
       const bankName = get(row, "Bank Name", "Bank");
+      const bankBranch = get(row, "Bank Branch", "Branch");
       const ifscCode = get(row, "IFSC Code", "IFSC").toUpperCase();
       const accountNumber = get(row, "Account Number", "Account No", "Account");
       const salary = Number(get(row, "Monthly Salary", "Salary")) || 0;
-      currentStaffList.push({ id: uid(), name, employeeId, bankName, accountNumber, ifscCode, salary });
+      currentStaffList.push({
+        id: uid(), name, employeeId, designation, department, gender, mobile,
+        bankName, bankBranch, accountNumber, ifscCode, salary
+      });
       added++;
-      if(rememberBankDefault(bankName, ifscCode)) bankDefaultsChanged = true;
+      if(rememberBankDefault(bankName, ifscCode, bankBranch)) bankDefaultsChanged = true;
     });
 
     if(added > 0) await saveStaffList(restId, currentStaffList);

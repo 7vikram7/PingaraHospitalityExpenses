@@ -455,26 +455,41 @@ Five tab panels, switched by `.tab-bar` buttons (`tabBtnExpenses` /
     selector rather than following whatever Add Expenses has active) or
     directly from `currentRestaurantId` for a Manager, who has nothing to
     pick between (`getStaffActiveRestaurantId()`).
-  - **Bank name + IFSC code are remembered account-wide**
+  - **Bank name + branch + IFSC code are remembered account-wide**
     (`staffBankDefaults` in data-store.js, an unnamespaced key like
-    `supplierDefaults`) — a bank branch is a real-world entity that can
-    plausibly serve employees at more than one of the account's
-    restaurants, so this memory isn't restaurant-scoped like the staff list
-    itself. Implemented as plain `<input list="...">` + `<datalist>` pairs
-    (reusing the exact pattern Suppliers' subcategory field already
-    established) rather than a custom dropdown: typing/picking a bank name
-    auto-fills the IFSC field *only* when there's exactly one remembered
-    IFSC for that exact name and the field is still empty, never
-    overwriting something already typed.
-  - **Each employee record carries an internal `id` (`uid()`), separate
-    from the user-entered "Employee ID" text field** — the latter is just a
-    display attribute (editable, not necessarily unique), while the former
-    is the stable key OT/salary entries actually reference. Both OT entries
-    and salary entries also carry a denormalized `employeeName` snapshot
+    `supplierDefaults`, each entry `{bankName, ifscCode, bankBranch}`) — a
+    bank branch is a real-world entity that can plausibly serve employees
+    at more than one of the account's restaurants, so this memory isn't
+    restaurant-scoped like the staff list itself. Implemented as plain
+    `<input list="...">` + `<datalist>` pairs (reusing the exact pattern
+    Suppliers' subcategory field already established) rather than a custom
+    dropdown: typing/picking a bank name auto-fills IFSC and branch *only*
+    when there's exactly one remembered value for that exact name and the
+    field is still empty, never overwriting something already typed.
+    `bankBranch` isn't part of the dedup key (IFSC alone already uniquely
+    identifies a branch) — `rememberBankDefault()` opportunistically
+    backfills it onto an existing pair that didn't have one yet.
+  - **Each employee record** (added 2026-10-01, then extended same day —
+    see below) carries `name`, `employeeId`, `designation`, `department`,
+    `gender`, `mobile`, `bankName`, `bankBranch`, `accountNumber`,
+    `ifscCode`, `salary`, plus **an internal `id` (`uid()`), separate from
+    the user-entered "Employee ID" text field** — the latter is just a
+    display attribute (editable, not necessarily unique, and also accepts
+    "Code" as an alias on bulk upload, see below), while the former is the
+    stable key OT/salary entries actually reference. Both OT entries and
+    salary entries also carry a denormalized `employeeName` snapshot
     alongside that internal id, so a later-renamed or removed employee
     never leaves a past entry pointing at a name that can no longer be
     found — same convention bills already use for supplier names
     (`e.supplier` is a string, not a foreign key).
+  - **Extended same day** (prompted by the owner supplying an actual bulk-
+    upload template from an existing payroll system) to add `designation`,
+    `department`, `gender`, `mobile`, and `bankBranch` on top of the
+    original 6-field record. The directory list row (`buildStaffRow()`)
+    and edit form (`buildStaffEditForm()`) both show/edit every field;
+    `.msr-view`/`.msr-edit`'s existing `flex-wrap` handles the extra spans
+    and inputs without any new CSS. `gender` is a fixed 3-option `<select>`
+    (blank/Male/Female/Other) everywhere it appears, not free text.
   - **Daily OT** (`rest:<id>:ot:<YYYY-MM>` → `{date: [...entries]}`,
     exactly bills' own shape) — a flat amount typed directly per entry, not
     hours × an hourly rate (explicit choice: "we give out daily OT", not
@@ -499,11 +514,27 @@ Five tab panels, switched by `.tab-bar` buttons (`tabBtnExpenses` /
     "+ new category"/"+ new subcategory") reuses the `XLSX` global already
     loaded for Excel export (`excel-export.js`'s CDN script tag) to parse
     an uploaded `.csv`/`.xlsx` — `XLSX.read()` + `sheet_to_json()`, matched
-    against expected headers case-insensitively so "Bank" or "Bank Name"
-    both work. A "Download template" button generates a blank CSV with the
-    exact expected headers client-side (same `Blob`+`URL.createObjectURL`
-    pattern `excel-export.js`'s `downloadCsv()` already uses). Only a
-    blank Name is a hard skip; every other field is optional per row.
+    against expected headers via `get()`'s alias list, case-insensitively
+    and ignoring a trailing `*` (so `"Bank Name"`, `"Bank"`, `"Code*"`, and
+    plain `"Code"` are all accepted). Only a blank Name is a hard skip;
+    every other field is optional per row.
+    - **`STAFF_TEMPLATE_HEADERS` matches an existing payroll-system export
+      format verbatim** (added 2026-10-01, replacing an earlier
+      app-invented header set, after the owner supplied a real template
+      from that system): `Code*, Employee Name*, Display Name, Mobile
+      country code, Mobile No*, Gender*, Department Name*, Designation
+      Name*, Salary, Bank Name, Account Number, IFSC Code, Bank Branch` —
+      so a staff list already maintained there can be dropped in with zero
+      reformatting, both via the "Download template" button (which emits
+      this exact header row) and via uploading a file straight from that
+      other system. `"Mobile country code"` and `"Mobile No"` combine into
+      one `mobile` field (`"+91 9876543210"`); SheetJS reads a bare `"+91"`
+      CSV cell as the number `91`, dropping the `+` (spreadsheet numeric
+      parsing, not a bug here) — the parser re-prepends it when a country
+      code is present but not already `+`-prefixed. `"Display Name"` is
+      read but has no field of its own beyond `name` (populated from
+      `"Employee Name"`) — kept in the template only so the two header sets
+      stay interchangeable.
   - **Account numbers are masked in the list view** (`maskAccountNumber()`
     — last 4 digits only, `••••1234`) as a shoulder-surfing precaution on a
     phone in a shared kitchen/restaurant setting; full digits are still
