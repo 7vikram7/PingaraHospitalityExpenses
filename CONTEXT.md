@@ -641,6 +641,39 @@ Five tab panels, switched by `.tab-bar` buttons (`tabBtnExpenses` /
       checklist, Cancel discards, one employee in multiple lists
       simultaneously, and roster membership/checklist contents don't leak
       across restaurants either).
+    - **Staff directory section moved, same day**: was the first section
+      in the tab; now sits directly above "Add a new employee" at the
+      bottom instead — purely a markup reorder (`<section>` moved in
+      index.html), no element ids or JS touched, so nothing downstream
+      needed updating.
+    - **Per-list submit/lock, same day**: each of the three lists can be
+      "submitted" independently for its current date
+      (`staffOtSubmitBtn`/`staffIncentiveSubmitBtn`/`staffTipsSubmitBtn`,
+      confirmed via a native `confirm()` before it takes effect). Once
+      submitted, `rest:<id>:otSubmitted:<YYYY-MM>` (data-store.js) records
+      `{ "<date>": { <type>: true } }` — a separate key from the entries
+      themselves, so the entries' own shape never needed to change.
+      `staffCanEditDaily(submitted)` (staff-tab.js) is the single gate:
+      `isOwnerProfile() || !submitted`. When it's false (Manager, on a
+      submitted list/date), `renderStaffDailyTable()` disables that list's
+      employee select, amount input, and Add button, plus every existing
+      row's paid-toggle and Delete button — all via the native `disabled`
+      attribute, not just hiding click handlers, so there's no way to
+      interact even via devtools without the attribute showing up. The
+      Owner profile is **never** gated by this flag, by design — the
+      explicit answer to "how can a mistake be fixed later" was "only the
+      Owner, logged in as Owner, no other way," so there's deliberately no
+      in-app "unsubmit" control for anyone, Owner included; an Owner who
+      needs to fix something just edits directly, and the list stays
+      flagged as submitted (so Manager stays locked out) the whole time.
+      The Submit button itself disappears once clicked, replaced by a
+      status badge whose text differs by profile (Manager sees "locked,
+      contact the Owner"; Owner sees "still editable by you"). Submission
+      is independent per list (OT finalized doesn't touch Incentive/Tips),
+      per date (a new day always starts unsubmitted), and per restaurant
+      (same key-per-restaurant convention as everything else in this tab).
+      Verified with a dedicated Playwright test covering all of the above
+      plus the full existing staff/supplier suite re-run clean afterward.
   - **Combined OT/Incentive/Tips report** (added 2026-10-02,
     `downloadStaffCombinedReport()`) — a From/To date-range picker plus an
     "Unpaid entries only" checkbox (checked by default — the common real
@@ -659,9 +692,13 @@ Five tab panels, switched by `.tab-bar` buttons (`tabBtnExpenses` /
     directory. Plain CSV via the same `Blob`+`URL.createObjectURL`+
     `csvEscape()` pattern `excel-export.js`'s `downloadCsv()` and the
     bulk-upload template already use.
-  - **Monthly salary** (`rest:<id>:salary:<YYYY-MM>` →
+  - **Monthly salary** (hidden from the UI 2026-10-02 via `display:none` on
+    its `<section>` — "not required right now," not removed; the data
+    model, `renderStaffSalaryTable()`, and all its Firestore reads/writes
+    are completely untouched, so un-hiding it later is a one-line revert
+    with zero data loss). `rest:<id>:salary:<YYYY-MM>` →
     `{employeeId: {employeeName, amount, status, paidAt}}`, one entry per
-    employee per month, not an array) — every *current* staff member gets a
+    employee per month, not an array — every *current* staff member gets a
     row regardless of whether a salary document exists yet for the viewed
     month: `renderStaffSalaryTable()` shows the saved amount if one exists,
     otherwise the employee's own default `salary` as an editable

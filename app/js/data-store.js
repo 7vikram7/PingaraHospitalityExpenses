@@ -512,6 +512,35 @@ async function deleteOTEntry(restaurantId, date, otId){
   await safeSet(otMonthKeyFor(restaurantId, monthKey), JSON.stringify(month));
 }
 
+// ---- Per-day submit/lock for OT / Captain Incentive / Waiter Tips (added
+// 2026-10-02) ---- A separate key (not a field on the entries themselves) so
+// the entries' own shape never needs to change. `rest:<id>:otSubmitted:
+// <YYYY-MM>` -> { "<date>": { ot: true, captain_incentive: true, ... } },
+// one flag per type per date, since each of the three lists is submitted
+// independently. Once true, the Manager profile can no longer add, edit,
+// delete, or toggle paid status for that type on that date -- the Owner
+// profile is never restricted by this flag (see staff-tab.js's
+// staffCanEditDaily()) and there is deliberately no "unsubmit" action in the
+// UI at all -- an Owner who needs to fix something just edits directly,
+// logged in as Owner, rather than reopening the list first.
+function otSubmissionKeyFor(restaurantId, monthKey){ return "rest:" + restaurantId + ":otSubmitted:" + monthKey; }
+async function loadOTSubmissions(restaurantId, monthKey){
+  const raw = await safeGet(otSubmissionKeyFor(restaurantId, monthKey));
+  if(raw){ try{ return JSON.parse(raw) || {}; }catch(e){} }
+  return {};
+}
+async function isOTListSubmitted(restaurantId, date, type){
+  const subs = await loadOTSubmissions(restaurantId, date.slice(0,7));
+  return !!(subs[date] && subs[date][type]);
+}
+async function submitOTList(restaurantId, date, type){
+  const monthKey = date.slice(0,7);
+  const subs = await loadOTSubmissions(restaurantId, monthKey);
+  if(!subs[date]) subs[date] = {};
+  subs[date][type] = true;
+  await safeSet(otSubmissionKeyFor(restaurantId, monthKey), JSON.stringify(subs));
+}
+
 // ---- Monthly salary (added 2026-10-01) ----
 // `rest:<id>:salary:<YYYY-MM>` -> { "<employeeId>": {employeeName, amount,
 // status, paidAt} } — one entry per employee per month (unlike OT, salary

@@ -84,7 +84,8 @@ Firebase Hosting.
   an existing payroll-system export format (`Code*`, `Employee Name*`,
   `Mobile No*`, `Gender*`, `Department Name*`, `Designation Name*`, etc.)
   so a file already maintained elsewhere can be dropped in with no
-  reformatting ("Add a new employee" lives at the bottom of the tab).
+  reformatting. The directory list sits directly above "Add a new
+  employee" at the bottom of the tab.
   **OT, Captain Incentive, and Waiter Tips** are three separate lists
   sharing one date — each its own add-form and table, a flat amount per
   employee per entry (not hours × rate), with its own paid/unpaid status.
@@ -95,15 +96,22 @@ Firebase Hosting.
   on how many lists one employee belongs to). This never creates a new
   employee, only assigns/unassigns an existing one — the directory's own
   add form or bulk upload is still the one place a new employee is
-  actually created. Each restaurant's staff list, daily entries, list
-  memberships, and salary records are fully independent of every other
-  restaurant's — switching the restaurant selector never carries data over.
+  actually created. Each list can also be **submitted** independently for
+  the day — "Submit OT for this day" etc. — which locks it permanently for
+  the Manager profile (no more adding, editing, deleting, or toggling paid
+  status for that list/date); the Owner profile is never restricted and is
+  the only way to make a further change to a submitted list, with no
+  in-app "unlock" step. Each restaurant's staff list, daily entries, list
+  memberships, submission status, and salary records are fully independent
+  of every other restaurant's — switching the restaurant selector never
+  carries data over.
   A **combined report** downloads a payment-ready CSV for a date range —
   one row per employee with their bank name/branch/account/IFSC plus
   OT/Incentive/Tips totals (unpaid-only by default) for processing actual
-  payouts. Salary is tracked separately, per month, pre-filled from each
-  employee's default and editable per month, with its own paid/unpaid
-  status and paid date
+  payouts. Monthly salary tracking also exists (pre-filled from each
+  employee's default, editable per month, with its own paid/unpaid status)
+  but its section is currently hidden from the UI (not removed — just not
+  needed right now).
 - **Offline-first**: every write lands in `localStorage` immediately and
   syncs to Firestore in the background, so a flaky connection never blocks
   data entry

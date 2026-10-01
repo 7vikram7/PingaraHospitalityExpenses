@@ -490,17 +490,20 @@ const STAFF_DAILY_TYPES = [
     employeeSelectId: 'staffOtEmployeeSelect', amountId: 'staffOtAmount', addBtnId: 'staffOtAddBtn',
     tableWrapId: 'staffOtTableWrap', emptyId: 'staffOtEmpty',
     rosterChipsId: 'staffOtRosterChips', manageLinkId: 'staffOtManageLink', manageBoxId: 'staffOtManageBox',
-    manageListId: 'staffOtManageList', manageSaveBtnId: 'staffOtManageSaveBtn', manageCancelBtnId: 'staffOtManageCancelBtn' },
+    manageListId: 'staffOtManageList', manageSaveBtnId: 'staffOtManageSaveBtn', manageCancelBtnId: 'staffOtManageCancelBtn',
+    submitBtnId: 'staffOtSubmitBtn', submitBadgeId: 'staffOtSubmitBadge' },
   { type: 'captain_incentive', label: 'Captain Incentive',
     employeeSelectId: 'staffIncentiveEmployeeSelect', amountId: 'staffIncentiveAmount', addBtnId: 'staffIncentiveAddBtn',
     tableWrapId: 'staffIncentiveTableWrap', emptyId: 'staffIncentiveEmpty',
     rosterChipsId: 'staffIncentiveRosterChips', manageLinkId: 'staffIncentiveManageLink', manageBoxId: 'staffIncentiveManageBox',
-    manageListId: 'staffIncentiveManageList', manageSaveBtnId: 'staffIncentiveManageSaveBtn', manageCancelBtnId: 'staffIncentiveManageCancelBtn' },
+    manageListId: 'staffIncentiveManageList', manageSaveBtnId: 'staffIncentiveManageSaveBtn', manageCancelBtnId: 'staffIncentiveManageCancelBtn',
+    submitBtnId: 'staffIncentiveSubmitBtn', submitBadgeId: 'staffIncentiveSubmitBadge' },
   { type: 'waiter_tips', label: 'Waiter Tips',
     employeeSelectId: 'staffTipsEmployeeSelect', amountId: 'staffTipsAmount', addBtnId: 'staffTipsAddBtn',
     tableWrapId: 'staffTipsTableWrap', emptyId: 'staffTipsEmpty',
     rosterChipsId: 'staffTipsRosterChips', manageLinkId: 'staffTipsManageLink', manageBoxId: 'staffTipsManageBox',
-    manageListId: 'staffTipsManageList', manageSaveBtnId: 'staffTipsManageSaveBtn', manageCancelBtnId: 'staffTipsManageCancelBtn' }
+    manageListId: 'staffTipsManageList', manageSaveBtnId: 'staffTipsManageSaveBtn', manageCancelBtnId: 'staffTipsManageCancelBtn',
+    submitBtnId: 'staffTipsSubmitBtn', submitBadgeId: 'staffTipsSubmitBadge' }
 ];
 function employeeInHead(emp, type){ return (emp.heads || []).includes(type); }
 function renderStaffDailyEmployeeSelects(){
@@ -602,11 +605,35 @@ STAFF_DAILY_TYPES.forEach(cfg=>{
     document.getElementById(cfg.manageBoxId).classList.remove('open');
   });
 });
+// Once a (date, type) is submitted, only the Owner profile can still add,
+// edit, delete, or toggle paid status for it -- Manager loses all of that,
+// permanently, with no in-app unlock (see data-store.js's note on
+// otSubmissionKeyFor). isOwnerProfile() always wins regardless of the flag.
+function staffCanEditDaily(submitted){ return isOwnerProfile() || !submitted; }
 async function renderStaffDailyTable(cfg){
   const restId = getStaffActiveRestaurantId();
   const monthKey = staffOtSelectedDate.slice(0,7);
   const month = await loadOTMonth(restId, monthKey);
   const dayEntries = (month[staffOtSelectedDate] || []).filter(e => (e.type || 'ot') === cfg.type);
+  const submitted = await isOTListSubmitted(restId, staffOtSelectedDate, cfg.type);
+  const canEdit = staffCanEditDaily(submitted);
+
+  document.getElementById(cfg.employeeSelectId).disabled = !canEdit;
+  document.getElementById(cfg.amountId).disabled = !canEdit;
+  document.getElementById(cfg.addBtnId).disabled = !canEdit;
+
+  const submitBtn = document.getElementById(cfg.submitBtnId);
+  const submitBadge = document.getElementById(cfg.submitBadgeId);
+  submitBtn.style.display = submitted ? 'none' : '';
+  if(submitted){
+    submitBadge.style.display = '';
+    submitBadge.textContent = isOwnerProfile()
+      ? `✓ Submitted — locked for Manager, still editable by you (Owner)`
+      : `✓ Submitted — locked. Contact the Owner for any changes.`;
+  }else{
+    submitBadge.style.display = 'none';
+  }
+
   const wrap = document.getElementById(cfg.tableWrapId);
   const empty = document.getElementById(cfg.emptyId);
   wrap.innerHTML = "";
@@ -627,6 +654,7 @@ async function renderStaffDailyTable(cfg){
     const tdStatus = document.createElement('td');
     const statusBtn = document.createElement('button');
     statusBtn.type = 'button'; statusBtn.className = 'badge ' + e.status; statusBtn.textContent = e.status;
+    statusBtn.disabled = !canEdit;
     statusBtn.addEventListener('click', async ()=>{
       statusBtn.disabled = true;
       await toggleOTPaid(restId, staffOtSelectedDate, e.id);
@@ -637,6 +665,7 @@ async function renderStaffDailyTable(cfg){
     const tdDel = document.createElement('td');
     const delBtn = document.createElement('button');
     delBtn.type = 'button'; delBtn.className = 'del-btn'; delBtn.textContent = 'Delete';
+    delBtn.disabled = !canEdit;
     delBtn.addEventListener('click', async ()=>{
       if(!confirm(`Delete this ${staffOtTypeLabel(e.type)} entry for ${e.employeeName}?`)) return;
       await deleteOTEntry(restId, staffOtSelectedDate, e.id);
@@ -663,8 +692,16 @@ STAFF_DAILY_TYPES.forEach(cfg=>{
     const amount = Number(amountInput.value);
     if(!amount || amount <= 0){ alert("Enter a valid amount."); return; }
     const restId = getStaffActiveRestaurantId();
+    const submitted = await isOTListSubmitted(restId, staffOtSelectedDate, cfg.type);
+    if(!staffCanEditDaily(submitted)){ alert(`${cfg.label} for this day has already been submitted and is locked. Log in as Owner to add more.`); return; }
     await addOTEntry(restId, staffOtSelectedDate, emp.id, emp.name, amount, cfg.type);
     amountInput.value = "";
+    await renderStaffDailyTable(cfg);
+  });
+  document.getElementById(cfg.submitBtnId).addEventListener('click', async ()=>{
+    const restId = getStaffActiveRestaurantId();
+    if(!confirm(`Submit ${cfg.label} for ${staffOtSelectedDate}?\n\nOnce submitted, this list is locked for Manager — only the Owner can still add, edit, or delete entries for this day.`)) return;
+    await submitOTList(restId, staffOtSelectedDate, cfg.type);
     await renderStaffDailyTable(cfg);
   });
 });

@@ -598,17 +598,6 @@ window.__firebaseSdkReady = (async ()=>{
       </div>
 
       <section class="manage-section">
-        <div class="manage-section-head">
-          <h3>Staff <span class="count-hint" id="staffCount"></span></h3>
-          <input type="text" id="staffSearch" class="manage-search" placeholder="Search staff…">
-        </div>
-        <p class="sup-tab-note">Specific to the restaurant selected above — each restaurant keeps
-          its own staff list. Bank name and IFSC code are remembered account-wide once used, so
-          picking them for the next employee is quicker than retyping.</p>
-        <div class="manage-supplier-list" id="staffList"></div>
-      </section>
-
-      <section class="manage-section">
         <h3>Daily entries — OT, Captain Incentive &amp; Waiter Tips</h3>
         <div class="date-control">
           <span class="toolbar-label">Date</span>
@@ -636,6 +625,10 @@ window.__firebaseSdkReady = (async ()=>{
         </div>
         <div class="dash-empty" id="staffOtEmpty" style="display:none;">No OT logged for this day yet.</div>
         <div class="plain-table-wrap" id="staffOtTableWrap"></div>
+        <div class="head-submit-row">
+          <button type="button" id="staffOtSubmitBtn">Submit OT for this day</button>
+          <span class="head-submit-badge" id="staffOtSubmitBadge" style="display:none;"></span>
+        </div>
 
         <h4 class="staff-daily-subhead">Captain Incentive</h4>
         <div class="head-roster-row">
@@ -656,6 +649,10 @@ window.__firebaseSdkReady = (async ()=>{
         </div>
         <div class="dash-empty" id="staffIncentiveEmpty" style="display:none;">No Captain Incentive logged for this day yet.</div>
         <div class="plain-table-wrap" id="staffIncentiveTableWrap"></div>
+        <div class="head-submit-row">
+          <button type="button" id="staffIncentiveSubmitBtn">Submit Captain Incentive for this day</button>
+          <span class="head-submit-badge" id="staffIncentiveSubmitBadge" style="display:none;"></span>
+        </div>
 
         <h4 class="staff-daily-subhead">Waiter Tips</h4>
         <div class="head-roster-row">
@@ -676,6 +673,10 @@ window.__firebaseSdkReady = (async ()=>{
         </div>
         <div class="dash-empty" id="staffTipsEmpty" style="display:none;">No Waiter Tips logged for this day yet.</div>
         <div class="plain-table-wrap" id="staffTipsTableWrap"></div>
+        <div class="head-submit-row">
+          <button type="button" id="staffTipsSubmitBtn">Submit Waiter Tips for this day</button>
+          <span class="head-submit-badge" id="staffTipsSubmitBadge" style="display:none;"></span>
+        </div>
       </section>
 
       <section class="manage-section">
@@ -701,6 +702,17 @@ window.__firebaseSdkReady = (async ()=>{
         <input type="month" id="staffSalaryMonthPicker" class="dash-date-input">
         <div class="dash-empty" id="staffSalaryEmpty" style="display:none;">No staff added for this restaurant yet.</div>
         <div class="plain-table-wrap" id="staffSalaryTableWrap"></div>
+      </section>
+
+      <section class="manage-section">
+        <div class="manage-section-head">
+          <h3>Staff <span class="count-hint" id="staffCount"></span></h3>
+          <input type="text" id="staffSearch" class="manage-search" placeholder="Search staff…">
+        </div>
+        <p class="sup-tab-note">Specific to the restaurant selected above — each restaurant keeps
+          its own staff list. Bank name and IFSC code are remembered account-wide once used, so
+          picking them for the next employee is quicker than retyping.</p>
+        <div class="manage-supplier-list" id="staffList"></div>
       </section>
 
       <section class="manage-section manage-section-add">

@@ -1188,6 +1188,14 @@ main{padding:24px 28px 60px;max-width:1400px;margin:0 auto;}
 .head-roster-checklist{max-height:200px; overflow-y:auto; display:flex; flex-direction:column; gap:4px; margin-bottom:10px;}
 .head-roster-checklist label{display:flex; align-items:center; gap:6px; font-size:12px; color:var(--ink-soft); cursor:pointer;}
 .head-roster-actions{display:flex; gap:8px;}
+
+/* ---------- Per-day submit/lock (OT/Captain Incentive/Waiter Tips,
+   added 2026-10-02) ---------- */
+.head-submit-row{display:flex; align-items:center; gap:10px; margin:10px 0 22px;}
+.head-submit-row button{background:var(--ink); color:#fff; border:none; border-radius:4px; padding:8px 14px; font-size:12px; font-weight:600; cursor:pointer;}
+.head-submit-row button:hover{background:var(--ink-soft);}
+.head-submit-row button:disabled{background:var(--paper-line); color:var(--ink-soft); cursor:not-allowed;}
+.head-submit-badge{font-family:'IBM Plex Mono',monospace; font-size:11px; text-transform:uppercase; letter-spacing:0.06em; color:#2f7a3d; background:#eaf5ec; border:1px solid #bfe0c6; border-radius:4px; padding:5px 10px;}
 .field input, .field select{
   font-family:'Inter',sans-serif;
   font-size:14px;
