@@ -126,7 +126,7 @@ window.__firebaseSdkReady = (async ()=>{
   <button class="tab-btn" id="tabBtnReports" type="button">Reports</button>
   <button class="tab-btn" id="tabBtnLedger" type="button">Vendor Ledger</button>
   <button class="tab-btn" id="tabBtnSuppliers" type="button">Suppliers</button>
-  <button class="tab-btn" id="tabBtnStaff" type="button">Staff OT &amp; Salary</button>
+  <button class="tab-btn" id="tabBtnStaff" type="button">Staff Expenses</button>
 </div>
 
 <div class="modal-overlay" id="fyModal">
@@ -652,19 +652,24 @@ window.__firebaseSdkReady = (async ()=>{
       </section>
 
       <section class="manage-section">
-        <h3>Daily OT</h3>
+        <h3>OT, Incentives &amp; Tips</h3>
         <div class="date-control">
           <span class="toolbar-label">Date</span>
           <button class="day-nav-btn" id="staffOtPrevDay" type="button" title="Previous day">‹</button>
-          <input type="date" id="staffOtDatePicker" aria-label="OT date">
+          <input type="date" id="staffOtDatePicker" aria-label="Entry date">
           <button class="day-nav-btn" id="staffOtNextDay" type="button" title="Next day">›</button>
         </div>
         <div class="new-supplier-box open">
           <select id="staffOtEmployeeSelect"></select>
-          <input type="number" id="staffOtAmount" placeholder="OT amount (₹)" min="0" step="1">
-          <button type="button" id="staffOtAddBtn">Add OT</button>
+          <select id="staffOtTypeSelect">
+            <option value="ot">Overtime (OT)</option>
+            <option value="captain_incentive">Captain Incentive</option>
+            <option value="waiter_tips">Waiter Tips</option>
+          </select>
+          <input type="number" id="staffOtAmount" placeholder="Amount (₹)" min="0" step="1">
+          <button type="button" id="staffOtAddBtn">Add</button>
         </div>
-        <div class="dash-empty" id="staffOtEmpty" style="display:none;">No OT entries logged for this day yet.</div>
+        <div class="dash-empty" id="staffOtEmpty" style="display:none;">No entries logged for this day yet.</div>
         <div class="plain-table-wrap" id="staffOtTableWrap"></div>
       </section>
 

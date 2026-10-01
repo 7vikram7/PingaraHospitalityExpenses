@@ -1417,7 +1417,7 @@ td.num{
 .badge.unpaid{background:var(--red-bg);color:var(--red);}
 .badge:hover{filter:brightness(0.95);}
 
-/* ---------- Staff OT & Salary: inline salary-amount cell (added 2026-10-01) ---------- */
+/* ---------- Staff Expenses: inline salary-amount cell (added 2026-10-01) ---------- */
 .staff-salary-input{
   width:100px;
   font-family:'IBM Plex Mono',monospace;

@@ -1,7 +1,9 @@
-/* ---------- Staff OT & Salary tab (added 2026-10-01) ----------
+/* ---------- Staff Expenses tab (added 2026-10-01 as "Staff OT & Salary",
+   renamed 2026-10-02 once Captain Incentive and Waiter Tips joined OT as
+   peer entry types under the same daily section) ----------
    Unlike Reports/Vendor Ledger/Suppliers, this tab is visible to BOTH Owner
    and Manager (see auth.js's updateTabVisibilityForProfile) — a Manager can
-   add/view staff and log OT/salary for their own restaurant, the same
+   add/view staff and log entries for their own restaurant, the same
    boundary that already applies to Add Expenses via the restaurant password
    gate. Only the restaurant SELECTOR here is owner-only: a Manager has
    nothing to pick between and always operates on currentRestaurantId.
@@ -11,7 +13,9 @@
    currentRestaurantId, for an Owner — mirrors Reports/Vendor Ledger's own
    independent restaurant selectors):
      - the staff directory itself (flat list per restaurant, data-store.js)
-     - daily OT entries (month-bucketed by date, like bills)
+     - daily OT/Captain Incentive/Waiter Tips entries (month-bucketed by
+       date, like bills, distinguished by a `type` field — see
+       STAFF_OT_TYPE_LABELS below)
      - monthly salary entries (month-bucketed by employee, one per month)
    Bank name + IFSC code are remembered account-wide (staffBankDefaults,
    data-store.js) so adding the next employee is a pick, not a retype. */
@@ -449,7 +453,9 @@ document.getElementById('staffUploadBtn').addEventListener('click', async ()=>{
   }
 });
 
-/* ---------- Daily OT ---------- */
+/* ---------- Daily OT / Captain Incentive / Waiter Tips (extended 2026-10-02) ---------- */
+const STAFF_OT_TYPE_LABELS = { ot: 'OT', captain_incentive: 'Captain Incentive', waiter_tips: 'Waiter Tips' };
+function staffOtTypeLabel(type){ return STAFF_OT_TYPE_LABELS[type] || STAFF_OT_TYPE_LABELS.ot; }
 function renderStaffOtEmployeeSelect(){
   const sel = document.getElementById('staffOtEmployeeSelect');
   const prev = sel.value;
@@ -478,11 +484,12 @@ async function renderStaffOtTable(){
   empty.style.display = 'none';
   const table = document.createElement('table');
   const thead = document.createElement('thead');
-  thead.innerHTML = '<tr><th>Employee</th><th class="num">Amount</th><th>Status</th><th></th></tr>';
+  thead.innerHTML = '<tr><th>Employee</th><th>Type</th><th class="num">Amount</th><th>Status</th><th></th></tr>';
   const tbody = document.createElement('tbody');
   dayEntries.slice().sort((a,b)=>a.createdAt-b.createdAt).forEach(e=>{
     const tr = document.createElement('tr');
     const tdName = document.createElement('td'); tdName.textContent = e.employeeName; tdName.className = 'supplier';
+    const tdType = document.createElement('td'); tdType.textContent = staffOtTypeLabel(e.type); tdType.className = 'subcat';
     const tdAmt = document.createElement('td'); tdAmt.className = 'amount'; tdAmt.textContent = fmtMoney(e.amount);
 
     const tdStatus = document.createElement('td');
@@ -499,13 +506,13 @@ async function renderStaffOtTable(){
     const delBtn = document.createElement('button');
     delBtn.type = 'button'; delBtn.className = 'del-btn'; delBtn.textContent = 'Delete';
     delBtn.addEventListener('click', async ()=>{
-      if(!confirm(`Delete this OT entry for ${e.employeeName}?`)) return;
+      if(!confirm(`Delete this ${staffOtTypeLabel(e.type)} entry for ${e.employeeName}?`)) return;
       await deleteOTEntry(restId, staffOtSelectedDate, e.id);
       await renderStaffOtTable();
     });
     tdDel.appendChild(delBtn);
 
-    tr.appendChild(tdName); tr.appendChild(tdAmt); tr.appendChild(tdStatus); tr.appendChild(tdDel);
+    tr.appendChild(tdName); tr.appendChild(tdType); tr.appendChild(tdAmt); tr.appendChild(tdStatus); tr.appendChild(tdDel);
     tbody.appendChild(tr);
   });
   table.appendChild(thead); table.appendChild(tbody);
@@ -516,11 +523,12 @@ document.getElementById('staffOtAddBtn').addEventListener('click', async ()=>{
   const empId = sel.value;
   if(!empId){ alert("Pick an employee first."); return; }
   const emp = currentStaffList.find(e => e.id === empId);
+  const type = document.getElementById('staffOtTypeSelect').value;
   const amountInput = document.getElementById('staffOtAmount');
   const amount = Number(amountInput.value);
-  if(!amount || amount <= 0){ alert("Enter a valid OT amount."); return; }
+  if(!amount || amount <= 0){ alert("Enter a valid amount."); return; }
   const restId = getStaffActiveRestaurantId();
-  await addOTEntry(restId, staffOtSelectedDate, emp.id, emp.name, amount);
+  await addOTEntry(restId, staffOtSelectedDate, emp.id, emp.name, amount, type);
   amountInput.value = "";
   await renderStaffOtTable();
 });

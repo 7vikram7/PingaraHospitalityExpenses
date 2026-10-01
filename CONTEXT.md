@@ -436,11 +436,13 @@ Five tab panels, switched by `.tab-bar` buttons (`tabBtnExpenses` /
     bill's `supplier` name field if the supplier was also renamed in the
     same edit — same as before, a rename doesn't reach into history, only
     category/subcategory do now.
-- **"Staff OT & Salary"** (`#tabPanelStaff`, `app/js/staff-tab.js`) —
+- **"Staff Expenses"** (`#tabPanelStaff`, `app/js/staff-tab.js` — tab
+  button named "Staff OT & Salary" until 2026-10-02, renamed once Captain
+  Incentive and Waiter Tips joined OT as peer entry types, see below) —
   **the one tab visible to BOTH Owner and Manager**, not owner-only like
   Reports/Vendor Ledger/Suppliers (`updateTabVisibilityForProfile()` in
   auth.js leaves `tabBtnStaff` alone). A Manager can add/view staff and log
-  OT/salary for their own restaurant only — the same boundary that already
+  entries for their own restaurant only — the same boundary that already
   applies to Add Expenses via the restaurant password gate, not a new
   mechanism. No separate password screen of its own, same reasoning as
   Suppliers not needing one, just applied per-restaurant instead of
@@ -490,13 +492,28 @@ Five tab panels, switched by `.tab-bar` buttons (`tabBtnExpenses` /
     `.msr-view`/`.msr-edit`'s existing `flex-wrap` handles the extra spans
     and inputs without any new CSS. `gender` is a fixed 3-option `<select>`
     (blank/Male/Female/Other) everywhere it appears, not free text.
-  - **Daily OT** (`rest:<id>:ot:<YYYY-MM>` → `{date: [...entries]}`,
-    exactly bills' own shape) — a flat amount typed directly per entry, not
-    hours × an hourly rate (explicit choice: "we give out daily OT", not
-    tracked by hours worked). Each entry gets its own paid/unpaid `.badge`
-    toggle (`toggleOTPaid()`) and a Delete action, mirroring bills'
-    status-toggle UX exactly. A date-nav control (prev/next day + date
-    input) matches Add Expenses' own `#datePick` pattern.
+  - **"OT, Incentives & Tips"** (`rest:<id>:ot:<YYYY-MM>` →
+    `{date: [...entries]}`, exactly bills' own shape — the Firestore key
+    stayed `ot`, un-renamed, purely for backward compatibility with data
+    already saved under it, see below) — a flat amount typed directly per
+    entry, not hours × an hourly rate (explicit choice: "we give out daily
+    OT", not tracked by hours worked). Each entry gets its own paid/unpaid
+    `.badge` toggle (`toggleOTPaid()`) and a Delete action, mirroring
+    bills' status-toggle UX exactly. A date-nav control (prev/next day +
+    date input) matches Add Expenses' own `#datePick` pattern.
+    - **Extended 2026-10-02** with a `type` field (`'ot'` |
+      `'captain_incentive'` | `'waiter_tips'`, `STAFF_OT_TYPE_LABELS` in
+      staff-tab.js) alongside OT, via a `<select id="staffOtTypeSelect">`
+      next to the employee picker — one shared daily-entry section and
+      table (with a new Type column) rather than three near-duplicate
+      sections, since all three are logged the same way (flat amount,
+      per employee, per day). `addOTEntry()` defaults `type` to `'ot'`
+      when not passed, and `staffOtTypeLabel()` falls back to `'OT'` for
+      any entry read back with no `type` at all — so OT entries saved
+      before this change (the feature had already been live for a day)
+      keep displaying correctly, un-migrated, rather than needing a data
+      backfill. The tab button itself was renamed "Staff OT & Salary" →
+      **"Staff Expenses"** the same day to reflect the broader scope.
   - **Monthly salary** (`rest:<id>:salary:<YYYY-MM>` →
     `{employeeId: {employeeName, amount, status, paidAt}}`, one entry per
     employee per month, not an array) — every *current* staff member gets a

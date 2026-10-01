@@ -400,26 +400,31 @@ function rememberBankDefault(bankName, ifscCode, bankBranch){
   return true;
 }
 
-// ---- Daily OT (added 2026-10-01) ----
+// ---- Daily OT / Captain Incentive / Waiter Tips (added 2026-10-01, extended
+// 2026-10-02 with the latter two "types") ----
 // Month-bucketed exactly like bills — `rest:<id>:ot:<YYYY-MM>` ->
-// { "<date>": [...OT entries for that day] } — since OT, like bills, is
-// logged day by day ("we give out daily OT"), not once a month. Each entry
-// carries a denormalized `employeeName` snapshot alongside `employeeId`
-// (the employee's internal uid(), not their editable "Employee ID" text
-// field) so a later-renamed or removed employee doesn't leave past OT
-// entries pointing at a name that can no longer be found — same convention
-// bills already use for supplier names.
+// { "<date>": [...entries for that day] } — since all three are logged day
+// by day ("we give out daily OT"), not once a month. The Firestore key stays
+// "ot" (not renamed to something more generic) purely for backward
+// compatibility with data already saved under it before the other two types
+// existed — `type` distinguishes them now, defaulting to 'ot' for any
+// pre-existing entry that predates this field. Each entry carries a
+// denormalized `employeeName` snapshot alongside `employeeId` (the
+// employee's internal uid(), not their editable "Employee ID" text field) so
+// a later-renamed or removed employee doesn't leave past entries pointing at
+// a name that can no longer be found — same convention bills already use for
+// supplier names.
 function otMonthKeyFor(restaurantId, monthKey){ return "rest:" + restaurantId + ":ot:" + monthKey; }
 async function loadOTMonth(restaurantId, monthKey){
   const raw = await safeGet(otMonthKeyFor(restaurantId, monthKey));
   if(raw){ try{ return JSON.parse(raw) || {}; }catch(e){} }
   return {};
 }
-async function addOTEntry(restaurantId, date, employeeId, employeeName, amount){
+async function addOTEntry(restaurantId, date, employeeId, employeeName, amount, type){
   const monthKey = date.slice(0,7);
   const month = await loadOTMonth(restaurantId, monthKey);
   if(!month[date]) month[date] = [];
-  const entry = { id: uid(), employeeId, employeeName, amount: Number(amount), status: 'unpaid', paidAt: null, createdAt: Date.now() };
+  const entry = { id: uid(), employeeId, employeeName, amount: Number(amount), type: type || 'ot', status: 'unpaid', paidAt: null, createdAt: Date.now() };
   month[date].push(entry);
   await safeSet(otMonthKeyFor(restaurantId, monthKey), JSON.stringify(month));
   return entry;
