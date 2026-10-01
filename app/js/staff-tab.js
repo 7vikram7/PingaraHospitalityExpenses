@@ -1,6 +1,8 @@
-/* ---------- Staff Expenses tab (added 2026-10-01 as "Staff OT & Salary",
-   renamed 2026-10-02 once Captain Incentive and Waiter Tips joined OT as
-   peer entry types under the same daily section) ----------
+/* ---------- Staff Expenses tab (added 2026-10-01 as "Staff OT & Salary";
+   renamed 2026-10-02 when Captain Incentive and Waiter Tips joined OT;
+   same day, split back into three separate lists — one shared date-nav,
+   three independent add-forms/tables below it, "Add a new employee" moved
+   to the bottom of the tab) ----------
    Unlike Reports/Vendor Ledger/Suppliers, this tab is visible to BOTH Owner
    and Manager (see auth.js's updateTabVisibilityForProfile) — a Manager can
    add/view staff and log entries for their own restaurant, the same
@@ -8,14 +10,21 @@
    gate. Only the restaurant SELECTOR here is owner-only: a Manager has
    nothing to pick between and always operates on currentRestaurantId.
 
-   Three sub-concerns share one restaurant scope, chosen independently of
+   Several sub-concerns share one restaurant scope, chosen independently of
    whatever Add Expenses currently has active (staffRestaurantId, not
    currentRestaurantId, for an Owner — mirrors Reports/Vendor Ledger's own
    independent restaurant selectors):
      - the staff directory itself (flat list per restaurant, data-store.js)
-     - daily OT/Captain Incentive/Waiter Tips entries (month-bucketed by
-       date, like bills, distinguished by a `type` field — see
-       STAFF_OT_TYPE_LABELS below)
+     - daily OT/Captain Incentive/Waiter Tips entries — still one
+       underlying Firestore collection (month-bucketed by date, like bills,
+       `rest:<id>:ot:<YYYY-MM>`), still distinguished by a `type` field
+       (STAFF_DAILY_TYPES below), just rendered as three separate
+       lists/forms instead of one shared one with a type selector — purely
+       a UI change, the data model from 2026-10-02's earlier revision is
+       untouched, so existing entries (including legacy ones with no
+       `type` at all, defaulting to 'ot') keep working unmigrated
+     - a combined CSV report across all three types + staff directory
+       details (bank name/branch/account/IFSC), for payment processing
      - monthly salary entries (month-bucketed by employee, one per month)
    Bank name + IFSC code are remembered account-wide (staffBankDefaults,
    data-store.js) so adding the next employee is a pick, not a retype. */
@@ -59,6 +68,7 @@ async function showStaffTabPanel(){
   if(staffSalaryMonth === undefined) staffSalaryMonth = todayStr().slice(0,7);
   document.getElementById('staffOtDatePicker').value = staffOtSelectedDate;
   document.getElementById('staffSalaryMonthPicker').value = staffSalaryMonth;
+  staffReportDefaultDates();
   await renderStaffPanel();
 }
 async function renderStaffPanel(){
@@ -66,8 +76,8 @@ async function renderStaffPanel(){
   currentStaffList = await loadStaffList(restId);
   renderStaffList();
   renderStaffBankDatalists();
-  renderStaffOtEmployeeSelect();
-  await renderStaffOtTable();
+  renderStaffDailyEmployeeSelects();
+  await renderAllStaffDailyTables();
   await renderStaffSalaryTable();
 }
 
@@ -341,7 +351,7 @@ document.getElementById('staffSaveEmployeeBtn').addEventListener('click', async 
 
   renderStaffList();
   renderStaffBankDatalists();
-  renderStaffOtEmployeeSelect();
+  renderStaffDailyEmployeeSelects();
   await renderStaffSalaryTable();
 
   document.getElementById('staffNewName').value = "";
@@ -444,7 +454,7 @@ document.getElementById('staffUploadBtn').addEventListener('click', async ()=>{
 
     renderStaffList();
     renderStaffBankDatalists();
-    renderStaffOtEmployeeSelect();
+    renderStaffDailyEmployeeSelects();
     await renderStaffSalaryTable();
     fileInput.value = "";
   }catch(e){
@@ -453,29 +463,46 @@ document.getElementById('staffUploadBtn').addEventListener('click', async ()=>{
   }
 });
 
-/* ---------- Daily OT / Captain Incentive / Waiter Tips (extended 2026-10-02) ---------- */
+/* ---------- Daily OT / Captain Incentive / Waiter Tips — three separate
+   lists sharing one date (split back out from a single shared-type-selector
+   section, 2026-10-02) ---------- */
 const STAFF_OT_TYPE_LABELS = { ot: 'OT', captain_incentive: 'Captain Incentive', waiter_tips: 'Waiter Tips' };
 function staffOtTypeLabel(type){ return STAFF_OT_TYPE_LABELS[type] || STAFF_OT_TYPE_LABELS.ot; }
-function renderStaffOtEmployeeSelect(){
-  const sel = document.getElementById('staffOtEmployeeSelect');
-  const prev = sel.value;
-  sel.innerHTML = currentStaffList.length === 0
-    ? '<option value="">No staff added yet</option>'
-    : '<option value="">Select employee…</option>';
-  [...currentStaffList].sort((a,b)=>a.name.localeCompare(b.name)).forEach(emp=>{
-    const opt = document.createElement('option');
-    opt.value = emp.id; opt.textContent = emp.name;
-    sel.appendChild(opt);
+// One config per list — same underlying `rest:<id>:ot:<YYYY-MM>` data,
+// each list just reads/writes its own `type` and its own set of element ids.
+const STAFF_DAILY_TYPES = [
+  { type: 'ot', label: 'OT',
+    employeeSelectId: 'staffOtEmployeeSelect', amountId: 'staffOtAmount', addBtnId: 'staffOtAddBtn',
+    tableWrapId: 'staffOtTableWrap', emptyId: 'staffOtEmpty' },
+  { type: 'captain_incentive', label: 'Captain Incentive',
+    employeeSelectId: 'staffIncentiveEmployeeSelect', amountId: 'staffIncentiveAmount', addBtnId: 'staffIncentiveAddBtn',
+    tableWrapId: 'staffIncentiveTableWrap', emptyId: 'staffIncentiveEmpty' },
+  { type: 'waiter_tips', label: 'Waiter Tips',
+    employeeSelectId: 'staffTipsEmployeeSelect', amountId: 'staffTipsAmount', addBtnId: 'staffTipsAddBtn',
+    tableWrapId: 'staffTipsTableWrap', emptyId: 'staffTipsEmpty' }
+];
+function renderStaffDailyEmployeeSelects(){
+  STAFF_DAILY_TYPES.forEach(cfg=>{
+    const sel = document.getElementById(cfg.employeeSelectId);
+    const prev = sel.value;
+    sel.innerHTML = currentStaffList.length === 0
+      ? '<option value="">No staff added yet</option>'
+      : '<option value="">Select employee…</option>';
+    [...currentStaffList].sort((a,b)=>a.name.localeCompare(b.name)).forEach(emp=>{
+      const opt = document.createElement('option');
+      opt.value = emp.id; opt.textContent = emp.name;
+      sel.appendChild(opt);
+    });
+    if(prev && currentStaffList.some(e=>e.id === prev)) sel.value = prev;
   });
-  if(prev && currentStaffList.some(e=>e.id === prev)) sel.value = prev;
 }
-async function renderStaffOtTable(){
+async function renderStaffDailyTable(cfg){
   const restId = getStaffActiveRestaurantId();
   const monthKey = staffOtSelectedDate.slice(0,7);
   const month = await loadOTMonth(restId, monthKey);
-  const dayEntries = month[staffOtSelectedDate] || [];
-  const wrap = document.getElementById('staffOtTableWrap');
-  const empty = document.getElementById('staffOtEmpty');
+  const dayEntries = (month[staffOtSelectedDate] || []).filter(e => (e.type || 'ot') === cfg.type);
+  const wrap = document.getElementById(cfg.tableWrapId);
+  const empty = document.getElementById(cfg.emptyId);
   wrap.innerHTML = "";
   if(dayEntries.length === 0){
     empty.style.display = 'block';
@@ -484,12 +511,11 @@ async function renderStaffOtTable(){
   empty.style.display = 'none';
   const table = document.createElement('table');
   const thead = document.createElement('thead');
-  thead.innerHTML = '<tr><th>Employee</th><th>Type</th><th class="num">Amount</th><th>Status</th><th></th></tr>';
+  thead.innerHTML = '<tr><th>Employee</th><th class="num">Amount</th><th>Status</th><th></th></tr>';
   const tbody = document.createElement('tbody');
   dayEntries.slice().sort((a,b)=>a.createdAt-b.createdAt).forEach(e=>{
     const tr = document.createElement('tr');
     const tdName = document.createElement('td'); tdName.textContent = e.employeeName; tdName.className = 'supplier';
-    const tdType = document.createElement('td'); tdType.textContent = staffOtTypeLabel(e.type); tdType.className = 'subcat';
     const tdAmt = document.createElement('td'); tdAmt.className = 'amount'; tdAmt.textContent = fmtMoney(e.amount);
 
     const tdStatus = document.createElement('td');
@@ -498,7 +524,7 @@ async function renderStaffOtTable(){
     statusBtn.addEventListener('click', async ()=>{
       statusBtn.disabled = true;
       await toggleOTPaid(restId, staffOtSelectedDate, e.id);
-      await renderStaffOtTable();
+      await renderStaffDailyTable(cfg);
     });
     tdStatus.appendChild(statusBtn);
 
@@ -508,40 +534,124 @@ async function renderStaffOtTable(){
     delBtn.addEventListener('click', async ()=>{
       if(!confirm(`Delete this ${staffOtTypeLabel(e.type)} entry for ${e.employeeName}?`)) return;
       await deleteOTEntry(restId, staffOtSelectedDate, e.id);
-      await renderStaffOtTable();
+      await renderStaffDailyTable(cfg);
     });
     tdDel.appendChild(delBtn);
 
-    tr.appendChild(tdName); tr.appendChild(tdType); tr.appendChild(tdAmt); tr.appendChild(tdStatus); tr.appendChild(tdDel);
+    tr.appendChild(tdName); tr.appendChild(tdAmt); tr.appendChild(tdStatus); tr.appendChild(tdDel);
     tbody.appendChild(tr);
   });
   table.appendChild(thead); table.appendChild(tbody);
   wrap.appendChild(table);
 }
-document.getElementById('staffOtAddBtn').addEventListener('click', async ()=>{
-  const sel = document.getElementById('staffOtEmployeeSelect');
-  const empId = sel.value;
-  if(!empId){ alert("Pick an employee first."); return; }
-  const emp = currentStaffList.find(e => e.id === empId);
-  const type = document.getElementById('staffOtTypeSelect').value;
-  const amountInput = document.getElementById('staffOtAmount');
-  const amount = Number(amountInput.value);
-  if(!amount || amount <= 0){ alert("Enter a valid amount."); return; }
-  const restId = getStaffActiveRestaurantId();
-  await addOTEntry(restId, staffOtSelectedDate, emp.id, emp.name, amount, type);
-  amountInput.value = "";
-  await renderStaffOtTable();
+async function renderAllStaffDailyTables(){
+  for(const cfg of STAFF_DAILY_TYPES) await renderStaffDailyTable(cfg);
+}
+STAFF_DAILY_TYPES.forEach(cfg=>{
+  document.getElementById(cfg.addBtnId).addEventListener('click', async ()=>{
+    const sel = document.getElementById(cfg.employeeSelectId);
+    const empId = sel.value;
+    if(!empId){ alert("Pick an employee first."); return; }
+    const emp = currentStaffList.find(e => e.id === empId);
+    const amountInput = document.getElementById(cfg.amountId);
+    const amount = Number(amountInput.value);
+    if(!amount || amount <= 0){ alert("Enter a valid amount."); return; }
+    const restId = getStaffActiveRestaurantId();
+    await addOTEntry(restId, staffOtSelectedDate, emp.id, emp.name, amount, cfg.type);
+    amountInput.value = "";
+    await renderStaffDailyTable(cfg);
+  });
 });
 function setStaffOtDate(dateStr){
   staffOtSelectedDate = dateStr;
   document.getElementById('staffOtDatePicker').value = dateStr;
-  renderStaffOtTable();
+  renderAllStaffDailyTables();
 }
 document.getElementById('staffOtDatePicker').addEventListener('change', (ev)=>{
   if(ev.target.value) setStaffOtDate(ev.target.value);
 });
 document.getElementById('staffOtPrevDay').addEventListener('click', ()=> setStaffOtDate(addDaysStr(staffOtSelectedDate, -1)));
 document.getElementById('staffOtNextDay').addEventListener('click', ()=> setStaffOtDate(addDaysStr(staffOtSelectedDate, 1)));
+
+/* ---------- Combined OT/Incentive/Tips report (added 2026-10-02) ----------
+   One CSV row per employee with at least one qualifying entry in the date
+   range, combining their bank details (from the staff directory, not the
+   entries themselves) with per-type totals -- a payment-ready sheet for
+   whenever the owner needs to actually process these payouts. */
+function staffReportDefaultDates(){
+  const fromEl = document.getElementById('staffReportFrom');
+  const toEl = document.getElementById('staffReportTo');
+  if(!fromEl.value) fromEl.value = todayStr().slice(0,8) + '01'; // 1st of this month
+  if(!toEl.value) toEl.value = todayStr();
+}
+async function downloadStaffCombinedReport(){
+  const restId = getStaffActiveRestaurantId();
+  const from = document.getElementById('staffReportFrom').value;
+  const to = document.getElementById('staffReportTo').value;
+  if(!from || !to || from > to){
+    alert("Pick a valid From and To date first.");
+    return;
+  }
+  const unpaidOnly = document.getElementById('staffReportUnpaidOnly').checked;
+
+  const totals = {}; // employeeId -> {name, ot, captain_incentive, waiter_tips}
+  for(const mk of monthsBetween(from, to)){
+    const month = await loadOTMonth(restId, mk);
+    Object.keys(month).forEach(date=>{
+      if(date < from || date > to) return;
+      (month[date] || []).forEach(e=>{
+        if(unpaidOnly && e.status === 'paid') return;
+        if(!totals[e.employeeId]) totals[e.employeeId] = { name: e.employeeName, ot: 0, captain_incentive: 0, waiter_tips: 0 };
+        const t = e.type || 'ot';
+        totals[e.employeeId][t] += Number(e.amount || 0);
+      });
+    });
+  }
+
+  const employeeIds = Object.keys(totals);
+  if(employeeIds.length === 0){
+    alert(`No ${unpaidOnly ? 'unpaid ' : ''}OT/Incentive/Tips entries found for that date range.`);
+    return;
+  }
+
+  const rows = [[
+    "Employee Name", "Employee ID", "Designation", "Department", "Mobile",
+    "Bank Name", "Bank Branch", "Account Number", "IFSC Code",
+    "OT", "Captain Incentive", "Waiter Tips", "Total"
+  ]];
+  employeeIds
+    .sort((a,b)=> (totals[a].name||'').localeCompare(totals[b].name||''))
+    .forEach(empId=>{
+      const emp = currentStaffList.find(e => e.id === empId);
+      const t = totals[empId];
+      const total = t.ot + t.captain_incentive + t.waiter_tips;
+      rows.push([
+        emp ? emp.name : t.name,
+        emp ? (emp.employeeId || "") : "",
+        emp ? (emp.designation || "") : "",
+        emp ? (emp.department || "") : "",
+        emp ? (emp.mobile || "") : "",
+        emp ? (emp.bankName || "") : "",
+        emp ? (emp.bankBranch || "") : "",
+        emp ? (emp.accountNumber || "") : "",
+        emp ? (emp.ifscCode || "") : "",
+        t.ot.toFixed(2),
+        t.captain_incentive.toFixed(2),
+        t.waiter_tips.toFixed(2),
+        total.toFixed(2)
+      ]);
+    });
+
+  const csv = rows.map(r => r.map(csvEscape).join(",")).join("\n");
+  const blob = new Blob([csv], {type:"text/csv;charset=utf-8;"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `${restId}-staff-ot-incentive-tips_${from}_to_${to}.csv`;
+  document.body.appendChild(a); a.click(); a.remove();
+  URL.revokeObjectURL(url);
+}
+document.getElementById('staffReportDownloadBtn').addEventListener('click', downloadStaffCombinedReport);
 
 /* ---------- Monthly salary ---------- */
 // One row per CURRENT staff member — a saved entry for this month, if any,

@@ -84,12 +84,16 @@ Firebase Hosting.
   an existing payroll-system export format (`Code*`, `Employee Name*`,
   `Mobile No*`, `Gender*`, `Department Name*`, `Designation Name*`, etc.)
   so a file already maintained elsewhere can be dropped in with no
-  reformatting. Three types of daily entry — **OT, Captain Incentive, and
-  Waiter Tips** — share one "OT, Incentives & Tips" section (pick the type
-  from a dropdown); each is a flat amount per employee per entry, not
-  hours × rate, with its own paid/unpaid status. Salary is tracked
-  separately, per month, pre-filled from each employee's default and
-  editable per month, with its own paid/unpaid status and paid date
+  reformatting ("Add a new employee" lives at the bottom of the tab).
+  **OT, Captain Incentive, and Waiter Tips** are three separate lists
+  sharing one date — each its own add-form and table, a flat amount per
+  employee per entry (not hours × rate), with its own paid/unpaid status.
+  A **combined report** downloads a payment-ready CSV for a date range —
+  one row per employee with their bank name/branch/account/IFSC plus
+  OT/Incentive/Tips totals (unpaid-only by default) for processing actual
+  payouts. Salary is tracked separately, per month, pre-filled from each
+  employee's default and editable per month, with its own paid/unpaid
+  status and paid date
 - **Offline-first**: every write lands in `localStorage` immediately and
   syncs to Firestore in the background, so a flaky connection never blocks
   data entry

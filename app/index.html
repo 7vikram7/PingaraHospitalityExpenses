@@ -608,6 +608,68 @@ window.__firebaseSdkReady = (async ()=>{
         <div class="manage-supplier-list" id="staffList"></div>
       </section>
 
+      <section class="manage-section">
+        <h3>Daily entries — OT, Captain Incentive &amp; Waiter Tips</h3>
+        <div class="date-control">
+          <span class="toolbar-label">Date</span>
+          <button class="day-nav-btn" id="staffOtPrevDay" type="button" title="Previous day">‹</button>
+          <input type="date" id="staffOtDatePicker" aria-label="Entry date">
+          <button class="day-nav-btn" id="staffOtNextDay" type="button" title="Next day">›</button>
+        </div>
+
+        <h4 class="staff-daily-subhead">Overtime (OT)</h4>
+        <div class="new-supplier-box open">
+          <select id="staffOtEmployeeSelect"></select>
+          <input type="number" id="staffOtAmount" placeholder="OT amount (₹)" min="0" step="1">
+          <button type="button" id="staffOtAddBtn">Add OT</button>
+        </div>
+        <div class="dash-empty" id="staffOtEmpty" style="display:none;">No OT logged for this day yet.</div>
+        <div class="plain-table-wrap" id="staffOtTableWrap"></div>
+
+        <h4 class="staff-daily-subhead">Captain Incentive</h4>
+        <div class="new-supplier-box open">
+          <select id="staffIncentiveEmployeeSelect"></select>
+          <input type="number" id="staffIncentiveAmount" placeholder="Incentive amount (₹)" min="0" step="1">
+          <button type="button" id="staffIncentiveAddBtn">Add Incentive</button>
+        </div>
+        <div class="dash-empty" id="staffIncentiveEmpty" style="display:none;">No Captain Incentive logged for this day yet.</div>
+        <div class="plain-table-wrap" id="staffIncentiveTableWrap"></div>
+
+        <h4 class="staff-daily-subhead">Waiter Tips</h4>
+        <div class="new-supplier-box open">
+          <select id="staffTipsEmployeeSelect"></select>
+          <input type="number" id="staffTipsAmount" placeholder="Tips amount (₹)" min="0" step="1">
+          <button type="button" id="staffTipsAddBtn">Add Tips</button>
+        </div>
+        <div class="dash-empty" id="staffTipsEmpty" style="display:none;">No Waiter Tips logged for this day yet.</div>
+        <div class="plain-table-wrap" id="staffTipsTableWrap"></div>
+      </section>
+
+      <section class="manage-section">
+        <h3>Combined OT, Incentive &amp; Tips report</h3>
+        <p class="sup-tab-note">Download a payment-ready sheet for the restaurant selected above — one row per
+          employee with their bank details plus OT/Incentive/Tips totals for the date range, for whenever you
+          need to process payments.</p>
+        <div class="date-control">
+          <span class="toolbar-label">From</span>
+          <input type="date" id="staffReportFrom">
+          <span class="toolbar-label">To</span>
+          <input type="date" id="staffReportTo">
+        </div>
+        <label class="staff-report-checkbox">
+          <input type="checkbox" id="staffReportUnpaidOnly" checked>
+          Unpaid entries only
+        </label>
+        <button type="button" class="history-btn" id="staffReportDownloadBtn">Download combined report (CSV)</button>
+      </section>
+
+      <section class="manage-section">
+        <h3>Monthly salary</h3>
+        <input type="month" id="staffSalaryMonthPicker" class="dash-date-input">
+        <div class="dash-empty" id="staffSalaryEmpty" style="display:none;">No staff added for this restaurant yet.</div>
+        <div class="plain-table-wrap" id="staffSalaryTableWrap"></div>
+      </section>
+
       <section class="manage-section manage-section-add">
         <h3>Add a new employee</h3>
         <div class="new-supplier-box open">
@@ -649,35 +711,6 @@ window.__firebaseSdkReady = (async ()=>{
           <button type="button" id="staffUploadBtn">Upload</button>
         </div>
         <div id="staffUploadResult" class="count-hint"></div>
-      </section>
-
-      <section class="manage-section">
-        <h3>OT, Incentives &amp; Tips</h3>
-        <div class="date-control">
-          <span class="toolbar-label">Date</span>
-          <button class="day-nav-btn" id="staffOtPrevDay" type="button" title="Previous day">‹</button>
-          <input type="date" id="staffOtDatePicker" aria-label="Entry date">
-          <button class="day-nav-btn" id="staffOtNextDay" type="button" title="Next day">›</button>
-        </div>
-        <div class="new-supplier-box open">
-          <select id="staffOtEmployeeSelect"></select>
-          <select id="staffOtTypeSelect">
-            <option value="ot">Overtime (OT)</option>
-            <option value="captain_incentive">Captain Incentive</option>
-            <option value="waiter_tips">Waiter Tips</option>
-          </select>
-          <input type="number" id="staffOtAmount" placeholder="Amount (₹)" min="0" step="1">
-          <button type="button" id="staffOtAddBtn">Add</button>
-        </div>
-        <div class="dash-empty" id="staffOtEmpty" style="display:none;">No entries logged for this day yet.</div>
-        <div class="plain-table-wrap" id="staffOtTableWrap"></div>
-      </section>
-
-      <section class="manage-section">
-        <h3>Monthly salary</h3>
-        <input type="month" id="staffSalaryMonthPicker" class="dash-date-input">
-        <div class="dash-empty" id="staffSalaryEmpty" style="display:none;">No staff added for this restaurant yet.</div>
-        <div class="plain-table-wrap" id="staffSalaryTableWrap"></div>
       </section>
 
     </div>

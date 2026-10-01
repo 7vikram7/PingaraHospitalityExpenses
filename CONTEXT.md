@@ -549,28 +549,57 @@ Five tab panels, switched by `.tab-bar` buttons (`tabBtnExpenses` /
     `.msr-view`/`.msr-edit`'s existing `flex-wrap` handles the extra spans
     and inputs without any new CSS. `gender` is a fixed 3-option `<select>`
     (blank/Male/Female/Other) everywhere it appears, not free text.
-  - **"OT, Incentives & Tips"** (`rest:<id>:ot:<YYYY-MM>` →
-    `{date: [...entries]}`, exactly bills' own shape — the Firestore key
+  - **Daily OT / Captain Incentive / Waiter Tips** (`rest:<id>:ot:<YYYY-MM>`
+    → `{date: [...entries]}`, exactly bills' own shape — the Firestore key
     stayed `ot`, un-renamed, purely for backward compatibility with data
-    already saved under it, see below) — a flat amount typed directly per
-    entry, not hours × an hourly rate (explicit choice: "we give out daily
-    OT", not tracked by hours worked). Each entry gets its own paid/unpaid
-    `.badge` toggle (`toggleOTPaid()`) and a Delete action, mirroring
-    bills' status-toggle UX exactly. A date-nav control (prev/next day +
-    date input) matches Add Expenses' own `#datePick` pattern.
+    already saved under it) — a flat amount typed directly per entry, not
+    hours × an hourly rate (explicit choice: "we give out daily OT", not
+    tracked by hours worked). Each entry gets its own paid/unpaid `.badge`
+    toggle (`toggleOTPaid()`) and a Delete action, mirroring bills'
+    status-toggle UX exactly. One shared date-nav control (prev/next day +
+    date input, matching Add Expenses' own `#datePick` pattern) covers all
+    three — they're logged against the same date far more often than not.
     - **Extended 2026-10-02** with a `type` field (`'ot'` |
       `'captain_incentive'` | `'waiter_tips'`, `STAFF_OT_TYPE_LABELS` in
-      staff-tab.js) alongside OT, via a `<select id="staffOtTypeSelect">`
-      next to the employee picker — one shared daily-entry section and
-      table (with a new Type column) rather than three near-duplicate
-      sections, since all three are logged the same way (flat amount,
-      per employee, per day). `addOTEntry()` defaults `type` to `'ot'`
+      staff-tab.js) alongside OT. `addOTEntry()` defaults `type` to `'ot'`
       when not passed, and `staffOtTypeLabel()` falls back to `'OT'` for
       any entry read back with no `type` at all — so OT entries saved
       before this change (the feature had already been live for a day)
       keep displaying correctly, un-migrated, rather than needing a data
       backfill. The tab button itself was renamed "Staff OT & Salary" →
-      **"Staff Expenses"** the same day to reflect the broader scope.
+      "Staff Expenses" the same day to reflect the broader scope.
+    - **Split into three separate lists, same day, same type field** — the
+      very first version of this used one shared section with a
+      `<select id="staffOtTypeSelect">` type picker; the next request
+      asked for three genuinely separate lists instead (own add-form, own
+      table, own empty-state, per type), so `STAFF_DAILY_TYPES`
+      (staff-tab.js) now holds one config object per type — just the
+      element ids and label — and every render/add/toggle/delete function
+      is written once, parameterized by that config, and called three
+      times (`renderStaffDailyTable(cfg)`, `renderAllStaffDailyTables()`
+      looping over `STAFF_DAILY_TYPES`, one `addEventListener` per add
+      button inside a `STAFF_DAILY_TYPES.forEach(...)`). The underlying
+      data model and Firestore key are completely unchanged from the
+      `type`-field extension above — this was purely a UI-layer split, so
+      nothing needed migrating.
+  - **Combined OT/Incentive/Tips report** (added 2026-10-02,
+    `downloadStaffCombinedReport()`) — a From/To date-range picker plus an
+    "Unpaid entries only" checkbox (checked by default — the common real
+    case is "what do I still owe," not a full historical record) above a
+    "Download combined report (CSV)" button. Scans `rest:<id>:ot:<YYYY-MM>`
+    across every month the range touches (`monthsBetween()`, reused from
+    vendor-ledger.js), sums each employee's OT/Captain Incentive/Waiter
+    Tips separately (respecting the unpaid-only filter), then joins that
+    against `currentStaffList` for bank name/branch/account
+    number/IFSC/designation/department/mobile — a payment-ready sheet for
+    whenever the owner actually needs to process these payouts, not just a
+    log of what was entered. Only employees with at least one qualifying
+    entry in range appear (not every current employee, unlike the Monthly
+    salary table below). Falls back to the entry's own denormalized
+    `employeeName` snapshot if the employee was since removed from the
+    directory. Plain CSV via the same `Blob`+`URL.createObjectURL`+
+    `csvEscape()` pattern `excel-export.js`'s `downloadCsv()` and the
+    bulk-upload template already use.
   - **Monthly salary** (`rest:<id>:salary:<YYYY-MM>` →
     `{employeeId: {employeeName, amount, status, paidAt}}`, one entry per
     employee per month, not an array) — every *current* staff member gets a
