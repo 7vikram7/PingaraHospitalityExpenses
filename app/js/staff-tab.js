@@ -470,32 +470,23 @@ const STAFF_OT_TYPE_LABELS = { ot: 'OT', captain_incentive: 'Captain Incentive',
 function staffOtTypeLabel(type){ return STAFF_OT_TYPE_LABELS[type] || STAFF_OT_TYPE_LABELS.ot; }
 // One config per list — same underlying `rest:<id>:ot:<YYYY-MM>` data,
 // each list just reads/writes its own `type` and its own set of element ids.
-// quickAdd* ids are the inline "+ Add new employee" mini-form each list
-// gets (added 2026-10-02, follow-up to moving the full Add-a-new-employee
-// form to the bottom of the tab) -- so logging an entry for someone not
-// yet in the directory doesn't mean leaving this section to find them.
+// Employee options come strictly from `currentStaffList` (the active
+// restaurant's own staff — see getStaffActiveRestaurantId()/
+// renderStaffPanel()), nothing else. These lists deliberately do NOT offer
+// an "add new employee" shortcut of their own (tried briefly, removed
+// 2026-10-02) — staff only get added via the one real directory (the
+// Staff section's own add form / bulk upload), so there's exactly one
+// place that can ever put an employee into a restaurant's list, not two.
 const STAFF_DAILY_TYPES = [
   { type: 'ot', label: 'OT',
     employeeSelectId: 'staffOtEmployeeSelect', amountId: 'staffOtAmount', addBtnId: 'staffOtAddBtn',
-    tableWrapId: 'staffOtTableWrap', emptyId: 'staffOtEmpty',
-    quickAddLinkId: 'staffOtQuickAddLink', quickAddBoxId: 'staffOtQuickAddBox',
-    quickAddNameId: 'staffOtQuickAddName', quickAddBankNameId: 'staffOtQuickAddBankName',
-    quickAddIfscId: 'staffOtQuickAddIfsc', quickAddAccountId: 'staffOtQuickAddAccount',
-    quickAddSaveBtnId: 'staffOtQuickAddSaveBtn' },
+    tableWrapId: 'staffOtTableWrap', emptyId: 'staffOtEmpty' },
   { type: 'captain_incentive', label: 'Captain Incentive',
     employeeSelectId: 'staffIncentiveEmployeeSelect', amountId: 'staffIncentiveAmount', addBtnId: 'staffIncentiveAddBtn',
-    tableWrapId: 'staffIncentiveTableWrap', emptyId: 'staffIncentiveEmpty',
-    quickAddLinkId: 'staffIncentiveQuickAddLink', quickAddBoxId: 'staffIncentiveQuickAddBox',
-    quickAddNameId: 'staffIncentiveQuickAddName', quickAddBankNameId: 'staffIncentiveQuickAddBankName',
-    quickAddIfscId: 'staffIncentiveQuickAddIfsc', quickAddAccountId: 'staffIncentiveQuickAddAccount',
-    quickAddSaveBtnId: 'staffIncentiveQuickAddSaveBtn' },
+    tableWrapId: 'staffIncentiveTableWrap', emptyId: 'staffIncentiveEmpty' },
   { type: 'waiter_tips', label: 'Waiter Tips',
     employeeSelectId: 'staffTipsEmployeeSelect', amountId: 'staffTipsAmount', addBtnId: 'staffTipsAddBtn',
-    tableWrapId: 'staffTipsTableWrap', emptyId: 'staffTipsEmpty',
-    quickAddLinkId: 'staffTipsQuickAddLink', quickAddBoxId: 'staffTipsQuickAddBox',
-    quickAddNameId: 'staffTipsQuickAddName', quickAddBankNameId: 'staffTipsQuickAddBankName',
-    quickAddIfscId: 'staffTipsQuickAddIfsc', quickAddAccountId: 'staffTipsQuickAddAccount',
-    quickAddSaveBtnId: 'staffTipsQuickAddSaveBtn' }
+    tableWrapId: 'staffTipsTableWrap', emptyId: 'staffTipsEmpty' }
 ];
 function renderStaffDailyEmployeeSelects(){
   STAFF_DAILY_TYPES.forEach(cfg=>{
@@ -576,48 +567,6 @@ STAFF_DAILY_TYPES.forEach(cfg=>{
     await addOTEntry(restId, staffOtSelectedDate, emp.id, emp.name, amount, cfg.type);
     amountInput.value = "";
     await renderStaffDailyTable(cfg);
-  });
-});
-
-// Inline "+ Add new employee" mini-form, one per list (see STAFF_DAILY_TYPES
-// comment above) -- deliberately a trimmed-down subset of the full Add
-// Employee form's fields (just name + the bank basics, no designation/
-// department/gender/mobile/salary/bank branch) since the point is getting
-// an entry logged for someone new without leaving this section; the rest
-// of their details can be filled in later via Edit in the Staff list, or
-// through the full form at the bottom of the tab.
-STAFF_DAILY_TYPES.forEach(cfg=>{
-  document.getElementById(cfg.quickAddLinkId).addEventListener('click', ()=>{
-    document.getElementById(cfg.quickAddBoxId).classList.toggle('open');
-  });
-  document.getElementById(cfg.quickAddSaveBtnId).addEventListener('click', async ()=>{
-    const name = document.getElementById(cfg.quickAddNameId).value.trim();
-    if(!name){ alert("Please enter the employee's name."); return; }
-    const bankName = document.getElementById(cfg.quickAddBankNameId).value.trim();
-    const ifscCode = document.getElementById(cfg.quickAddIfscId).value.trim().toUpperCase();
-    const accountNumber = document.getElementById(cfg.quickAddAccountId).value.trim();
-    const restId = getStaffActiveRestaurantId();
-    const newEmp = {
-      id: uid(), name, employeeId: '', designation: '', department: '', gender: '', mobile: '',
-      bankName, bankBranch: '', accountNumber, ifscCode, salary: 0
-    };
-    currentStaffList.push(newEmp);
-    await saveStaffList(restId, currentStaffList);
-    if(rememberBankDefault(bankName, ifscCode)) await saveStaffBankDefaults();
-
-    renderStaffList();
-    renderStaffBankDatalists();
-    renderStaffDailyEmployeeSelects();
-    await renderStaffSalaryTable();
-    // Land the new employee pre-selected in THIS section's dropdown
-    // specifically, since that's the list the user was actually working in.
-    document.getElementById(cfg.employeeSelectId).value = newEmp.id;
-
-    document.getElementById(cfg.quickAddNameId).value = "";
-    document.getElementById(cfg.quickAddBankNameId).value = "";
-    document.getElementById(cfg.quickAddIfscId).value = "";
-    document.getElementById(cfg.quickAddAccountId).value = "";
-    document.getElementById(cfg.quickAddBoxId).classList.remove('open');
   });
 });
 

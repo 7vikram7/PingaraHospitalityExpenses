@@ -582,25 +582,38 @@ Five tab panels, switched by `.tab-bar` buttons (`tabBtnExpenses` /
       data model and Firestore key are completely unchanged from the
       `type`-field extension above — this was purely a UI-layer split, so
       nothing needed migrating.
-    - **Each list also got its own inline "+ Add new employee" quick-add**
-      (same day, follow-up) once "Add a new employee" moved to the bottom
-      of the tab (below) — logging an entry for someone not yet in the
-      directory would otherwise mean leaving the list to scroll down,
-      fill in the full form, then scroll back. `STAFF_DAILY_TYPES` grew
-      six more element ids per type (`quickAddLinkId`/`quickAddBoxId`/
-      `quickAddNameId`/`quickAddBankNameId`/`quickAddIfscId`/
-      `quickAddAccountId`/`quickAddSaveBtnId`) for a deliberately trimmed
-      mini-form — name plus just the bank basics, not the full form's
-      designation/department/gender/mobile/salary/bank branch, since the
-      point is getting unblocked quickly, not capturing everything at
-      once; the rest can be filled in later via Edit in the Staff list.
-      Same `.inline-add-mini` reveal pattern Suppliers' "+ new
-      category"/"+ new subcategory" already established. On save, the new
-      employee is pushed into the shared `currentStaffList` (so it
-      immediately appears in all three dropdowns and the Monthly salary
-      table, not just the list it was added from) and pre-selected in
-      *that specific* list's own employee dropdown, since that's the one
-      the user was actually trying to log an entry against.
+    - **Each list briefly got its own inline "+ Add new employee"
+      quick-add** (same day, follow-up), then **reversed the same day**
+      once more by explicit request: employees must come strictly from
+      the restaurant's own directory (the one real add form / bulk
+      upload), never from a shortcut inside a daily list, so there's
+      exactly one place that can ever put an employee into a
+      restaurant's staff list. The quick-add markup, the six extra
+      `STAFF_DAILY_TYPES` element ids per type it needed
+      (`quickAddLinkId` etc.), and its wiring were all removed again;
+      `STAFF_DAILY_TYPES` is back to holding just the four ids each
+      type needs for its own add-form/table. This is the second
+      same-day reversal in this feature's history — worth remembering
+      that "move the add-form elsewhere for tidiness" and "let each
+      list add its own employees inline" are competing goals here, and
+      the second one lost.
+    - **Restaurant isolation, explicitly verified 2026-10-02**: the
+      employee directory (`rest:<id>:staff`), daily OT/Incentive/Tips
+      entries (`rest:<id>:ot:<YYYY-MM>`), and monthly salary
+      (`rest:<id>:salary:<YYYY-MM>`) are all keyed per restaurant, and
+      `getStaffActiveRestaurantId()` is re-read on every save/load
+      rather than cached — unlike the bills/sales `fetchMonthObject()`
+      helper, `loadOTMonth()`/`loadSalaryMonth()`/`loadStaffList()` call
+      `safeGet()` directly with no cross-request cache to go stale, so
+      there's no equivalent of the supplier-usage-index caching bug here.
+      Verified with a dedicated Playwright test (two restaurants seeded
+      with non-overlapping employees, switched back and forth, checked
+      the directory list, all three OT/Incentive/Tips dropdowns and
+      tables, and the Monthly salary table each time) — zero
+      cross-restaurant leakage in either direction. Given the
+      2026-10-02 supplier-list data-loss incident (see "Known
+      limitations"), this tab's restaurant-scoping gets the same
+      scrutiny going forward as the supplier-usage-index.
   - **Combined OT/Incentive/Tips report** (added 2026-10-02,
     `downloadStaffCombinedReport()`) — a From/To date-range picker plus an
     "Unpaid entries only" checkbox (checked by default — the common real
