@@ -24,6 +24,7 @@ function applyTenantBranding(){
   await loadCategories();
   await loadSuppliers();
   await loadSupplierDefaults();
+  await loadStaffBankDefaults();
   await loadEntries(currentDate);
   await loadSales(currentDate);
   renderAll();

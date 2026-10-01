@@ -348,6 +348,132 @@ async function propagateSupplierCategoryToAllBills(supplierName, newCategory, ne
   return updatedCount;
 }
 
+// ---- Staff directory (added 2026-10-01) ----
+// One flat document per restaurant — `rest:<id>:staff` — holding the whole
+// employee array, same shape as suppliers/categories (a static-ish master
+// list, not a daily transactional log, so no month-bucketing needed here).
+// Unlike suppliers, staff are NOT shared across restaurants — an employee
+// genuinely works at one restaurant, so each restaurant's list is its own
+// document, keyed by the restaurant id actually chosen in the Staff tab's
+// own selector (Owner) or the logged-in Manager's restaurant — never
+// `currentRestaurantId` implicitly, since that would tie this tab's
+// selection to whatever the Add Expenses toolbar happens to be showing.
+function staffKeyFor(restaurantId){ return "rest:" + restaurantId + ":staff"; }
+async function loadStaffList(restaurantId){
+  const raw = await safeGet(staffKeyFor(restaurantId));
+  if(raw){ try{ return JSON.parse(raw) || []; }catch(e){} }
+  return [];
+}
+async function saveStaffList(restaurantId, list){
+  await safeSet(staffKeyFor(restaurantId), JSON.stringify(list));
+}
+
+// Shared, account-wide memory of {bankName, ifscCode} pairs already used for
+// some employee, somewhere — deliberately NOT restaurant-scoped, since a
+// bank branch is a real-world entity that can plausibly serve employees at
+// more than one of the account's restaurants. Mirrors supplierDefaults'
+// "remember it so the next entry is a pick, not a retype" role, just for a
+// pair of fields instead of one.
+const STAFF_BANK_DEFAULTS_KEY = "staffBankDefaults";
+let staffBankDefaults = []; // [{bankName, ifscCode}]
+async function loadStaffBankDefaults(){
+  const raw = await safeGet(STAFF_BANK_DEFAULTS_KEY);
+  if(raw){ try{ staffBankDefaults = JSON.parse(raw) || []; return; }catch(e){} }
+  staffBankDefaults = [];
+}
+async function saveStaffBankDefaults(){ await safeSet(STAFF_BANK_DEFAULTS_KEY, JSON.stringify(staffBankDefaults)); }
+// Returns true if this was a genuinely new pair (caller can skip re-saving otherwise).
+function rememberBankDefault(bankName, ifscCode){
+  if(!bankName || !ifscCode) return false;
+  const exists = staffBankDefaults.some(b =>
+    b.bankName.trim().toLowerCase() === bankName.trim().toLowerCase() &&
+    b.ifscCode.trim().toUpperCase() === ifscCode.trim().toUpperCase());
+  if(exists) return false;
+  staffBankDefaults.push({ bankName: bankName.trim(), ifscCode: ifscCode.trim().toUpperCase() });
+  return true;
+}
+
+// ---- Daily OT (added 2026-10-01) ----
+// Month-bucketed exactly like bills — `rest:<id>:ot:<YYYY-MM>` ->
+// { "<date>": [...OT entries for that day] } — since OT, like bills, is
+// logged day by day ("we give out daily OT"), not once a month. Each entry
+// carries a denormalized `employeeName` snapshot alongside `employeeId`
+// (the employee's internal uid(), not their editable "Employee ID" text
+// field) so a later-renamed or removed employee doesn't leave past OT
+// entries pointing at a name that can no longer be found — same convention
+// bills already use for supplier names.
+function otMonthKeyFor(restaurantId, monthKey){ return "rest:" + restaurantId + ":ot:" + monthKey; }
+async function loadOTMonth(restaurantId, monthKey){
+  const raw = await safeGet(otMonthKeyFor(restaurantId, monthKey));
+  if(raw){ try{ return JSON.parse(raw) || {}; }catch(e){} }
+  return {};
+}
+async function addOTEntry(restaurantId, date, employeeId, employeeName, amount){
+  const monthKey = date.slice(0,7);
+  const month = await loadOTMonth(restaurantId, monthKey);
+  if(!month[date]) month[date] = [];
+  const entry = { id: uid(), employeeId, employeeName, amount: Number(amount), status: 'unpaid', paidAt: null, createdAt: Date.now() };
+  month[date].push(entry);
+  await safeSet(otMonthKeyFor(restaurantId, monthKey), JSON.stringify(month));
+  return entry;
+}
+async function toggleOTPaid(restaurantId, date, otId){
+  const monthKey = date.slice(0,7);
+  const month = await loadOTMonth(restaurantId, monthKey);
+  const dayEntries = month[date] || [];
+  const entry = dayEntries.find(e => e.id === otId);
+  if(!entry) return null;
+  entry.status = entry.status === 'paid' ? 'unpaid' : 'paid';
+  entry.paidAt = entry.status === 'paid' ? Date.now() : null;
+  await safeSet(otMonthKeyFor(restaurantId, monthKey), JSON.stringify(month));
+  return entry;
+}
+async function deleteOTEntry(restaurantId, date, otId){
+  const monthKey = date.slice(0,7);
+  const month = await loadOTMonth(restaurantId, monthKey);
+  month[date] = (month[date] || []).filter(e => e.id !== otId);
+  await safeSet(otMonthKeyFor(restaurantId, monthKey), JSON.stringify(month));
+}
+
+// ---- Monthly salary (added 2026-10-01) ----
+// `rest:<id>:salary:<YYYY-MM>` -> { "<employeeId>": {employeeName, amount,
+// status, paidAt} } — one entry per employee per month (unlike OT, salary
+// is a single figure per person per month, not a running list of entries).
+function salaryMonthKeyFor(restaurantId, monthKey){ return "rest:" + restaurantId + ":salary:" + monthKey; }
+async function loadSalaryMonth(restaurantId, monthKey){
+  const raw = await safeGet(salaryMonthKeyFor(restaurantId, monthKey));
+  if(raw){ try{ return JSON.parse(raw) || {}; }catch(e){} }
+  return {};
+}
+// Saves/overwrites one employee's salary amount for the month — does NOT
+// touch paid status (editing the amount after it's marked paid shouldn't
+// silently flip it back to unpaid; the two are deliberately separate actions).
+async function saveSalaryAmount(restaurantId, monthKey, employeeId, employeeName, amount){
+  const month = await loadSalaryMonth(restaurantId, monthKey);
+  const existing = month[employeeId];
+  month[employeeId] = {
+    employeeName, amount: Number(amount),
+    status: existing ? existing.status : 'unpaid',
+    paidAt: existing ? existing.paidAt : null
+  };
+  await safeSet(salaryMonthKeyFor(restaurantId, monthKey), JSON.stringify(month));
+  return month[employeeId];
+}
+async function toggleSalaryPaid(restaurantId, monthKey, employeeId, employeeName, amount){
+  const month = await loadSalaryMonth(restaurantId, monthKey);
+  if(!month[employeeId]){
+    // No saved entry yet for this month (still just showing the employee's
+    // default salary as a suggestion) -- toggling Paid implicitly saves it
+    // first, same as a bill/sales entry always exists before it can be paid.
+    month[employeeId] = { employeeName, amount: Number(amount), status: 'unpaid', paidAt: null };
+  }
+  const entry = month[employeeId];
+  entry.status = entry.status === 'paid' ? 'unpaid' : 'paid';
+  entry.paidAt = entry.status === 'paid' ? Date.now() : null;
+  await safeSet(salaryMonthKeyFor(restaurantId, monthKey), JSON.stringify(month));
+  return entry;
+}
+
 let saveErrorShown = false;
 function showSaveError(){
   if(saveErrorShown) return;

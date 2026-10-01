@@ -292,10 +292,11 @@ as a real browser wouldn't reset its own desktop-site setting on logging
 out of a site.
 
 ## Tab structure (Add Expenses added first; Reports added 2026-07-31; Vendor
-## Ledger added 2026-08-05; Suppliers added 2026-08-15)
-Four tab panels, switched by `.tab-bar` buttons (`tabBtnExpenses` /
-`tabBtnReports` / `tabBtnLedger` / `tabBtnSuppliers`) via `switchTab()` in
-reports-dashboard.js:
+## Ledger added 2026-08-05; Suppliers added 2026-08-15; Staff OT & Salary
+## added 2026-10-01)
+Five tab panels, switched by `.tab-bar` buttons (`tabBtnExpenses` /
+`tabBtnReports` / `tabBtnLedger` / `tabBtnSuppliers` / `tabBtnStaff`) via
+`switchTab()` in reports-dashboard.js:
 - **"Add Expenses"** (`#tabPanelExpenses`, default/active tab) — a
   restaurant control (Manager: name-only, in `.restaurant-context-bar` above
   all tabs, "Change restaurant" re-triggers the password gate; Owner: an
@@ -435,6 +436,88 @@ reports-dashboard.js:
     bill's `supplier` name field if the supplier was also renamed in the
     same edit — same as before, a rename doesn't reach into history, only
     category/subcategory do now.
+- **"Staff OT & Salary"** (`#tabPanelStaff`, `app/js/staff-tab.js`) —
+  **the one tab visible to BOTH Owner and Manager**, not owner-only like
+  Reports/Vendor Ledger/Suppliers (`updateTabVisibilityForProfile()` in
+  auth.js leaves `tabBtnStaff` alone). A Manager can add/view staff and log
+  OT/salary for their own restaurant only — the same boundary that already
+  applies to Add Expenses via the restaurant password gate, not a new
+  mechanism. No separate password screen of its own, same reasoning as
+  Suppliers not needing one, just applied per-restaurant instead of
+  account-wide.
+  - **Unlike Suppliers, staff are NOT shared across restaurants** — an
+    employee genuinely works at one restaurant, so `rest:<id>:staff` is its
+    own flat-array document per restaurant (same shape/reasoning as
+    suppliers: a static-ish master list, not a month-bucketed transactional
+    log). The restaurant in scope comes from this tab's *own* selector for
+    an Owner (`staffRestaurantId`, independent of `currentRestaurantId` —
+    mirrors how Reports/Vendor Ledger each have their own restaurant
+    selector rather than following whatever Add Expenses has active) or
+    directly from `currentRestaurantId` for a Manager, who has nothing to
+    pick between (`getStaffActiveRestaurantId()`).
+  - **Bank name + IFSC code are remembered account-wide**
+    (`staffBankDefaults` in data-store.js, an unnamespaced key like
+    `supplierDefaults`) — a bank branch is a real-world entity that can
+    plausibly serve employees at more than one of the account's
+    restaurants, so this memory isn't restaurant-scoped like the staff list
+    itself. Implemented as plain `<input list="...">` + `<datalist>` pairs
+    (reusing the exact pattern Suppliers' subcategory field already
+    established) rather than a custom dropdown: typing/picking a bank name
+    auto-fills the IFSC field *only* when there's exactly one remembered
+    IFSC for that exact name and the field is still empty, never
+    overwriting something already typed.
+  - **Each employee record carries an internal `id` (`uid()`), separate
+    from the user-entered "Employee ID" text field** — the latter is just a
+    display attribute (editable, not necessarily unique), while the former
+    is the stable key OT/salary entries actually reference. Both OT entries
+    and salary entries also carry a denormalized `employeeName` snapshot
+    alongside that internal id, so a later-renamed or removed employee
+    never leaves a past entry pointing at a name that can no longer be
+    found — same convention bills already use for supplier names
+    (`e.supplier` is a string, not a foreign key).
+  - **Daily OT** (`rest:<id>:ot:<YYYY-MM>` → `{date: [...entries]}`,
+    exactly bills' own shape) — a flat amount typed directly per entry, not
+    hours × an hourly rate (explicit choice: "we give out daily OT", not
+    tracked by hours worked). Each entry gets its own paid/unpaid `.badge`
+    toggle (`toggleOTPaid()`) and a Delete action, mirroring bills'
+    status-toggle UX exactly. A date-nav control (prev/next day + date
+    input) matches Add Expenses' own `#datePick` pattern.
+  - **Monthly salary** (`rest:<id>:salary:<YYYY-MM>` →
+    `{employeeId: {employeeName, amount, status, paidAt}}`, one entry per
+    employee per month, not an array) — every *current* staff member gets a
+    row regardless of whether a salary document exists yet for the viewed
+    month: `renderStaffSalaryTable()` shows the saved amount if one exists,
+    otherwise the employee's own default `salary` as an editable
+    suggestion, so nothing is written until Save or the paid toggle is
+    used. Editing the amount (`saveSalaryAmount()`) deliberately does
+    **not** touch paid status — flipping an already-paid month back to
+    unpaid just because the figure was corrected afterward would be wrong;
+    the two are separate actions, same as the amount input + paid badge
+    being two separate controls in the row.
+  - **Bulk upload** (`staffBulkUploadBox`, collapsed by default behind a
+    "+ bulk upload a list" link, same reveal pattern as Suppliers'
+    "+ new category"/"+ new subcategory") reuses the `XLSX` global already
+    loaded for Excel export (`excel-export.js`'s CDN script tag) to parse
+    an uploaded `.csv`/`.xlsx` — `XLSX.read()` + `sheet_to_json()`, matched
+    against expected headers case-insensitively so "Bank" or "Bank Name"
+    both work. A "Download template" button generates a blank CSV with the
+    exact expected headers client-side (same `Blob`+`URL.createObjectURL`
+    pattern `excel-export.js`'s `downloadCsv()` already uses). Only a
+    blank Name is a hard skip; every other field is optional per row.
+  - **Account numbers are masked in the list view** (`maskAccountNumber()`
+    — last 4 digits only, `••••1234`) as a shoulder-surfing precaution on a
+    phone in a shared kitchen/restaurant setting; full digits are still
+    shown (and editable) inside the per-employee edit form. This is a UX
+    nicety, not real protection — see the open-Firestore-rules caveat
+    below, same as everywhere else in this app.
+  - **This tab introduces the most sensitive data this app stores** — real
+    bank account numbers and IFSC codes, not just operational
+    spend/category data. The same "soft deterrent, not real access
+    control" tradeoff documented for the rest of the app (open Firestore
+    rules, client-side-only passwords) applies here too, consciously, not
+    as an oversight carried over by default. If this data's sensitivity
+    ever outgrows that tradeoff, it's the strongest candidate in the app
+    for being the first thing migrated behind real Firebase Auth + rules.
 
 ## Modify a bill (added 2026-08-05)
 Each ledger row has a **Modify** button (`ledger-ui.js` renders it,

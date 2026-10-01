@@ -59,6 +59,15 @@ Firebase Hosting.
   subcategory, shared across every restaurant on the account, plus adding
   new ones. Editing a supplier's category/subcategory here retroactively
   updates every past bill logged under that supplier too, not just new ones
+- **Staff OT & Salary tab** (Owner, or Manager for their own restaurant
+  only): a staff directory per restaurant — name, employee ID, bank name,
+  account number, IFSC code, and a default monthly salary — with bank
+  name/IFSC remembered account-wide so the next employee is a pick, not a
+  retype. Add one at a time or bulk-upload a CSV/Excel list (template
+  provided). OT is logged daily (a flat amount per employee per entry, not
+  hours × rate) with its own paid/unpaid status; salary is tracked per
+  month, pre-filled from each employee's default and editable per month,
+  with its own paid/unpaid status and paid date
 - **Offline-first**: every write lands in `localStorage` immediately and
   syncs to Firestore in the background, so a flaky connection never blocks
   data entry
@@ -118,6 +127,7 @@ app/
     reports-dashboard.js     Reports tab password gate, tab switching, sales/expense charts
     vendor-ledger.js         Vendor Ledger tab — per-supplier spend by restaurant/period
     suppliers-tab.js         Suppliers tab — list/add suppliers, retroactive category fixes
+    staff-tab.js             Staff OT & Salary tab — staff directory, bulk upload, daily OT, monthly salary
     auth.js                  login: Owner/Manager profile choice, per-restaurant passwords
     init.js                  app bootstrap — loaded last, after every other module
 firebase.json               Hosting config + the predeploy sync step
@@ -148,6 +158,10 @@ running list of known limitations — see [`CONTEXT.md`](./CONTEXT.md).
   control.** All client-side SHA-256 comparisons in a static file with no
   backend — they gate what the UI shows, not what's reachable over the
   network. See `CONTEXT.md`'s "Login" and "Known limitations" sections.
+- **Staff bank account numbers and IFSC codes carry the same open-Firestore
+  exposure as everything else** — see the point above. This is real
+  financial PII, more sensitive than anything else this app stores; the
+  tradeoff was made consciously for this feature too, not overlooked.
 - Real reports, exports, and any restaurant-specific data are intentionally
   **not** in this repo.
 

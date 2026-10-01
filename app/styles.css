@@ -1147,7 +1147,7 @@ main{padding:24px 28px 60px;max-width:1400px;margin:0 auto;}
 }
 .new-supplier-box .addlink:hover{color:var(--brass-deep);}
 .inline-add-mini{display:none; gap:6px; margin-top:2px;}
-.inline-add-mini.open{display:flex;}
+.inline-add-mini.open{display:flex; flex-wrap:wrap; align-items:center;}
 .inline-add-mini input{flex:1; font-size:12px; padding:5px 7px; border:1.5px dashed var(--brass); border-radius:4px;}
 .inline-add-mini button{background:var(--brass); color:#fff; border:none; border-radius:4px; padding:0 8px; font-size:11px; cursor:pointer;}
 .field input, .field select{
@@ -1374,6 +1374,20 @@ td.num{
 .badge.paid{background:var(--green-bg);color:var(--green);}
 .badge.unpaid{background:var(--red-bg);color:var(--red);}
 .badge:hover{filter:brightness(0.95);}
+
+/* ---------- Staff OT & Salary: inline salary-amount cell (added 2026-10-01) ---------- */
+.staff-salary-input{
+  width:100px;
+  font-family:'IBM Plex Mono',monospace;
+  font-size:13px;
+  padding:5px 7px;
+  border:1.5px solid var(--paper-line);
+  border-radius:4px;
+  background:#fff;
+  color:var(--ink);
+  text-align:right;
+}
+.staff-salary-input:focus{outline:none;border-color:var(--brass);}
 .del-btn{
   background:none;
   border:1px solid var(--paper-line);

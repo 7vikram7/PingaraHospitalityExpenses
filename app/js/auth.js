@@ -54,11 +54,18 @@ function updateTabVisibilityForProfile(){
   document.getElementById('tabBtnReports').style.display = owner ? '' : 'none';
   document.getElementById('tabBtnLedger').style.display = owner ? '' : 'none';
   document.getElementById('tabBtnSuppliers').style.display = owner ? '' : 'none';
+  // Staff OT & Salary (added 2026-10-01) deliberately stays visible for both
+  // profiles -- a Manager can add/view staff and log OT/salary for their own
+  // restaurant, the one real boundary that still applies (via the
+  // restaurant password gate itself, same as Add Expenses). Only the
+  // restaurant SELECTOR inside that tab is owner-only: a Manager has
+  // nothing to pick between and operates on currentRestaurantId directly.
+  document.getElementById('staffRestaurantControl').style.display = owner ? 'flex' : 'none';
   document.getElementById('expensesRestaurantControl').style.display = owner ? 'flex' : 'none';
   document.getElementById('restaurantChangeBtn').style.display = owner ? 'none' : '';
   if(!owner){
     const activePanel = document.querySelector('.tab-panel.active');
-    if(activePanel && activePanel.id !== 'tabPanelExpenses' && typeof switchTab === 'function'){
+    if(activePanel && activePanel.id !== 'tabPanelExpenses' && activePanel.id !== 'tabPanelStaff' && typeof switchTab === 'function'){
       switchTab('expenses');
     }
   }

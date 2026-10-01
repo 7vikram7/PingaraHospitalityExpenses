@@ -122,6 +122,7 @@ window.__firebaseSdkReady = (async ()=>{
   <button class="tab-btn" id="tabBtnReports" type="button">Reports</button>
   <button class="tab-btn" id="tabBtnLedger" type="button">Vendor Ledger</button>
   <button class="tab-btn" id="tabBtnSuppliers" type="button">Suppliers</button>
+  <button class="tab-btn" id="tabBtnStaff" type="button">Staff OT &amp; Salary</button>
 </div>
 
 <div class="modal-overlay" id="fyModal">
@@ -555,6 +556,80 @@ window.__firebaseSdkReady = (async ()=>{
   </main>
 </div>
 
+<div id="tabPanelStaff" class="tab-panel">
+  <main>
+    <div class="viz-root dash-panel">
+
+      <div class="dash-filter-row" id="staffRestaurantControl" style="display:none;">
+        <span class="toolbar-label">Restaurant</span>
+        <select id="staffRestaurantSelect" class="dash-date-input"></select>
+      </div>
+
+      <section class="manage-section">
+        <div class="manage-section-head">
+          <h3>Staff <span class="count-hint" id="staffCount"></span></h3>
+          <input type="text" id="staffSearch" class="manage-search" placeholder="Search staff…">
+        </div>
+        <p class="sup-tab-note">Specific to the restaurant selected above — each restaurant keeps
+          its own staff list. Bank name and IFSC code are remembered account-wide once used, so
+          picking them for the next employee is quicker than retyping.</p>
+        <div class="manage-supplier-list" id="staffList"></div>
+      </section>
+
+      <section class="manage-section manage-section-add">
+        <h3>Add a new employee</h3>
+        <div class="new-supplier-box open">
+          <input type="text" id="staffNewName" placeholder="Employee name">
+          <div class="row">
+            <input type="text" id="staffNewEmpId" placeholder="Employee ID (optional)">
+            <input type="number" id="staffNewSalary" placeholder="Default monthly salary (₹)" min="0" step="1">
+          </div>
+          <div class="row">
+            <input type="text" id="staffNewBankName" list="staffBankNameList" placeholder="Bank name">
+            <datalist id="staffBankNameList"></datalist>
+            <input type="text" id="staffNewIfsc" list="staffIfscList" placeholder="IFSC code">
+            <datalist id="staffIfscList"></datalist>
+          </div>
+          <input type="text" id="staffNewAccount" placeholder="Account number">
+          <button type="button" id="staffSaveEmployeeBtn">Save employee</button>
+        </div>
+        <span class="addlink" id="staffBulkUploadLink">+ bulk upload a list</span>
+        <div class="inline-add-mini" id="staffBulkUploadBox">
+          <button type="button" class="history-btn" id="staffDownloadTemplateBtn">Download template</button>
+          <input type="file" id="staffUploadFile" accept=".csv,.xlsx,.xls">
+          <button type="button" id="staffUploadBtn">Upload</button>
+        </div>
+        <div id="staffUploadResult" class="count-hint"></div>
+      </section>
+
+      <section class="manage-section">
+        <h3>Daily OT</h3>
+        <div class="date-control">
+          <span class="toolbar-label">Date</span>
+          <button class="day-nav-btn" id="staffOtPrevDay" type="button" title="Previous day">‹</button>
+          <input type="date" id="staffOtDatePicker" aria-label="OT date">
+          <button class="day-nav-btn" id="staffOtNextDay" type="button" title="Next day">›</button>
+        </div>
+        <div class="new-supplier-box open">
+          <select id="staffOtEmployeeSelect"></select>
+          <input type="number" id="staffOtAmount" placeholder="OT amount (₹)" min="0" step="1">
+          <button type="button" id="staffOtAddBtn">Add OT</button>
+        </div>
+        <div class="dash-empty" id="staffOtEmpty" style="display:none;">No OT entries logged for this day yet.</div>
+        <div class="plain-table-wrap" id="staffOtTableWrap"></div>
+      </section>
+
+      <section class="manage-section">
+        <h3>Monthly salary</h3>
+        <input type="month" id="staffSalaryMonthPicker" class="dash-date-input">
+        <div class="dash-empty" id="staffSalaryEmpty" style="display:none;">No staff added for this restaurant yet.</div>
+        <div class="plain-table-wrap" id="staffSalaryTableWrap"></div>
+      </section>
+
+    </div>
+  </main>
+</div>
+
 </div><!-- /appTabsWrap -->
 
 <script src="tenant.js"></script>
@@ -566,6 +641,7 @@ window.__firebaseSdkReady = (async ()=>{
 <script src="js/reports-dashboard.js"></script>
 <script src="js/vendor-ledger.js"></script>
 <script src="js/suppliers-tab.js"></script>
+<script src="js/staff-tab.js"></script>
 <script src="js/auth.js"></script>
 <script src="js/init.js"></script>
 </body>

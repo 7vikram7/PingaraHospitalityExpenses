@@ -78,13 +78,15 @@ function switchTab(tab){
     expenses: document.getElementById('tabBtnExpenses'),
     reports: document.getElementById('tabBtnReports'),
     ledger: document.getElementById('tabBtnLedger'),
-    suppliers: document.getElementById('tabBtnSuppliers')
+    suppliers: document.getElementById('tabBtnSuppliers'),
+    staff: document.getElementById('tabBtnStaff')
   };
   const panels = {
     expenses: document.getElementById('tabPanelExpenses'),
     reports: document.getElementById('tabPanelReports'),
     ledger: document.getElementById('tabPanelLedger'),
-    suppliers: document.getElementById('tabPanelSuppliers')
+    suppliers: document.getElementById('tabPanelSuppliers'),
+    staff: document.getElementById('tabPanelStaff')
   };
   Object.keys(btns).forEach(key=>{
     const active = key === tab;
@@ -94,10 +96,12 @@ function switchTab(tab){
   if(tab === 'reports') showReportsPanel();
   else if(tab === 'ledger') showVLPanel();
   else if(tab === 'suppliers') showSuppliersTabPanel();
+  else if(tab === 'staff') showStaffTabPanel();
 }
 document.getElementById('tabBtnExpenses').addEventListener('click', ()=>switchTab('expenses'));
 document.getElementById('tabBtnReports').addEventListener('click', ()=>switchTab('reports'));
 document.getElementById('tabBtnLedger').addEventListener('click', ()=>switchTab('ledger'));
+document.getElementById('tabBtnStaff').addEventListener('click', ()=>switchTab('staff'));
 document.getElementById('tabBtnSuppliers').addEventListener('click', ()=>switchTab('suppliers'));
 
 /* ---------- Reports dashboard: sales vs. expenses, by restaurant ----------
