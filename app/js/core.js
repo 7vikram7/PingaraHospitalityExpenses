@@ -49,6 +49,11 @@ function supDefaultsKey(){ return "supplierDefaults"; }
 let categories = {};
 let suppliers = [];
 let supplierDefaults = {};
+// supplierKey() -> Set of restaurant ids that have actually billed that
+// supplier (see data-store.js's buildSupplierUsageIndex()) — drives which
+// suppliers a given restaurant's picker shows. Built once at init, kept
+// current via recordSupplierUsage() rather than re-derived per render.
+let supplierUsageIndex = {};
 let entries = [];
 let currentDate = todayStr();
 

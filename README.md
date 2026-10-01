@@ -35,6 +35,13 @@ Firebase Hosting.
   client-side before upload to keep it fast on restaurant wifi/mobile data.
   A bill with an attachment shows a small 📄/🖼️ icon next to its invoice #
   in the ledger, linking straight to the file.
+- **Supplier picker is scoped to the restaurant you're on** — the shared
+  supplier list and categories are still account-wide (see Suppliers tab
+  below), but the dropdown only shows suppliers *this* restaurant has
+  actually billed before, so a manager isn't scrolling past every other
+  location's vendors. A newly-added supplier with no bills yet shows
+  everywhere until its first bill narrows it down to wherever it was
+  actually used.
 - **Restaurant lock** — confirm one restaurant before anything else is
   editable, so a stray tap can't misattribute a bill to the wrong restaurant
 - **Modify a bill** — freely editable for 1 hour after it's added; after

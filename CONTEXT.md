@@ -436,6 +436,45 @@ Five tab panels, switched by `.tab-bar` buttons (`tabBtnExpenses` /
     bill's `supplier` name field if the supplier was also renamed in the
     same edit — same as before, a rename doesn't reach into history, only
     category/subcategory do now.
+  - **Supplier *pickers* are scoped per restaurant (added 2026-10-02)** —
+    the underlying `suppliers`/`categories`/`supplierDefaults` stay fully
+    shared account-wide as above; only the `#supplierSelect` (Add Expenses)
+    and `#editBillSupplier` (Modify dialog) dropdowns are filtered, to
+    `supplierVisibleForRestaurant(name, restaurantId)` (data-store.js):
+    visible if that restaurant has at least one past bill against that
+    supplier, **or** if the supplier has never been billed by *any*
+    restaurant yet (a freshly-added supplier shows everywhere until its
+    first bill narrows it to wherever it was actually used). The Suppliers
+    tab's own list and the Manage Suppliers modal stay unfiltered — they're
+    the account-wide admin/category-management view, not a bill-entry
+    picker, so restaurant-scoping doesn't apply there.
+    - `supplierUsageIndex` (core.js: `supplierKey() -> Set<restaurantId>`)
+      is built once at init (`loadSupplierUsageIndex()` in init.js, kicked
+      off non-blocking *after* `renderAll()` so app startup isn't delayed
+      by scanning every restaurant's bill history — until it resolves,
+      `supplierVisibleForRestaurant()` treats the empty index as
+      unrestricted, so the only visible effect of the scan still running
+      is the dropdown briefly showing more than it will a moment later,
+      never less) and kept current afterward via `recordSupplierUsage()`
+      (called right after a bill save in both the quick-add submit handler
+      and the Modify-bill save handler) rather than rebuilt from scratch on
+      every render. **Deliberately never persisted to Firestore** — it's
+      rebuilt fresh from the bills (the authoritative source) at the start
+      of every session specifically so it can never drift out of sync with
+      them the way a separately-saved derived structure could — see "Known
+      limitations"' 2026-10-02 incident note below, which this design is a
+      direct response to.
+    - `buildSupplierUsageIndex()` deliberately does **not** reuse
+      `fetchMonthObject()`'s single-month cache-reuse shortcut (which
+      exists for the FY-register/Vendor-Ledger style reads, where it's
+      safe because it only ever matters for the one restaurant+month
+      currently active) — a caught bug during testing: reusing it here
+      meant a cross-restaurant scan could silently return a stale cached
+      copy for whichever one restaurant+month happened to already be
+      cached in the Add Expenses tab, undercounting that restaurant's real
+      supplier usage. Always reads directly via `safeGet()` instead, since
+      correctness matters far more than the minor cost of a few extra
+      reads during a scan that only runs once per session.
 - **"Staff Expenses"** (`#tabPanelStaff`, `app/js/staff-tab.js` — tab
   button named "Staff OT & Salary" until 2026-10-02, renamed once Captain
   Incentive and Waiter Tips joined OT as peer entry types, see below) —
@@ -788,6 +827,23 @@ account is needed currently.
   conditional-formatting rule ("text contains SUNDAY" → yellow), or (b) switch
   to a different Excel-writing approach/library that supports styling (bigger
   lift).
+- **Incident, 2026-10-02: the live `suppliers`/`supplierDefaults` Firestore
+  documents were briefly wiped to empty** by an automated smoke test that
+  touched the real production site to verify the Storage upload pipeline. A
+  fresh, empty browser profile loaded the real supplier list, added+removed
+  a disposable test entry, and saved — if that initial load had any
+  hiccup, the in-memory list would have started empty and the save
+  overwrote the real one with it. Fully recoverable only because every bill
+  stores its supplier name + category directly (never a reference) — all
+  245 suppliers were reconstructed by scanning every restaurant's bill
+  history and rewritten directly to Firestore, with the app's own
+  restaurant-scoped supplier picker (just above) built the same day partly
+  *because of* this incident: deriving `supplierUsageIndex` fresh from
+  bills every session, never persisting it, is a direct response to having
+  just been burned by trusting a derived copy instead of the source of
+  truth. Lesson for any future live-site scripted verification: assert the
+  real data actually loaded non-empty before performing any save/mutate,
+  never assume a fresh page load succeeded.
 
 ## File location
 As of 2026-08-04, split out of the original single-file design (was one

@@ -28,4 +28,11 @@ function applyTenantBranding(){
   await loadEntries(currentDate);
   await loadSales(currentDate);
   renderAll();
+  // Non-blocking — scans every restaurant's bill history to work out which
+  // suppliers are relevant to which restaurant (see data-store.js's
+  // buildSupplierUsageIndex()). Until this resolves every supplier shows
+  // (supplierVisibleForRestaurant() treats an empty index as unrestricted),
+  // so this only narrows the dropdown down shortly after load — it's never
+  // the reason something that should show doesn't, even mid-load.
+  loadSupplierUsageIndex().then(()=>{ renderSupplierSelect(); });
 })();

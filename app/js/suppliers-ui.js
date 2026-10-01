@@ -21,16 +21,21 @@ function renderNewSupplierSubList(){
     dl.appendChild(opt);
   });
 }
+// Scoped to the current restaurant (added 2026-10-02): only suppliers that
+// restaurant has actually billed before, plus any supplier never billed by
+// anyone yet (freshly added, visible everywhere until its first use
+// narrows it down) — see supplierVisibleForRestaurant() in data-store.js.
 function renderSupplierSelect(){
   const sel = document.getElementById('supplierSelect');
   const prev = sel.value;
   sel.innerHTML = '<option value="">Select supplier…</option>';
-  [...suppliers].sort((a,b)=>a.localeCompare(b)).forEach(s=>{
+  const visible = suppliers.filter(s => supplierVisibleForRestaurant(s, currentRestaurantId));
+  [...visible].sort((a,b)=>a.localeCompare(b)).forEach(s=>{
     const opt = document.createElement('option');
     opt.value = s; opt.textContent = s;
     sel.appendChild(opt);
   });
-  if(prev && suppliers.includes(prev)) sel.value = prev;
+  if(prev && visible.includes(prev)) sel.value = prev;
   renderSupplierCatHint();
   updateQaRestFieldsVisibility();
 }

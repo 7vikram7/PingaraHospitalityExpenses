@@ -1003,6 +1003,11 @@ document.getElementById('quickAddForm').addEventListener('submit', async (ev)=>{
   };
   entries.push(entry);
   await saveEntries();
+  // Keeps the supplier-usage index (suppliers-ui.js's restaurant-scoped
+  // dropdown filter) current without a full rescan — matters most for a
+  // brand-new supplier's first-ever bill, which is what narrows it from
+  // "visible everywhere" down to just this restaurant going forward.
+  recordSupplierUsage(entry.supplier, currentRestaurantId);
 
   renderTable();
   renderTotals();

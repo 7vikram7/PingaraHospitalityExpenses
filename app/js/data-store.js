@@ -348,6 +348,71 @@ async function propagateSupplierCategoryToAllBills(supplierName, newCategory, ne
   return updatedCount;
 }
 
+// ---- Per-restaurant supplier usage (added 2026-10-02) ----
+// Suppliers are shared account-wide (see above), but which ones are
+// *relevant* to a given restaurant isn't — a manager at Restaurant A
+// shouldn't have to scroll past every supplier Restaurant B has ever used.
+// `supplierUsageIndex` (core.js) maps supplierKey() -> Set of restaurant
+// ids that have actually billed that supplier at least once, built fresh
+// from the bills themselves (the authoritative source — never a separate
+// persisted structure that could drift out of sync with them, which is
+// exactly the kind of redundant derived state that caused the 2026-10-02
+// supplier-list data-loss incident). A supplier with no recorded usage
+// anywhere yet (freshly added, never billed) is treated as visible to
+// every restaurant — once any restaurant's first bill against it lands,
+// visibility narrows to just the restaurant(s) that have actually used it.
+// Built once at app init (loadSupplierUsageIndex()) and kept current
+// in-memory via recordSupplierUsage() after every bill save, rather than
+// re-scanning all bills on every dropdown render.
+async function buildSupplierUsageIndex(){
+  const index = {};
+  const monthKeys = await listAllRestaurantsBillMonthKeys();
+  for(const fullKey of monthKeys){
+    const m = /^rest:([^:]+):bills:/.exec(fullKey);
+    if(!m) continue;
+    const restId = m[1];
+    // Deliberately NOT fetchMonthObject() -- that helper reuses whichever
+    // single month happens to be cached for the Add Expenses tab right now
+    // (billsMonthCache/currentBillsMonthCacheKey), which is fine for the
+    // one restaurant+month it's actually tracking but would silently read
+    // stale data here if this scan ever ran while that cache represented
+    // something not yet flushed to storage. A fresh direct read on every
+    // month-document, every time this builds, costs little (called once at
+    // init, incrementally maintained after) and removes that whole class of
+    // staleness bug outright.
+    const raw = await safeGet(fullKey);
+    let monthObj = {};
+    if(raw){ try{ monthObj = JSON.parse(raw) || {}; }catch(e){} }
+    Object.keys(monthObj).forEach(date=>{
+      (monthObj[date] || []).forEach(bill=>{
+        if(!bill.supplier) return;
+        const key = supplierKey(bill.supplier);
+        if(!index[key]) index[key] = new Set();
+        index[key].add(restId);
+      });
+    });
+  }
+  return index;
+}
+async function loadSupplierUsageIndex(){
+  supplierUsageIndex = await buildSupplierUsageIndex();
+}
+// Call after saving a bill so the in-memory index stays correct without a
+// full rescan — same spirit as updating `entries` in place rather than
+// reloading everything after a local change.
+function recordSupplierUsage(supplierName, restaurantId){
+  const key = supplierKey(supplierName);
+  if(!supplierUsageIndex[key]) supplierUsageIndex[key] = new Set();
+  supplierUsageIndex[key].add(restaurantId);
+}
+// Whether `name` should appear in a supplier picker for `restaurantId` —
+// visible if never billed anywhere yet, or if this restaurant has billed
+// it at least once.
+function supplierVisibleForRestaurant(name, restaurantId){
+  const usage = supplierUsageIndex[supplierKey(name)];
+  return !usage || usage.size === 0 || usage.has(restaurantId);
+}
+
 // ---- Staff directory (added 2026-10-01) ----
 // One flat document per restaurant — `rest:<id>:staff` — holding the whole
 // employee array, same shape as suppliers/categories (a static-ish master

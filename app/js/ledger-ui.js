@@ -77,17 +77,25 @@ function renderBreakdown(){
 }
 /* ---------- Modify bill modal ---------- */
 let editBillId = null;
+// Same restaurant-usage scoping as the quick-add dropdown (suppliers-ui.js's
+// renderSupplierSelect()) — the bill's own current supplier always shows
+// regardless (it's already confirmed used by this restaurant, being on
+// this very bill), same as the pre-existing "(removed)" fallback already
+// guarantees for a supplier deleted from the shared list entirely.
 function renderEditBillSupplierSelect(selectedSupplier){
   const sel = document.getElementById('editBillSupplier');
   sel.innerHTML = "";
-  [...suppliers].sort((a,b)=>a.localeCompare(b)).forEach(s=>{
+  const visible = suppliers.filter(s => supplierVisibleForRestaurant(s, currentRestaurantId));
+  [...visible].sort((a,b)=>a.localeCompare(b)).forEach(s=>{
     const opt = document.createElement('option');
     opt.value = s; opt.textContent = s;
     sel.appendChild(opt);
   });
-  if(selectedSupplier && !suppliers.includes(selectedSupplier)){
+  if(selectedSupplier && !visible.includes(selectedSupplier)){
+    const removedFromShared = !suppliers.includes(selectedSupplier);
     const opt = document.createElement('option');
-    opt.value = selectedSupplier; opt.textContent = selectedSupplier + ' (removed)';
+    opt.value = selectedSupplier;
+    opt.textContent = selectedSupplier + (removedFromShared ? ' (removed)' : '');
     sel.appendChild(opt);
   }
   sel.value = selectedSupplier || "";
@@ -308,6 +316,7 @@ document.getElementById('editBillSave').addEventListener('click', async ()=>{
   entry.amount = amount;
   entry.status = status;
   entry.notes = notes;
+  recordSupplierUsage(supplier, currentRestaurantId); // keeps the usage index current if the supplier was changed
 
   if(newDate !== currentDate){
     await moveEntryDate(entry, newDate);
