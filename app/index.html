@@ -623,6 +623,14 @@ window.__firebaseSdkReady = (async ()=>{
           <input type="number" id="staffOtAmount" placeholder="OT amount (₹)" min="0" step="1">
           <button type="button" id="staffOtAddBtn">Add OT</button>
         </div>
+        <span class="addlink" id="staffOtQuickAddLink">+ Add new employee</span>
+        <div class="inline-add-mini" id="staffOtQuickAddBox">
+          <input type="text" id="staffOtQuickAddName" placeholder="Employee name">
+          <input type="text" id="staffOtQuickAddBankName" list="staffBankNameList" placeholder="Bank name (optional)">
+          <input type="text" id="staffOtQuickAddIfsc" list="staffIfscList" placeholder="IFSC code (optional)">
+          <input type="text" id="staffOtQuickAddAccount" placeholder="Account number (optional)">
+          <button type="button" id="staffOtQuickAddSaveBtn">Save</button>
+        </div>
         <div class="dash-empty" id="staffOtEmpty" style="display:none;">No OT logged for this day yet.</div>
         <div class="plain-table-wrap" id="staffOtTableWrap"></div>
 
@@ -632,6 +640,14 @@ window.__firebaseSdkReady = (async ()=>{
           <input type="number" id="staffIncentiveAmount" placeholder="Incentive amount (₹)" min="0" step="1">
           <button type="button" id="staffIncentiveAddBtn">Add Incentive</button>
         </div>
+        <span class="addlink" id="staffIncentiveQuickAddLink">+ Add new employee</span>
+        <div class="inline-add-mini" id="staffIncentiveQuickAddBox">
+          <input type="text" id="staffIncentiveQuickAddName" placeholder="Employee name">
+          <input type="text" id="staffIncentiveQuickAddBankName" list="staffBankNameList" placeholder="Bank name (optional)">
+          <input type="text" id="staffIncentiveQuickAddIfsc" list="staffIfscList" placeholder="IFSC code (optional)">
+          <input type="text" id="staffIncentiveQuickAddAccount" placeholder="Account number (optional)">
+          <button type="button" id="staffIncentiveQuickAddSaveBtn">Save</button>
+        </div>
         <div class="dash-empty" id="staffIncentiveEmpty" style="display:none;">No Captain Incentive logged for this day yet.</div>
         <div class="plain-table-wrap" id="staffIncentiveTableWrap"></div>
 
@@ -640,6 +656,14 @@ window.__firebaseSdkReady = (async ()=>{
           <select id="staffTipsEmployeeSelect"></select>
           <input type="number" id="staffTipsAmount" placeholder="Tips amount (₹)" min="0" step="1">
           <button type="button" id="staffTipsAddBtn">Add Tips</button>
+        </div>
+        <span class="addlink" id="staffTipsQuickAddLink">+ Add new employee</span>
+        <div class="inline-add-mini" id="staffTipsQuickAddBox">
+          <input type="text" id="staffTipsQuickAddName" placeholder="Employee name">
+          <input type="text" id="staffTipsQuickAddBankName" list="staffBankNameList" placeholder="Bank name (optional)">
+          <input type="text" id="staffTipsQuickAddIfsc" list="staffIfscList" placeholder="IFSC code (optional)">
+          <input type="text" id="staffTipsQuickAddAccount" placeholder="Account number (optional)">
+          <button type="button" id="staffTipsQuickAddSaveBtn">Save</button>
         </div>
         <div class="dash-empty" id="staffTipsEmpty" style="display:none;">No Waiter Tips logged for this day yet.</div>
         <div class="plain-table-wrap" id="staffTipsTableWrap"></div>
