@@ -85,7 +85,11 @@ Firebase Hosting.
   `Mobile No*`, `Gender*`, `Department Name*`, `Designation Name*`, etc.)
   so a file already maintained elsewhere can be dropped in with no
   reformatting. The directory list sits directly above "Add a new
-  employee" at the bottom of the tab.
+  employee" at the bottom of the tab, and each row keeps its collapsed
+  view deliberately minimal — just the name and a designation/department
+  tag, plus Edit/Remove — with employee ID, mobile, bank details, and
+  salary all still there and editable via Edit, just not cluttering the
+  list at a glance.
   **OT, Captain Incentive, Waiter Tips, and Staff Advance** are four
   separate lists sharing one date — each its own add-form and table, a
   flat amount per employee per entry (not hours × rate). None of them

@@ -787,12 +787,17 @@ Five tab panels, switched by `.tab-bar` buttons (`tabBtnExpenses` /
       read but has no field of its own beyond `name` (populated from
       `"Employee Name"`) — kept in the template only so the two header sets
       stay interchangeable.
-  - **Account numbers are masked in the list view** (`maskAccountNumber()`
-    — last 4 digits only, `••••1234`) as a shoulder-surfing precaution on a
-    phone in a shared kitchen/restaurant setting; full digits are still
-    shown (and editable) inside the per-employee edit form. This is a UX
-    nicety, not real protection — see the open-Firestore-rules caveat
-    below, same as everywhere else in this app.
+  - **The directory's collapsed list view was simplified 2026-10-02** to
+    just name + an optional designation/department tag + Edit/Remove —
+    employee ID, mobile/gender, bank details, and salary all used to show
+    inline (bank was masked to last-4 via `maskAccountNumber()`, now
+    deleted — unused once nothing displayed bank details in the view
+    anymore) but made the list feel dense/cluttered at a glance. All of
+    that is still there, unmasked and fully editable, inside the
+    per-employee Edit form (`buildStaffEditForm()`) — only collapsed-view
+    `buildStaffRow()` changed; the masking precaution is effectively
+    replaced by "not shown by default at all," which is more private, not
+    less.
   - **This tab introduces the most sensitive data this app stores** — real
     bank account numbers and IFSC codes, not just operational
     spend/category data. The same "soft deterrent, not real access

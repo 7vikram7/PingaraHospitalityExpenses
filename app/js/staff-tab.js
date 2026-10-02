@@ -37,11 +37,6 @@ let currentStaffList = [];
 function getStaffActiveRestaurantId(){
   return isOwnerProfile() ? (staffRestaurantId || RESTAURANTS[0].id) : currentRestaurantId;
 }
-function maskAccountNumber(acc){
-  if(!acc) return '—';
-  const s = String(acc);
-  return s.length <= 4 ? s : '••••' + s.slice(-4);
-}
 
 /* ---------- Restaurant selector (owner only) ---------- */
 function renderStaffRestaurantSelect(){
@@ -116,29 +111,20 @@ function buildStaffRow(emp, onChange){
   const nameEl = document.createElement('span');
   nameEl.className = 'msr-name';
   nameEl.textContent = emp.name;
+  view.appendChild(nameEl);
 
-  const idEl = document.createElement('span');
-  idEl.className = emp.employeeId ? 'msr-cat' : 'msr-cat missing';
-  idEl.textContent = emp.employeeId ? ('ID ' + emp.employeeId) : 'No employee ID';
-
-  const roleEl = document.createElement('span');
+  // Deliberately minimal (simplified 2026-10-02 -- full detail moved to Edit
+  // only): just name + an optional role tag so the list reads as a quick
+  // glance, not a dense data dump. Employee ID, mobile/gender, bank details,
+  // and salary are all still editable via buildStaffEditForm below -- just
+  // not shown here anymore.
   const roleText = [emp.designation, emp.department].filter(Boolean).join(' · ');
-  roleEl.className = roleText ? 'msr-cat' : 'msr-cat missing';
-  roleEl.textContent = roleText || 'No designation/department set';
-
-  const mobileEl = document.createElement('span');
-  mobileEl.className = emp.mobile ? 'msr-cat' : 'msr-cat missing';
-  mobileEl.textContent = emp.mobile ? ('Mobile ' + emp.mobile + (emp.gender ? ' • ' + emp.gender : '')) : (emp.gender || 'No mobile/gender set');
-
-  const bankEl = document.createElement('span');
-  bankEl.className = emp.bankName ? 'msr-cat' : 'msr-cat missing';
-  bankEl.textContent = emp.bankName
-    ? `${emp.bankName}${emp.bankBranch ? ' (' + emp.bankBranch + ')' : ''} • ${maskAccountNumber(emp.accountNumber)} • ${emp.ifscCode || '—'}`
-    : 'No bank details set';
-
-  const salaryEl = document.createElement('span');
-  salaryEl.className = 'msr-cat';
-  salaryEl.textContent = 'Salary ' + fmtMoney(emp.salary || 0);
+  if(roleText){
+    const roleEl = document.createElement('span');
+    roleEl.className = 'msr-cat';
+    roleEl.textContent = roleText;
+    view.appendChild(roleEl);
+  }
 
   const editBtn = document.createElement('button');
   editBtn.type = 'button'; editBtn.className = 'msr-edit-btn'; editBtn.textContent = 'Edit';
@@ -146,8 +132,6 @@ function buildStaffRow(emp, onChange){
   const deleteBtn = document.createElement('button');
   deleteBtn.type = 'button'; deleteBtn.className = 'msr-delete-btn'; deleteBtn.textContent = 'Remove';
 
-  view.appendChild(nameEl); view.appendChild(idEl); view.appendChild(roleEl); view.appendChild(mobileEl);
-  view.appendChild(bankEl); view.appendChild(salaryEl);
   view.appendChild(editBtn); view.appendChild(deleteBtn);
   row.appendChild(view);
 
