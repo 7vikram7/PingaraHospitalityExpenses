@@ -90,14 +90,18 @@ Firebase Hosting.
   separate lists sharing one date — each its own add-form and table, a
   flat amount per employee per entry (not hours × rate). None of them
   track a paid/unpaid status — that concept doesn't exist anywhere in this
-  tab. Each list only offers employees who've been explicitly added to
-  *that* list — not every restaurant employee needs OT, or is a captain,
-  or is a waiter — via a "Manage employees in this list" control right
-  there in the section (pick from the restaurant's full staff directory,
-  no limit on how many lists one employee belongs to). This never creates
-  a new employee, only assigns/unassigns an existing one — the directory's
-  own add form or bulk upload is still the one place a new employee is
-  actually created. Each list can also be **submitted** independently for
+  tab. OT, Captain Incentive, and Waiter Tips only offer employees who've
+  been explicitly added to *that* list — not every restaurant employee
+  needs OT, or is a captain, or is a waiter — via a "Manage employees in
+  this list" control right there in the section (pick from the
+  restaurant's full staff directory, no limit on how many lists one
+  employee belongs to). This never creates a new employee, only
+  assigns/unassigns an existing one — the directory's own add form or bulk
+  upload is still the one place a new employee is actually created. Staff
+  Advance is the one exception — it has no such list/roster at all, since
+  any employee can take an advance; its dropdown always offers everyone
+  currently in the directory, with nothing to assign first. Each list can
+  also be **submitted** independently for
   the day — "Submit OT for this day" etc. — which locks it permanently for
   the Manager profile (no more adding, editing, or deleting entries for
   that list/date); the Owner profile is never restricted and is the only

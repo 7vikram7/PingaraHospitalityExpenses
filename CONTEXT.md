@@ -693,14 +693,13 @@ Five tab panels, switched by `.tab-bar` buttons (`tabBtnExpenses` /
       — no migration was needed or performed.
     - **Staff Advance added as a fourth list, same day**: reuses the exact
       same `STAFF_DAILY_TYPES`-parameterized machinery as OT/Incentive/
-      Tips (own roster/"Manage employees in this list", own add-form,
-      own table, own independent submit/lock) — adding it was a matter of
-      appending one more config object to `STAFF_DAILY_TYPES` plus one
-      more markup block in index.html; every render/add/submit function
-      already iterates the array generically, so nothing else needed
-      changing. Entries use `type: 'advance'` in the same
-      `rest:<id>:ot:<YYYY-MM>` collection as the other three (no new
-      Firestore key). Deliberately **excluded from the Combined
+      Tips (own add-form, own table, own independent submit/lock) —
+      adding it was a matter of appending one more config object to
+      `STAFF_DAILY_TYPES` plus one more markup block in index.html; every
+      render/add/submit function already iterates the array generically,
+      so nothing else needed changing. Entries use `type: 'advance'` in
+      the same `rest:<id>:ot:<YYYY-MM>` collection as the other three (no
+      new Firestore key). Deliberately **excluded from the Combined
       OT/Incentive/Tips report** — an advance is money already paid out
       to an employee, not a future payout to calculate, so summing it
       alongside OT/Incentive/Tips into one "Total" would overstate what's
@@ -708,6 +707,25 @@ Five tab panels, switched by `.tab-bar` buttons (`tabBtnExpenses` /
       `type === 'advance'` entries before they're even added to the
       per-employee totals object, so an employee with only an advance in
       range doesn't show up as a bogus all-zero report row either.
+    - **Unlike OT/Incentive/Tips, Staff Advance has NO roster of its own**
+      (corrected the same day, right after it first shipped with one by
+      default via the shared `STAFF_DAILY_TYPES` machinery above) — "any
+      one can take advances," not just whoever happens to be assigned to
+      a pay-type list. Its config object in `STAFF_DAILY_TYPES` carries
+      `allEmployees: true` and omits `rosterChipsId`/`manageLinkId`/
+      `manageBoxId`/`manageListId`/`manageSaveBtnId`/`manageCancelBtnId`
+      entirely (and index.html has no roster-chips/manage-box markup for
+      it either) — `renderStaffDailyEmployeeSelects()` checks
+      `cfg.allEmployees` and lists the full `currentStaffList` instead of
+      filtering by `employeeInHead()`, `renderHeadRoster()` returns
+      immediately when `cfg.rosterChipsId` is missing, and the
+      `manageLinkId`/`manageSaveBtnId`/etc. click-wiring loop filters to
+      only configs that actually have a `manageLinkId` before attaching
+      listeners (`document.getElementById(undefined)` would otherwise
+      throw for Advance). A brand-new employee — even one from a bulk
+      upload that moment — is immediately selectable for an advance, no
+      assignment step, while still needing explicit roster assignment for
+      OT/Incentive/Tips as before.
   - **Combined OT/Incentive/Tips report** (added 2026-10-02,
     `downloadStaffCombinedReport()`) — a From/To date-range picker above a
     "Download combined report (CSV)" button (originally also had an

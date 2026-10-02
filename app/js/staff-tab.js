@@ -482,12 +482,17 @@ function staffOtTypeLabel(type){ return STAFF_OT_TYPE_LABELS[type] || STAFF_OT_T
 // renderStaffPanel()), filtered further to whoever is on THIS head's own
 // roster (emp.heads, an array of type codes stored right on the employee
 // record — added 2026-10-02 so not every restaurant employee clutters
-// every list; e.g. only kitchen staff need to show under OT). These lists
-// still deliberately do NOT offer a way to CREATE a brand new employee of
-// their own (tried briefly, removed 2026-10-02) — staff only get added via
-// the one real directory (the Staff section's own add form / bulk upload);
-// "Manage employees in this list" here only assigns/unassigns EXISTING
-// employees to/from this head, it never creates one.
+// every list; e.g. only kitchen staff need to show under OT) -- EXCEPT
+// Staff Advance, which deliberately has no roster/"Manage employees in
+// this list" of its own (no rosterChipsId/manageLinkId/etc on its config
+// below) and always offers every current employee, since any staff member
+// can take an advance, not just whoever happens to be assigned to a daily
+// pay-type list. These lists still deliberately do NOT offer a way to
+// CREATE a brand new employee of their own (tried briefly, removed
+// 2026-10-02) — staff only get added via the one real directory (the
+// Staff section's own add form / bulk upload); "Manage employees in this
+// list" here only assigns/unassigns EXISTING employees to/from a head, it
+// never creates one.
 const STAFF_DAILY_TYPES = [
   { type: 'ot', label: 'OT',
     employeeSelectId: 'staffOtEmployeeSelect', amountId: 'staffOtAmount', addBtnId: 'staffOtAddBtn',
@@ -507,11 +512,9 @@ const STAFF_DAILY_TYPES = [
     rosterChipsId: 'staffTipsRosterChips', manageLinkId: 'staffTipsManageLink', manageBoxId: 'staffTipsManageBox',
     manageListId: 'staffTipsManageList', manageSaveBtnId: 'staffTipsManageSaveBtn', manageCancelBtnId: 'staffTipsManageCancelBtn',
     submitBtnId: 'staffTipsSubmitBtn', submitBadgeId: 'staffTipsSubmitBadge' },
-  { type: 'advance', label: 'Staff Advance',
+  { type: 'advance', label: 'Staff Advance', allEmployees: true,
     employeeSelectId: 'staffAdvanceEmployeeSelect', amountId: 'staffAdvanceAmount', addBtnId: 'staffAdvanceAddBtn',
     tableWrapId: 'staffAdvanceTableWrap', emptyId: 'staffAdvanceEmpty',
-    rosterChipsId: 'staffAdvanceRosterChips', manageLinkId: 'staffAdvanceManageLink', manageBoxId: 'staffAdvanceManageBox',
-    manageListId: 'staffAdvanceManageList', manageSaveBtnId: 'staffAdvanceManageSaveBtn', manageCancelBtnId: 'staffAdvanceManageCancelBtn',
     submitBtnId: 'staffAdvanceSubmitBtn', submitBadgeId: 'staffAdvanceSubmitBadge' }
 ];
 function employeeInHead(emp, type){ return (emp.heads || []).includes(type); }
@@ -519,9 +522,10 @@ function renderStaffDailyEmployeeSelects(){
   STAFF_DAILY_TYPES.forEach(cfg=>{
     const sel = document.getElementById(cfg.employeeSelectId);
     const prev = sel.value;
-    const members = currentStaffList.filter(e => employeeInHead(e, cfg.type));
+    const members = cfg.allEmployees ? currentStaffList : currentStaffList.filter(e => employeeInHead(e, cfg.type));
+    const emptyText = cfg.allEmployees ? 'No staff added yet' : 'No employees in this list yet — add some above';
     sel.innerHTML = members.length === 0
-      ? '<option value="">No employees in this list yet — add some above</option>'
+      ? `<option value="">${emptyText}</option>`
       : '<option value="">Select employee…</option>';
     [...members].sort((a,b)=>a.name.localeCompare(b.name)).forEach(emp=>{
       const opt = document.createElement('option');
@@ -535,6 +539,7 @@ function renderStaffDailyEmployeeSelects(){
 /* ---------- Per-head employee roster: who's in OT / Captain Incentive /
    Waiter Tips (added 2026-10-02) ---------- */
 function renderHeadRoster(cfg){
+  if(!cfg.rosterChipsId) return; // e.g. Staff Advance -- no roster, every employee is always eligible
   const chipsEl = document.getElementById(cfg.rosterChipsId);
   chipsEl.innerHTML = "";
   const members = currentStaffList.filter(e => employeeInHead(e, cfg.type)).sort((a,b)=>a.name.localeCompare(b.name));
@@ -588,7 +593,7 @@ function renderHeadManageChecklist(cfg){
     listEl.appendChild(label);
   });
 }
-STAFF_DAILY_TYPES.forEach(cfg=>{
+STAFF_DAILY_TYPES.filter(cfg => cfg.manageLinkId).forEach(cfg=>{
   document.getElementById(cfg.manageLinkId).addEventListener('click', ()=>{
     const box = document.getElementById(cfg.manageBoxId);
     const opening = !box.classList.contains('open');
