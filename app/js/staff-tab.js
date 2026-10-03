@@ -74,6 +74,7 @@ async function renderStaffPanel(){
   renderStaffDailyEmployeeSelects();
   renderAllHeadRosters();
   await renderAllStaffDailyTables();
+  await renderStaffReportSummary();
   await renderStaffSalaryTable();
 }
 
@@ -657,6 +658,7 @@ async function renderStaffDailyTable(cfg){
       if(!confirm(`Delete this ${staffOtTypeLabel(e.type)} entry for ${e.employeeName}?`)) return;
       await deleteOTEntry(restId, staffOtSelectedDate, e.id);
       await renderStaffDailyTable(cfg);
+      if(cfg.type !== 'advance') await renderStaffReportSummary();
     });
     tdDel.appendChild(delBtn);
 
@@ -684,6 +686,7 @@ STAFF_DAILY_TYPES.forEach(cfg=>{
     await addOTEntry(restId, staffOtSelectedDate, emp.id, emp.name, amount, cfg.type);
     amountInput.value = "";
     await renderStaffDailyTable(cfg);
+    if(cfg.type !== 'advance') await renderStaffReportSummary();
   });
   document.getElementById(cfg.submitBtnId).addEventListener('click', async ()=>{
     const restId = getStaffActiveRestaurantId();
@@ -705,24 +708,24 @@ document.getElementById('staffOtPrevDay').addEventListener('click', ()=> setStaf
 document.getElementById('staffOtNextDay').addEventListener('click', ()=> setStaffOtDate(addDaysStr(staffOtSelectedDate, 1)));
 
 /* ---------- Combined OT/Incentive/Tips report (added 2026-10-02) ----------
-   One CSV row per employee with at least one qualifying entry in the date
-   range, combining their bank details (from the staff directory, not the
-   entries themselves) with per-type totals -- a payment-ready sheet for
-   whenever the owner needs to actually process these payouts. */
+   An on-screen summary (added 2026-10-03) plus a CSV download, both over
+   the same From/To range -- defaults to yesterday (staffReportDefaultDates)
+   rather than month-to-date, since "what did we pay out yesterday" is the
+   more common quick check; the date inputs stay freely editable for any
+   other range. The CSV adds one row per employee with at least one
+   qualifying entry, combining their bank details (from the staff
+   directory, not the entries themselves) with per-type totals -- a
+   payment-ready sheet for whenever the owner needs to actually process
+   these payouts. Both share computeStaffReportTotals() so the on-screen
+   numbers and the downloaded file can never disagree. */
 function staffReportDefaultDates(){
   const fromEl = document.getElementById('staffReportFrom');
   const toEl = document.getElementById('staffReportTo');
-  if(!fromEl.value) fromEl.value = todayStr().slice(0,8) + '01'; // 1st of this month
-  if(!toEl.value) toEl.value = todayStr();
+  const yesterday = addDaysStr(todayStr(), -1);
+  if(!fromEl.value) fromEl.value = yesterday;
+  if(!toEl.value) toEl.value = yesterday;
 }
-async function downloadStaffCombinedReport(){
-  const restId = getStaffActiveRestaurantId();
-  const from = document.getElementById('staffReportFrom').value;
-  const to = document.getElementById('staffReportTo').value;
-  if(!from || !to || from > to){
-    alert("Pick a valid From and To date first.");
-    return;
-  }
+async function computeStaffReportTotals(restId, from, to){
   const totals = {}; // employeeId -> {name, ot, captain_incentive, waiter_tips}
   for(const mk of monthsBetween(from, to)){
     const month = await loadOTMonth(restId, mk);
@@ -736,6 +739,42 @@ async function downloadStaffCombinedReport(){
       });
     });
   }
+  return totals;
+}
+async function renderStaffReportSummary(){
+  const otEl = document.getElementById('staffReportSummaryOt');
+  const incEl = document.getElementById('staffReportSummaryIncentive');
+  const tipsEl = document.getElementById('staffReportSummaryTips');
+  const totalEl = document.getElementById('staffReportSummaryTotal');
+  const emptyEl = document.getElementById('staffReportSummaryEmpty');
+  const from = document.getElementById('staffReportFrom').value;
+  const to = document.getElementById('staffReportTo').value;
+  if(!from || !to || from > to){
+    otEl.textContent = incEl.textContent = tipsEl.textContent = totalEl.textContent = '—';
+    emptyEl.style.display = 'none';
+    return;
+  }
+  const restId = getStaffActiveRestaurantId();
+  const totals = await computeStaffReportTotals(restId, from, to);
+  let ot = 0, inc = 0, tips = 0;
+  Object.values(totals).forEach(t=>{ ot += t.ot; inc += t.captain_incentive; tips += t.waiter_tips; });
+  otEl.textContent = fmtMoney(ot);
+  incEl.textContent = fmtMoney(inc);
+  tipsEl.textContent = fmtMoney(tips);
+  totalEl.textContent = fmtMoney(ot + inc + tips);
+  emptyEl.style.display = Object.keys(totals).length === 0 ? 'block' : 'none';
+}
+document.getElementById('staffReportFrom').addEventListener('change', renderStaffReportSummary);
+document.getElementById('staffReportTo').addEventListener('change', renderStaffReportSummary);
+async function downloadStaffCombinedReport(){
+  const restId = getStaffActiveRestaurantId();
+  const from = document.getElementById('staffReportFrom').value;
+  const to = document.getElementById('staffReportTo').value;
+  if(!from || !to || from > to){
+    alert("Pick a valid From and To date first.");
+    return;
+  }
+  const totals = await computeStaffReportTotals(restId, from, to);
 
   const employeeIds = Object.keys(totals);
   if(employeeIds.length === 0){

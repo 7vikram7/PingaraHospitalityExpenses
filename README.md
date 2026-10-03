@@ -114,13 +114,17 @@ Firebase Hosting.
   memberships, submission status, and salary records are fully independent
   of every other restaurant's — switching the restaurant selector never
   carries data over.
-  A **combined report** downloads a payment-ready CSV for a date range —
-  one row per employee with their bank name/branch/account/IFSC plus
-  OT/Incentive/Tips totals for processing actual payouts (Staff Advance
-  isn't part of this report — an advance is money already given, not a
-  payout to calculate). Monthly salary tracking also exists (pre-filled
-  from each employee's default, editable per month) but its section is
-  currently hidden from the UI (not removed — just not needed right now).
+  The **combined OT/Incentive/Tips report** section shows a live on-screen
+  summary (OT, Captain Incentive, Waiter Tips, and a grand total) for a
+  From/To date range that defaults to **yesterday** — change either date
+  and the summary updates immediately, no extra button needed. The same
+  range also drives a payment-ready CSV download — one row per employee
+  with their bank name/branch/account/IFSC plus the per-type totals
+  (Staff Advance isn't part of this report — an advance is money already
+  given, not a payout to calculate). Monthly salary tracking also exists
+  (pre-filled from each employee's default, editable per month) but its
+  section is currently hidden from the UI (not removed — just not needed
+  right now).
 - **Offline-first**: every write lands in `localStorage` immediately and
   syncs to Firestore in the background, so a flaky connection never blocks
   data entry

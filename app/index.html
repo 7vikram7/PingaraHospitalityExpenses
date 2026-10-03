@@ -694,15 +694,34 @@ window.__firebaseSdkReady = (async ()=>{
 
       <section class="manage-section">
         <h3>Combined OT, Incentive &amp; Tips report</h3>
-        <p class="sup-tab-note">Download a payment-ready sheet for the restaurant selected above — one row per
-          employee with their bank details plus OT/Incentive/Tips totals for the date range, for whenever you
-          need to process payments.</p>
+        <p class="sup-tab-note">Summary for the restaurant selected above — defaults to yesterday, or pick
+          any date range below. Download a payment-ready CSV with each employee's bank details for
+          processing payments whenever you need to.</p>
         <div class="date-control">
           <span class="toolbar-label">From</span>
           <input type="date" id="staffReportFrom">
           <span class="toolbar-label">To</span>
           <input type="date" id="staffReportTo">
         </div>
+        <div class="dash-hero-row">
+          <div class="dash-hero">
+            <div class="dash-hero-label">OT</div>
+            <div class="dash-hero-value" id="staffReportSummaryOt">₹0.00</div>
+          </div>
+          <div class="dash-hero">
+            <div class="dash-hero-label">Captain Incentive</div>
+            <div class="dash-hero-value" id="staffReportSummaryIncentive">₹0.00</div>
+          </div>
+          <div class="dash-hero">
+            <div class="dash-hero-label">Waiter Tips</div>
+            <div class="dash-hero-value" id="staffReportSummaryTips">₹0.00</div>
+          </div>
+          <div class="dash-hero">
+            <div class="dash-hero-label">Total</div>
+            <div class="dash-hero-value" id="staffReportSummaryTotal">₹0.00</div>
+          </div>
+        </div>
+        <div class="dash-empty" id="staffReportSummaryEmpty" style="display:none;">No OT/Incentive/Tips entries for this date range yet.</div>
         <button type="button" class="history-btn" id="staffReportDownloadBtn">Download combined report (CSV)</button>
       </section>
 

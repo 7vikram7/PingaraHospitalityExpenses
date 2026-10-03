@@ -745,6 +745,26 @@ Five tab panels, switched by `.tab-bar` buttons (`tabBtnExpenses` /
     directory. Plain CSV via the same `Blob`+`URL.createObjectURL`+
     `csvEscape()` pattern `excel-export.js`'s `downloadCsv()` and the
     bulk-upload template already use.
+    - **On-screen summary added 2026-10-03** (`renderStaffReportSummary()`)
+      — four `.dash-hero` stat cards (OT / Captain Incentive / Waiter Tips
+      / Total, same visual pattern as the Reports tab's Total
+      sales/expenses/profit cards) above the download button, so checking
+      "what did we pay out" doesn't require downloading a CSV first. The
+      totals-scanning logic was factored out of
+      `downloadStaffCombinedReport()` into a shared
+      `computeStaffReportTotals(restId, from, to)` so the on-screen
+      numbers and the downloaded file read from exactly the same
+      computation and can never disagree. `staffReportDefaultDates()` now
+      defaults From/To to **yesterday** (`addDaysStr(todayStr(), -1)`)
+      instead of the 1st-of-month-to-today it used before — "what did we
+      pay out yesterday" is the more common quick check, and this also
+      narrows the default CSV range to match; the date inputs stay freely
+      editable for any other range. The summary re-renders on: the date
+      inputs' `change` event, every `renderStaffPanel()` call (tab open,
+      restaurant switch), and every OT/Captain Incentive/Waiter Tips
+      add/delete (deliberately skipped for Staff Advance adds/deletes,
+      since Advance never counts toward this summary either) — so it's
+      never stale after an action that could change it.
   - **Monthly salary** (hidden from the UI 2026-10-02 via `display:none` on
     its `<section>` — "not required right now," not removed; the data
     model, `renderStaffSalaryTable()`, and all its Firestore reads/writes
