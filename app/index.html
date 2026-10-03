@@ -297,7 +297,7 @@ window.__firebaseSdkReady = (async ()=>{
     <div class="led-label">Unpaid</div>
     <div class="led-value red small" id="ledUnpaid">₹0.00</div>
   </div>
-  <div class="led-cell">
+  <div class="led-cell" id="ledSalesCell">
     <div class="led-label">Sales</div>
     <div class="led-value small" id="ledSales">—</div>
   </div>
@@ -307,7 +307,7 @@ window.__firebaseSdkReady = (async ()=>{
   <form class="quick-add" id="quickAddForm" autocomplete="off">
     <div class="quick-add-head">
       <p class="quick-add-title">Add a bill <span class="count-hint">— pick a supplier, its category fills in automatically</span></p>
-      <div class="sales-inline">
+      <div class="sales-inline" id="salesInlineSection">
         <label for="salesInput">Sales for this day (₹)</label>
         <input type="number" id="salesInput" step="0.01" min="0" placeholder="0.00">
         <button type="button" id="saveSalesBtn">Save</button>
@@ -427,7 +427,7 @@ window.__firebaseSdkReady = (async ()=>{
 
         <div id="dashSingleView">
           <div class="dash-hero-row">
-            <div class="dash-hero">
+            <div class="dash-hero" id="dashHeroSales">
               <div class="dash-hero-label">Total sales</div>
               <div class="dash-hero-value" id="dashTotalSales">₹0.00</div>
             </div>
@@ -435,11 +435,11 @@ window.__firebaseSdkReady = (async ()=>{
               <div class="dash-hero-label">Total expenses</div>
               <div class="dash-hero-value" id="dashTotalExpenses">₹0.00</div>
             </div>
-            <div class="dash-hero">
+            <div class="dash-hero" id="dashHeroProfit">
               <div class="dash-hero-label">Profit</div>
               <div class="dash-hero-value" id="dashTotalProfit">₹0.00</div>
             </div>
-            <div class="dash-hero">
+            <div class="dash-hero" id="dashHeroProfitPct">
               <div class="dash-hero-label">Profit %</div>
               <div class="dash-hero-value" id="dashTotalProfitPct">—</div>
             </div>

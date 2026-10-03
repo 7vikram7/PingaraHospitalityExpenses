@@ -180,9 +180,12 @@ text directly, since this path (unlike the old gate-confirm flow) doesn't
 pass back through `showConfirmedRestaurant()` to refresh it.
 
 **Tab visibility by profile** (`updateTabVisibilityForProfile()` in
-auth.js): a Manager only ever sees the "Add Expenses" tab button — Reports
-and Vendor Ledger buttons are `display:none`, not just password-gated, so
-they're not just locked but not even visible. An Owner sees all three.
+auth.js): a normal Manager only ever sees "Add Expenses" and "Staff
+Expenses" — Reports, Vendor Ledger, and Suppliers buttons are
+`display:none`, not just password-gated, so they're not just locked but
+not even visible. An Owner sees every tab. (See "Central Kitchen: elevated
+Manager profile" below for the one Manager login that also gets the
+Owner-level set.)
 
 **"Once the owner logs in, no other passwords are required" applies
 app-wide**, not just to the tabs — `billWithinModifyWindow()` (core.js) and
@@ -193,6 +196,107 @@ than the 1-hour window. A Manager still sees those prompts normally — that's
 a per-action escalation (type the owner password to override just this one
 edit), a separate concept from the profile login itself, deliberately left
 as-is.
+
+## Central Kitchen: elevated Manager profile (added 2026-10-03)
+A specific real-world need — the Central Kitchen location needed broad
+visibility (Owner-level) but not the right to alter financial records, and
+shouldn't see sales — led to a third tier between Owner and Manager,
+implemented as a **special case of the Manager login**, not a new
+`profileType` value. Detection is purely "is this a non-owner session whose
+`unlockedRestaurantId` is `central-kitchen`" (`isCentralKitchenProfile()`,
+core.js) — robust across restaurant-selector changes within Reports/Staff
+(which don't touch `unlockedRestaurantId`), and automatically inert on
+tenants without that restaurant (e.g. RK Twelve21), so no tenant-config
+guard was needed.
+
+**Three new core.js helpers, each named for exactly what they gate** (kept
+separate rather than one catch-all flag, since each maps to a distinct,
+independently-requested right):
+- `hasElevatedAccess()` = `isOwnerProfile() || isCentralKitchenProfile()` —
+  cross-restaurant visibility into Reports/Vendor Ledger/Suppliers/Staff
+  Expenses.
+- `canSeeSalesData()` = `!isCentralKitchenProfile()` — gates the Sales input
+  in Add Expenses, the ledger strip's Sales figure, and Reports' Sales/
+  Profit/Profit % (Profit is hidden alongside Sales, not just Sales itself,
+  since Expenses + Profit would let Sales be back-calculated).
+- `canEditExistingRecords()` = `!isCentralKitchenProfile()` — gates the
+  Modify-bill button (ledger-ui.js's `renderTable()`, plus a defense-in-depth
+  check in the click handler in reports-dashboard.js) and the Suppliers
+  tab/modal's Edit button (suppliers-ui.js's `buildManageSupplierRow()`,
+  shared by both surfaces). Both are "can't change an EXISTING record,"
+  whether that's a bill's amount or a supplier's category default
+  (retroactively re-tags every past bill) — one flag covers both since
+  they're the same restriction for this profile. Adding new bills, new
+  suppliers, and all Staff Expenses entry (including editing existing staff
+  records) were explicitly requested as unrestricted, so none of those check
+  this flag. Paid/unpaid toggling and Delete (bills and suppliers) were also
+  left unrestricted — not explicitly asked to be locked, so left as-is per
+  this project's "only restrict what's actually named" convention.
+
+**Where each gate actually plugs in:**
+- `updateTabVisibilityForProfile()` (auth.js): Reports/Ledger/Suppliers tab
+  buttons and the Staff tab's restaurant selector now check `hasElevatedAccess()`
+  instead of `isOwnerProfile()`; `expensesRestaurantControl` (Add Expenses'
+  owner-only in-toolbar selector) and `restaurantChangeBtn` stay keyed to
+  `owner` only, deliberately — Central Kitchen's own bill-entry stays scoped
+  to Central Kitchen specifically, same restaurant-gate boundary as any other
+  Manager; only Reports/Ledger/Suppliers/Staff go cross-restaurant. Also
+  toggles `salesInlineSection`/`ledSalesCell` per `canSeeSalesData()`.
+  **Had to add a second call to this function** inside `restaurantConfirmBtn`'s
+  click handler (it previously only ran once, from `profileChooseManager`'s
+  handler, before any restaurant — and therefore elevation — was known) —
+  caught immediately by testing the real login click-through rather than the
+  evaluate()-based profile bypass used elsewhere in this test suite; the
+  bypass pattern would have masked this bug since it sets state directly
+  rather than going through the actual handlers.
+- `reportsUnlocked()` (reports-dashboard.js, shared by Reports and Vendor
+  Ledger): short-circuits true for `isCentralKitchenProfile()`, since this
+  profile never learns the Owner's Reports password. Checked dynamically
+  rather than setting the unlock flag at login time, so it's correct even
+  for a session that was already logged in before this feature shipped.
+- `getStaffActiveRestaurantId()`/`showStaffTabPanel()`/`staffCanEditDaily()`
+  (staff-tab.js): all switched from `isOwnerProfile()` to `hasElevatedAccess()`
+  so Central Kitchen gets the Staff tab's cross-restaurant selector and is
+  never locked out by another list's submit/lock, exactly like Owner.
+- `renderDashboard()`/`buildDashCompareCol()` (reports-dashboard.js): hide
+  the Sales/Profit/Profit % hero cards, the bar/pie chart (which plots
+  sales-vs-expenses per restaurant) and its type-toggle buttons, and the
+  "no sales yet" empty state, all behind `canSeeSalesData()` — the
+  expense-only category breakdown table (and compare-view's Expenses stat)
+  stay visible regardless, since that data doesn't involve sales at all.
+  Rewriting the chart itself into an expenses-only visualization was
+  considered and rejected as unnecessary engineering risk for a dashboard
+  this data-dense; hiding it outright was the safer, explicitly-correct
+  reading of "strip sales everywhere."
+
+**Clarified via questions before building** (per the collaboration-style
+convention — several genuinely ambiguous, consequential calls in one
+request): cross-restaurant scope (yes, full Owner-level, not just Central
+Kitchen's own data), exactly what "don't modify numbers" covers (bill
+amounts + supplier categories, not Staff Expenses entry which was a
+separate explicit grant), how far "no sales" goes (Reports too, not just
+the Add Expenses field), and whether new-bill-entry stays available (yes).
+
+**Password**: changed the same day, from the earlier opaque default to
+`central@6699` (SHA-256 hash in `app/tenants/pingara.js`'s
+`TENANT_RESTAURANT_PASSWORD_HASH`) — same soft-deterrent model as every
+other restaurant password, computed with Node's `crypto` module and
+verified via a real login click-through in the test suite, not just a
+hash-string comparison.
+
+Verified with a dedicated Playwright test (`test_central_kitchen_profile.js`,
+35/35, via the real login UI — profile choice, restaurant-gate dropdown,
+actual new password — not the `setUnlockedRestaurantId()` evaluate()
+shortcut used elsewhere, specifically because that shortcut would have
+hidden the `updateTabVisibilityForProfile()` timing bug above): every tab
+visible, sales hidden in both Add Expenses and Reports (single + compare
+views), Modify hidden but toggle/add/delete all still work, Suppliers
+Edit hidden but add/remove work, Vendor Ledger/Reports fully functional
+cross-restaurant with no password prompt, Staff Expenses usable for a
+restaurant other than Central Kitchen itself. A second test
+(`test_other_profiles_unaffected.js`, 15/15) confirmed real Owner and a
+normal (non-Central-Kitchen) Manager session are both completely
+unchanged, plus the full pre-existing staff/supplier suite re-run clean.
 
 ## Mobile: PWA install + phone-width layout (added 2026-08-28)
 Prompted by "this is mostly used on mobile" — two separate pieces:

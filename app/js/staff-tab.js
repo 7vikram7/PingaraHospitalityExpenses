@@ -35,10 +35,10 @@ let staffSalaryMonth;
 let currentStaffList = [];
 
 function getStaffActiveRestaurantId(){
-  return isOwnerProfile() ? (staffRestaurantId || RESTAURANTS[0].id) : currentRestaurantId;
+  return hasElevatedAccess() ? (staffRestaurantId || RESTAURANTS[0].id) : currentRestaurantId;
 }
 
-/* ---------- Restaurant selector (owner only) ---------- */
+/* ---------- Restaurant selector (owner + Central Kitchen) ---------- */
 function renderStaffRestaurantSelect(){
   const sel = document.getElementById('staffRestaurantSelect');
   const prev = sel.value || staffRestaurantId;
@@ -58,7 +58,7 @@ document.getElementById('staffRestaurantSelect').addEventListener('change', (ev)
 
 /* ---------- Entry point + master render ---------- */
 async function showStaffTabPanel(){
-  if(isOwnerProfile()) renderStaffRestaurantSelect();
+  if(hasElevatedAccess()) renderStaffRestaurantSelect();
   if(staffOtSelectedDate === undefined) staffOtSelectedDate = todayStr();
   if(staffSalaryMonth === undefined) staffSalaryMonth = todayStr().slice(0,7);
   document.getElementById('staffOtDatePicker').value = staffOtSelectedDate;
@@ -604,11 +604,12 @@ STAFF_DAILY_TYPES.filter(cfg => cfg.manageLinkId).forEach(cfg=>{
     document.getElementById(cfg.manageBoxId).classList.remove('open');
   });
 });
-// Once a (date, type) is submitted, only the Owner profile can still add,
-// edit, or delete entries for it -- Manager loses all of that, permanently,
-// with no in-app unlock (see data-store.js's note on otSubmissionKeyFor).
-// isOwnerProfile() always wins regardless of the flag.
-function staffCanEditDaily(submitted){ return isOwnerProfile() || !submitted; }
+// Once a (date, type) is submitted, only Owner or Central Kitchen (both via
+// hasElevatedAccess() -- the latter was granted full cross-restaurant Staff
+// Expenses rights, see core.js) can still add, edit, or delete entries for
+// it -- a normal Manager loses all of that, permanently, with no in-app
+// unlock (see data-store.js's note on otSubmissionKeyFor).
+function staffCanEditDaily(submitted){ return hasElevatedAccess() || !submitted; }
 async function renderStaffDailyTable(cfg){
   const restId = getStaffActiveRestaurantId();
   const monthKey = staffOtSelectedDate.slice(0,7);
@@ -626,8 +627,8 @@ async function renderStaffDailyTable(cfg){
   submitBtn.style.display = submitted ? 'none' : '';
   if(submitted){
     submitBadge.style.display = '';
-    submitBadge.textContent = isOwnerProfile()
-      ? `✓ Submitted — locked for Manager, still editable by you (Owner)`
+    submitBadge.textContent = hasElevatedAccess()
+      ? `✓ Submitted — locked for Manager, still editable by you`
       : `✓ Submitted — locked. Contact the Owner for any changes.`;
   }else{
     submitBadge.style.display = 'none';

@@ -10,6 +10,11 @@ const REPORTS_PASSWORD_HASH = TENANT_REPORTS_PASSWORD_HASH;
 const REPORTS_UNLOCK_KEY = "reportsUnlockedSession";
 
 function reportsUnlocked(){
+  // Central Kitchen (added 2026-10-03) never learns the Owner's Reports
+  // password, so it's auto-unlocked for that profile rather than relying on
+  // the stored key -- robust across every session, not just ones where the
+  // restaurant-gate login flow happened to run after this feature shipped.
+  if(isCentralKitchenProfile()) return true;
   try{ return localStorage.getItem(REPORTS_UNLOCK_KEY) === '1'; }catch(e){ return false; }
 }
 function showReportsPanel(){
@@ -669,12 +674,18 @@ function buildDashCompareCol(month, data){
     cell.appendChild(lbl); cell.appendChild(val);
     return cell;
   };
-  stats.appendChild(mkStat('Sales', fmtMoney(data.totalSales)));
+  // Sales/Profit/Profit % skipped entirely for Central Kitchen (same
+  // canSeeSalesData() rule as the single view above) -- just Expenses.
+  if(canSeeSalesData()){
+    stats.appendChild(mkStat('Sales', fmtMoney(data.totalSales)));
+  }
   stats.appendChild(mkStat('Expenses', fmtMoney(data.totalExpenses)));
-  stats.appendChild(mkStat('Profit', fmtMoney(data.totalProfit), data.totalProfit < 0 ? 'negative' : data.totalProfit > 0 ? 'positive' : ''));
-  const profitPctText = data.totalSales > 0 ? (data.totalProfit / data.totalSales * 100).toFixed(1) + '%' : '—';
-  const profitPctCls = data.totalSales > 0 ? (data.totalProfit < 0 ? 'negative' : 'positive') : '';
-  stats.appendChild(mkStat('Profit %', profitPctText, profitPctCls));
+  if(canSeeSalesData()){
+    stats.appendChild(mkStat('Profit', fmtMoney(data.totalProfit), data.totalProfit < 0 ? 'negative' : data.totalProfit > 0 ? 'positive' : ''));
+    const profitPctText = data.totalSales > 0 ? (data.totalProfit / data.totalSales * 100).toFixed(1) + '%' : '—';
+    const profitPctCls = data.totalSales > 0 ? (data.totalProfit < 0 ? 'negative' : 'positive') : '';
+    stats.appendChild(mkStat('Profit %', profitPctText, profitPctCls));
+  }
   col.appendChild(stats);
 
   // The category table is shown regardless of whether any restaurant logged
@@ -710,6 +721,17 @@ async function renderDashboard(){
   document.getElementById('dashCompareMonthA').value = dashCompareMonthA;
   document.getElementById('dashCompareMonthB').value = dashCompareMonthB;
 
+  // Sales hidden entirely for Central Kitchen (core.js's canSeeSalesData()) --
+  // Profit/Profit % are derived from Sales, so they're hidden alongside it
+  // (Expenses + Profit would let Sales be back-calculated otherwise). The
+  // main chart plots sales-vs-expenses per restaurant, so it's hidden too;
+  // only the expense-only category breakdown stays visible for this profile.
+  const salesVisible = canSeeSalesData();
+  document.getElementById('dashHeroSales').style.display = salesVisible ? '' : 'none';
+  document.getElementById('dashHeroProfit').style.display = salesVisible ? '' : 'none';
+  document.getElementById('dashHeroProfitPct').style.display = salesVisible ? '' : 'none';
+  document.getElementById('dashChartTypeGroup').style.display = salesVisible ? '' : 'none';
+
   const panel = document.getElementById('reportsDashboard');
   panel.classList.add('dash-loading');
   try{
@@ -732,11 +754,15 @@ async function renderDashboard(){
 
     const hasData = data.restaurants.length > 0;
     const hasCategoryData = Object.keys(data.byCategoryAll).length > 0;
-    document.getElementById('dashEmpty').style.display = hasData ? 'none' : 'block';
-    document.getElementById('dashChartCard').style.display = hasData ? 'block' : 'none';
+    // For Central Kitchen, the "no sales yet" empty state and the chart it
+    // explains are both irrelevant (sales are hidden outright, not merely
+    // empty) -- both just stay hidden regardless of hasData.
+    document.getElementById('dashEmpty').style.display = (!salesVisible || hasData) ? 'none' : 'block';
+    document.getElementById('dashChartCard').style.display = (salesVisible && hasData) ? 'block' : 'none';
     // Category card has its own data source (byCategoryAll isn't gated by
     // whether a restaurant logged sales), so it can stay visible even when
-    // the sales-driven chart above has nothing to show.
+    // the sales-driven chart above has nothing to show (or is hidden
+    // entirely for Central Kitchen).
     document.getElementById('dashCategoryCard').style.display = (hasData || hasCategoryData) ? 'block' : 'none';
 
     if(dashChartType === 'bar') renderBarView(data.restaurants);
@@ -1049,6 +1075,7 @@ document.getElementById('tableBody').addEventListener('click', async (ev)=>{
       renderTotals();
     }
   } else if(action === 'modify'){
+    if(!canEditExistingRecords()) return; // Central Kitchen -- button shouldn't even be in the DOM, but belt and suspenders
     const e = entries.find(x=>x.id === id);
     if(!e) return;
     if(billWithinModifyWindow(e)) openEditBillModal(e);

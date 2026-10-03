@@ -13,6 +13,13 @@ function renderTable(){
     const withinModifyWindow = billWithinModifyWindow(e);
     const modifyLabel = withinModifyWindow ? 'Modify' : '🔒 Modify';
     const modifyTitle = withinModifyWindow ? '' : ' title="Added more than an hour ago — admin password required"';
+    // Central Kitchen (core.js's canEditExistingRecords()) never gets the
+    // Modify button at all -- not even the locked/password-prompt version --
+    // it can add new bills and toggle paid/unpaid, but can't change an
+    // existing one's amount/category/date under any circumstance.
+    const modifyCell = canEditExistingRecords()
+      ? `<button class="modify-btn" data-id="${e.id}" data-action="modify"${modifyTitle}>${modifyLabel}</button>`
+      : '';
     tr.innerHTML = `
       <td class="idx">${i+1}</td>
       <td>${escapeHtml(e.category)}</td>
@@ -21,7 +28,7 @@ function renderTable(){
       <td class="subcat">${escapeHtml(e.invoice || '—')}${e.notes ? ` <span class="note-indicator" title="${escapeHtml(e.notes)}">📝</span>` : ''}${e.attachmentUrl ? ` <a class="attachment-indicator" href="${escapeHtml(e.attachmentUrl)}" target="_blank" rel="noopener" title="${escapeHtml(e.attachmentName || 'View attachment')}">${e.attachmentType === 'pdf' ? '📄' : '🖼️'}</a>` : ''}</td>
       <td class="amount">${fmtMoney(e.amount)}</td>
       <td><button class="badge ${e.status}" data-id="${e.id}" data-action="toggle">${e.status}</button></td>
-      <td><button class="modify-btn" data-id="${e.id}" data-action="modify"${modifyTitle}>${modifyLabel}</button></td>
+      <td>${modifyCell}</td>
       <td><button class="del-btn" data-id="${e.id}" data-action="delete">Delete</button></td>
     `;
     tbody.appendChild(tr);

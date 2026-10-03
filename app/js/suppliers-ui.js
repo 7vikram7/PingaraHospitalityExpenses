@@ -130,27 +130,32 @@ function buildManageSupplierRow(name, onChange){
     catEl.textContent = 'No category set';
   }
 
-  const editBtn = document.createElement('button');
-  editBtn.type = 'button';
-  editBtn.className = 'msr-edit-btn';
-  editBtn.textContent = 'Edit';
+  view.appendChild(nameEl);
+  view.appendChild(catEl);
+
+  // Central Kitchen (core.js's canEditExistingRecords()) can add new
+  // suppliers but can't edit an existing one's category/subcategory --
+  // that retroactively re-tags every past bill under that supplier, the
+  // same "no modifying existing records" boundary bills have.
+  if(canEditExistingRecords()){
+    const editBtn = document.createElement('button');
+    editBtn.type = 'button';
+    editBtn.className = 'msr-edit-btn';
+    editBtn.textContent = 'Edit';
+    editBtn.addEventListener('click', ()=>{
+      const existing = row.querySelector('.msr-edit');
+      if(existing){ existing.remove(); return; }
+      row.appendChild(buildManageSupplierEditForm(name, onChange));
+    });
+    view.appendChild(editBtn);
+  }
 
   const deleteBtn = document.createElement('button');
   deleteBtn.type = 'button';
   deleteBtn.className = 'msr-delete-btn';
   deleteBtn.textContent = 'Remove';
-
-  view.appendChild(nameEl);
-  view.appendChild(catEl);
-  view.appendChild(editBtn);
   view.appendChild(deleteBtn);
   row.appendChild(view);
-
-  editBtn.addEventListener('click', ()=>{
-    const existing = row.querySelector('.msr-edit');
-    if(existing){ existing.remove(); return; }
-    row.appendChild(buildManageSupplierEditForm(name, onChange));
-  });
 
   deleteBtn.addEventListener('click', async ()=>{
     if(!confirm(`Remove "${name}" from the supplier list? Past bills already logged under this supplier are not affected.`)) return;

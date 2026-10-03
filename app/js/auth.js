@@ -42,30 +42,46 @@ function showRestaurantGateStep(){
   document.getElementById('restaurantGate').style.display = 'flex';
 }
 
-// Only the owner profile gets every tab; a manager sees Add Expenses only. If a
-// manager is somehow left on a hidden tab (shouldn't happen via normal clicks,
-// since the buttons themselves are hidden), fall back to Add Expenses. Also
-// toggles the two restaurant-switching affordances between profiles: an owner
-// gets the in-toolbar selector (no gate, no password) instead of "Change
+// Only the owner profile (or the elevated Central Kitchen profile, added
+// 2026-10-03 -- see core.js's hasElevatedAccess()) gets every tab; a normal
+// manager sees Add Expenses + Staff Expenses only. If a manager is somehow
+// left on a hidden tab (shouldn't happen via normal clicks, since the
+// buttons themselves are hidden), fall back to Add Expenses. Also toggles
+// the two restaurant-switching affordances between profiles: an owner gets
+// the in-toolbar selector (no gate, no password) instead of "Change
 // restaurant" (which re-triggers the gate — meaningless for an owner who
-// never goes through it).
+// never goes through it). Central Kitchen is deliberately NOT given that
+// in-toolbar selector -- its own Add Expenses bill-entry stays scoped to
+// Central Kitchen specifically, same restaurant-gate boundary as any other
+// manager; only Reports/Vendor Ledger/Suppliers/Staff Expenses go
+// cross-restaurant for it.
 function updateTabVisibilityForProfile(){
   const owner = isOwnerProfile();
-  document.getElementById('tabBtnReports').style.display = owner ? '' : 'none';
-  document.getElementById('tabBtnLedger').style.display = owner ? '' : 'none';
-  document.getElementById('tabBtnSuppliers').style.display = owner ? '' : 'none';
-  // Staff Expenses (added 2026-10-01, renamed from "Staff OT & Salary" 2026-10-02) deliberately stays visible for both
-  // profiles -- a Manager can add/view staff and log OT/salary for their own
+  const elevated = hasElevatedAccess();
+  document.getElementById('tabBtnReports').style.display = elevated ? '' : 'none';
+  document.getElementById('tabBtnLedger').style.display = elevated ? '' : 'none';
+  document.getElementById('tabBtnSuppliers').style.display = elevated ? '' : 'none';
+  // Staff Expenses (added 2026-10-01, renamed from "Staff OT & Salary" 2026-10-02) deliberately stays visible for every
+  // profile -- a Manager can add/view staff and log OT/salary for their own
   // restaurant, the one real boundary that still applies (via the
-  // restaurant password gate itself, same as Add Expenses). Only the
-  // restaurant SELECTOR inside that tab is owner-only: a Manager has
+  // restaurant password gate itself, same as Add Expenses). The restaurant
+  // SELECTOR inside that tab is shown to Owner and Central Kitchen alike
+  // (full cross-restaurant staff-data rights for both); a normal Manager has
   // nothing to pick between and operates on currentRestaurantId directly.
-  document.getElementById('staffRestaurantControl').style.display = owner ? 'flex' : 'none';
+  document.getElementById('staffRestaurantControl').style.display = elevated ? 'flex' : 'none';
   document.getElementById('expensesRestaurantControl').style.display = owner ? 'flex' : 'none';
   document.getElementById('restaurantChangeBtn').style.display = owner ? 'none' : '';
+  // Sales hidden entirely for Central Kitchen (see core.js's canSeeSalesData()) --
+  // both the entry field in Add Expenses and the ledger strip's own Sales figure.
+  const salesVisible = canSeeSalesData();
+  document.getElementById('salesInlineSection').style.display = salesVisible ? '' : 'none';
+  document.getElementById('ledSalesCell').style.display = salesVisible ? '' : 'none';
   if(!owner){
     const activePanel = document.querySelector('.tab-panel.active');
-    if(activePanel && activePanel.id !== 'tabPanelExpenses' && activePanel.id !== 'tabPanelStaff' && typeof switchTab === 'function'){
+    const allowedPanelIds = elevated
+      ? ['tabPanelExpenses', 'tabPanelStaff', 'tabPanelReports', 'tabPanelLedger', 'tabPanelSuppliers']
+      : ['tabPanelExpenses', 'tabPanelStaff'];
+    if(activePanel && !allowedPanelIds.includes(activePanel.id) && typeof switchTab === 'function'){
       switchTab('expenses');
     }
   }
@@ -132,6 +148,11 @@ document.getElementById('restaurantConfirmBtn').addEventListener('click', async 
     errEl.classList.remove('show');
   }
   setUnlockedRestaurantId(selectedId); // marks it confirmed this session for both profiles
+  // Re-run tab visibility now that the restaurant (and therefore whether
+  // this is the elevated Central Kitchen profile, added 2026-10-03) is
+  // actually known -- the earlier call from profileChooseManager's handler
+  // ran before any restaurant was selected, so it couldn't have known yet.
+  updateTabVisibilityForProfile();
   showConfirmedRestaurant();
 });
 document.getElementById('restaurantChangeBtn').addEventListener('click', ()=>{

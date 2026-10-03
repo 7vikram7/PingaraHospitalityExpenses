@@ -12,11 +12,25 @@ Firebase Hosting.
 
 - **Login: Owner or Manager profile** — Owner enters one password and gets
   every tab and every restaurant; Manager picks a restaurant and enters
-  *that restaurant's* password, and only ever sees the Add Expenses tab.
-  Persists across closing the browser/tab, backgrounding, or reopening from
-  the home screen — since most use is on mobile, staying logged in matters
-  more than re-prompting on every app switch. The only way back to the
-  login screens is the explicit **Logout** button.
+  *that restaurant's* password, and only ever sees Add Expenses + Staff
+  Expenses, scoped to that one restaurant. Persists across closing the
+  browser/tab, backgrounding, or reopening from the home screen — since
+  most use is on mobile, staying logged in matters more than re-prompting
+  on every app switch. The only way back to the login screens is the
+  explicit **Logout** button.
+  **Central Kitchen (Pingara tenant) is a special-cased elevated Manager
+  login** (added 2026-10-03, detected purely by which restaurant's
+  password was used — no separate profile type): full Owner-level
+  visibility into Reports, Vendor Ledger, Suppliers, and Staff Expenses
+  (every restaurant, not just its own), can toggle bills paid/unpaid and
+  add new bills/suppliers/staff entries same as normal, but can never
+  *modify* an existing bill's amount/category/date or an existing
+  supplier's category default, and never sees sales/profit figures
+  anywhere in the app (Add Expenses' sales field, and Reports' sales/
+  profit/profit% and its chart, are all hidden for this login — only
+  expense totals and the category breakdown remain). Its own Add Expenses
+  bill-entry stays scoped to Central Kitchen specifically, same as any
+  other Manager.
 - **Installable as a mobile app** — manifest.json + iOS meta tags let you
   "Add to Home Screen" on Android/iPhone and it opens full-screen, no
   browser chrome, with its own icon. Layout (tab bar, stat rows, tables)

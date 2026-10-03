@@ -215,6 +215,43 @@ function setProfile(p){
 }
 function isOwnerProfile(){ return getProfile() === 'owner'; }
 
+// ---- Central Kitchen: elevated non-owner profile (added 2026-10-03) ----
+// A specific restaurant (Central Kitchen, Pingara tenant only) whose manager
+// login gets broader rights than a normal restaurant manager: full owner-
+// level visibility into Reports/Vendor Ledger/Suppliers/Staff Expenses
+// (across every restaurant, not just its own), can toggle bills paid/unpaid
+// and add new ones for its own restaurant same as any manager, but can
+// never modify an existing bill's amount/category/date, and never sees
+// sales figures anywhere in the app. Detected purely by which restaurant's
+// password unlocked the session -- getUnlockedRestaurantId(), not
+// currentRestaurantId, since the latter can change (e.g. the Reports/Staff
+// restaurant selectors) without ending the Central Kitchen session itself.
+// Tenants without a "central-kitchen" restaurant (e.g. RK Twelve21) simply
+// never match this, so this is inert there.
+const CENTRAL_KITCHEN_RESTAURANT_ID = "central-kitchen";
+function isCentralKitchenProfile(){
+  return !isOwnerProfile() && getUnlockedRestaurantId() === CENTRAL_KITCHEN_RESTAURANT_ID;
+}
+// Who gets owner-level, cross-restaurant visibility into Reports/Vendor
+// Ledger/Suppliers/Staff Expenses -- the real Owner, or the Central Kitchen
+// elevated profile above.
+function hasElevatedAccess(){
+  return isOwnerProfile() || isCentralKitchenProfile();
+}
+// Sales figures are hidden entirely from the Central Kitchen profile (not
+// just the "Sales" label -- Profit/Profit % are derived from Sales too, so
+// those are hidden alongside it, since showing Expenses + Profit would let
+// Sales be back-calculated anyway).
+function canSeeSalesData(){ return !isCentralKitchenProfile(); }
+// Central Kitchen can toggle a bill's paid/unpaid status, add new bills, and
+// add new suppliers, but can never modify an EXISTING record's own fields --
+// a bill's amount/category/invoice/date (unlike the normal 1-hour-then-
+// Owner-password window that otherwise applies, there is no override for
+// this profile at all), or a supplier's category/subcategory default (which
+// retroactively re-tags every past bill under that supplier). One flag
+// covers both since they're the same restriction for this profile.
+function canEditExistingRecords(){ return !isCentralKitchenProfile(); }
+
 const UNLOCKED_RESTAURANT_KEY = "unlockedRestaurantId"; // which restaurant a manager verified, persists until logout
 function getUnlockedRestaurantId(){
   try{ return localStorage.getItem(UNLOCKED_RESTAURANT_KEY); }catch(e){ return null; }
