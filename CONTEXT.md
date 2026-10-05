@@ -197,6 +197,36 @@ a per-action escalation (type the owner password to override just this one
 edit), a separate concept from the profile login itself, deliberately left
 as-is.
 
+## Cross-verification flags (added 2026-10-06)
+An explicit "this entry has been checked" mark, separate from paid/unpaid.
+Owner and Central Kitchen toggle it; everyone else sees a read-only badge.
+
+- **Bills**: `verified`, `verifiedBy`, `verifiedAt` live on the bill record
+  itself (same `rest:<id>:bills:<YYYY-MM>` doc as paid/unpaid), toggled by
+  `toggleBillVerifiedByLocation()` (data-store.js). Shown in the Add Expenses
+  ledger and in Vendor Ledger's expanded bill rows, so Central Kitchen can
+  verify other restaurants' bills from there.
+- **Sales**: kept in its own key, `rest:<id>:salesVerified:<YYYY-MM>`
+  (`{date: {by, at}}`), not on the sales number itself, so every existing
+  reader of the sales bucket is untouched. Owner-only, since Central Kitchen
+  never sees sales. Shown only once a sales figure exists for the day.
+- **Staff entries**: `verified` fields on the OT-month entry, toggled by
+  `toggleOTVerified()`, rendered as a column in each of the four lists.
+
+Decisions made via questions before building: Central Kitchen stays blind to
+sales (so only Owner verifies sales); a click toggles, so mistakes can be
+reversed; editing a verified entry does **not** clear its verified status;
+Managers see a read-only badge.
+
+**Permissions are re-checked at click time**, not just at render time
+(`buildVerifyControl(verified, canFn, onToggle)` in core.js). The same page
+can switch profile without a reload (Logout, then a new login), so a control
+built under one profile must never act under another. The Add Expenses table,
+sales control, and Vendor Ledger detail are re-rendered from
+`updateTabVisibilityForProfile()` whenever the profile changes, which caught a
+real gap: a Manager logging in on the same page kept the Owner's live buttons
+until the next data change.
+
 ## Central Kitchen: elevated Manager profile (added 2026-10-03)
 A specific real-world need — the Central Kitchen location needed broad
 visibility (Owner-level) but not the right to alter financial records, and

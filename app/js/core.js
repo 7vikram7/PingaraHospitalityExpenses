@@ -252,6 +252,31 @@ function canSeeSalesData(){ return !isCentralKitchenProfile(); }
 // covers both since they're the same restriction for this profile.
 function canEditExistingRecords(){ return !isCentralKitchenProfile(); }
 
+// ---- Cross-verification (added 2026-10-06) ----
+// Owner and Central Kitchen can mark bills and staff entries verified (a
+// toggle). Sales verification is Owner-only, since Central Kitchen never sees
+// sales. Everyone else sees a read-only status badge.
+function canVerifyEntries(){ return hasElevatedAccess(); }
+function canVerifySales(){ return isOwnerProfile(); }
+function currentVerifierLabel(){ return isOwnerProfile() ? 'owner' : 'central-kitchen'; }
+// `canFn` is re-checked on click too, so a control built under one profile can
+// never act under another (the same page can switch profiles without a reload).
+function buildVerifyControl(verified, canFn, onToggle){
+  if(!canFn()){
+    const badge = document.createElement('span');
+    badge.className = 'verify-badge ' + (verified ? 'yes' : 'no');
+    badge.textContent = verified ? '✓ Verified' : 'Not verified';
+    return badge;
+  }
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'verify-btn' + (verified ? ' yes' : '');
+  btn.textContent = verified ? '✓ Verified' : 'Verify';
+  btn.title = verified ? 'Click to mark not verified' : 'Mark as cross-verified';
+  btn.addEventListener('click', ()=>{ if(canFn()) onToggle(); });
+  return btn;
+}
+
 const UNLOCKED_RESTAURANT_KEY = "unlockedRestaurantId"; // which restaurant a manager verified, persists until logout
 function getUnlockedRestaurantId(){
   try{ return localStorage.getItem(UNLOCKED_RESTAURANT_KEY); }catch(e){ return null; }

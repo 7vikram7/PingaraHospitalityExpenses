@@ -1,3 +1,17 @@
+// Sales verification (added 2026-10-06): Owner toggles it, Manager sees a
+// read-only badge, Central Kitchen never gets here (sales are hidden for it).
+// Only shown once a sales figure exists for the day -- nothing to verify before.
+async function renderSalesVerifyControl(){
+  const wrap = document.getElementById('salesVerifyControl');
+  wrap.innerHTML = "";
+  if(!canSeeSalesData() || currentSales === null) return;
+  const restId = currentRestaurantId, date = currentDate;
+  const verified = await isSalesVerified(restId, date);
+  wrap.appendChild(buildVerifyControl(verified, canVerifySales, async ()=>{
+    await toggleSalesVerified(restId, date, currentVerifierLabel());
+    renderSalesVerifyControl();
+  }));
+}
 function renderTable(){
   const tbody = document.getElementById('tableBody');
   const empty = document.getElementById('emptyState');
@@ -28,9 +42,14 @@ function renderTable(){
       <td class="subcat">${escapeHtml(e.invoice || '—')}${e.notes ? ` <span class="note-indicator" title="${escapeHtml(e.notes)}">📝</span>` : ''}${e.attachmentUrl ? ` <a class="attachment-indicator" href="${escapeHtml(e.attachmentUrl)}" target="_blank" rel="noopener" title="${escapeHtml(e.attachmentName || 'View attachment')}">${e.attachmentType === 'pdf' ? '📄' : '🖼️'}</a>` : ''}</td>
       <td class="amount">${fmtMoney(e.amount)}</td>
       <td><button class="badge ${e.status}" data-id="${e.id}" data-action="toggle">${e.status}</button></td>
+      <td class="verify-cell"></td>
       <td>${modifyCell}</td>
       <td><button class="del-btn" data-id="${e.id}" data-action="delete">Delete</button></td>
     `;
+    tr.querySelector('.verify-cell').appendChild(buildVerifyControl(!!e.verified, canVerifyEntries, async ()=>{
+      await toggleBillVerifiedByLocation(currentRestaurantId, currentDate, e.id, currentVerifierLabel());
+      renderTable();
+    }));
     tbody.appendChild(tr);
   });
 }
@@ -243,6 +262,7 @@ document.getElementById('saveSalesBtn').addEventListener('click', async ()=>{
     salesTempUnlocked = false;
     renderTotals();
     updateSalesLockUI();
+    renderSalesVerifyControl();
     hint.style.display = 'inline';
     setTimeout(()=>{ hint.style.display = 'none'; }, 2500);
   } else {

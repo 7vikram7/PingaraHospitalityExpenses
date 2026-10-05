@@ -102,7 +102,8 @@ async function computeVendorLedgerData(periodType, params, restaurantFilter){
         vendors[name].restaurantIds.add(r.id);
         vendors[name].bills.push({
           id: e.id, date: d, restaurantId: r.id, invoice: e.invoice || '',
-          amount: amt, status: e.status, paidAt: e.paidAt || null, createdAt: e.createdAt || 0
+          amount: amt, status: e.status, paidAt: e.paidAt || null, createdAt: e.createdAt || 0,
+          verified: !!e.verified
         });
       });
     });
@@ -144,7 +145,7 @@ function buildVLDetailTable(row, showRestCol){
   const thead = document.createElement('thead');
   const headRow = document.createElement('tr');
   headRow.innerHTML = '<th>Date</th>' + (showRestCol ? '<th>Restaurant</th>' : '') +
-    '<th>Invoice #</th><th class="num">Amount</th><th>Status</th><th>Paid on</th>';
+    '<th>Invoice #</th><th class="num">Amount</th><th>Status</th><th>Verified</th><th>Paid on</th>';
   thead.appendChild(headRow);
 
   const tbody = document.createElement('tbody');
@@ -174,6 +175,13 @@ function buildVLDetailTable(row, showRestCol){
     });
     tdStatus.appendChild(statusBtn);
     tr.appendChild(tdStatus);
+
+    const tdVerify = document.createElement('td');
+    tdVerify.appendChild(buildVerifyControl(b.verified, canVerifyEntries, async ()=>{
+      await toggleBillVerifiedByLocation(b.restaurantId, b.date, b.id, currentVerifierLabel());
+      await renderVendorLedger();
+    }));
+    tr.appendChild(tdVerify);
 
     const tdPaidOn = document.createElement('td');
     tdPaidOn.className = 'subcat';

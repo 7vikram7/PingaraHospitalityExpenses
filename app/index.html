@@ -312,6 +312,7 @@ window.__firebaseSdkReady = (async ()=>{
         <input type="number" id="salesInput" step="0.01" min="0" placeholder="0.00">
         <button type="button" id="saveSalesBtn">Save</button>
         <span class="sales-saved-hint" id="salesSavedHint" style="display:none;">Saved ✓</span>
+        <span id="salesVerifyControl"></span>
       </div>
     </div>
     <div class="qa-grid">
@@ -372,6 +373,7 @@ window.__firebaseSdkReady = (async ()=>{
           <th>Invoice #</th>
           <th class="num">Amount</th>
           <th>Status</th>
+          <th style="width:110px;">Verified</th>
           <th style="width:80px;"></th>
           <th style="width:70px;"></th>
         </tr>

@@ -139,6 +139,12 @@ Firebase Hosting.
   (pre-filled from each employee's default, editable per month) but its
   section is currently hidden from the UI (not removed — just not needed
   right now).
+- **Cross-verification (Owner and Central Kitchen)** — bills, sales days,
+  and staff entries (OT, Captain Incentive, Waiter Tips, Staff Advance) each
+  have a **Verify** toggle. Owner and Central Kitchen can mark an entry
+  verified (and un-verify it); sales verification is Owner-only, since
+  Central Kitchen never sees sales. Everyone else sees a read-only "✓
+  Verified" or "Not verified" badge. Verified status survives later edits.
 - **Offline-first**: every write lands in `localStorage` immediately and
   syncs to Firestore in the background, so a flaky connection never blocks
   data entry

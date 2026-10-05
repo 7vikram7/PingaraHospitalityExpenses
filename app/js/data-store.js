@@ -144,6 +144,50 @@ async function toggleBillStatusByLocation(restaurantId, date, billId){
   return bill;
 }
 
+// ---- Cross-verification (added 2026-10-06) ----
+// A bill's verified flag lives on the bill itself (same doc as its status), so
+// it reads and writes exactly like the paid toggle. Sales verification is kept
+// in its own key rather than on the sales figure, so every existing reader of
+// the sales bucket is untouched.
+async function toggleBillVerifiedByLocation(restaurantId, date, billId, by){
+  const monthKey = date.slice(0,7);
+  const key = "rest:" + restaurantId + ":bills:" + monthKey;
+  const sameCachedMonth = (restaurantId === currentRestaurantId) && (key === currentBillsMonthCacheKey);
+  const monthObj = sameCachedMonth ? billsMonthCache
+    : (JSON.parse((await safeGet(key)) || "{}") || {});
+
+  const bill = (monthObj[date] || []).find(b => b.id === billId);
+  if(!bill) return null;
+  bill.verified = !bill.verified;
+  bill.verifiedBy = bill.verified ? by : null;
+  bill.verifiedAt = bill.verified ? Date.now() : null;
+  await safeSet(key, JSON.stringify(monthObj));
+
+  if(restaurantId === currentRestaurantId && date === currentDate){
+    const localEntry = entries.find(e => e.id === billId);
+    if(localEntry){ localEntry.verified = bill.verified; localEntry.verifiedBy = bill.verifiedBy; localEntry.verifiedAt = bill.verifiedAt; }
+  }
+  return bill;
+}
+function salesVerifiedKeyFor(restaurantId, monthKey){ return "rest:" + restaurantId + ":salesVerified:" + monthKey; }
+async function loadSalesVerified(restaurantId, monthKey){
+  const raw = await safeGet(salesVerifiedKeyFor(restaurantId, monthKey));
+  if(raw){ try{ return JSON.parse(raw) || {}; }catch(e){} }
+  return {};
+}
+async function isSalesVerified(restaurantId, date){
+  const obj = await loadSalesVerified(restaurantId, date.slice(0,7));
+  return !!obj[date];
+}
+async function toggleSalesVerified(restaurantId, date, by){
+  const monthKey = date.slice(0,7);
+  const obj = await loadSalesVerified(restaurantId, monthKey);
+  if(obj[date]) delete obj[date];
+  else obj[date] = { by, at: Date.now() };
+  await safeSet(salesVerifiedKeyFor(restaurantId, monthKey), JSON.stringify(obj));
+  return !!obj[date];
+}
+
 let salesMonthCache = {};
 let currentSalesMonthCacheKey = null;
 async function loadSalesMonth(monthKey){
@@ -182,6 +226,7 @@ async function loadSales(date){
   const input = document.getElementById('salesInput');
   if(input) input.value = (currentSales !== null && !isNaN(currentSales)) ? currentSales : "";
   updateSalesLockUI();
+  renderSalesVerifyControl();
 }
 async function saveSalesValue(){
   const input = document.getElementById('salesInput');
@@ -495,6 +540,17 @@ async function addOTEntry(restaurantId, date, employeeId, employeeName, amount, 
   if(!month[date]) month[date] = [];
   const entry = { id: uid(), employeeId, employeeName, amount: Number(amount), type: type || 'ot', createdAt: Date.now() };
   month[date].push(entry);
+  await safeSet(otMonthKeyFor(restaurantId, monthKey), JSON.stringify(month));
+  return entry;
+}
+async function toggleOTVerified(restaurantId, date, otId, by){
+  const monthKey = date.slice(0,7);
+  const month = await loadOTMonth(restaurantId, monthKey);
+  const entry = (month[date] || []).find(e => e.id === otId);
+  if(!entry) return null;
+  entry.verified = !entry.verified;
+  entry.verifiedBy = entry.verified ? by : null;
+  entry.verifiedAt = entry.verified ? Date.now() : null;
   await safeSet(otMonthKeyFor(restaurantId, monthKey), JSON.stringify(month));
   return entry;
 }

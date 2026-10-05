@@ -85,6 +85,10 @@ function updateTabVisibilityForProfile(){
       switchTab('expenses');
     }
   }
+  // Verify controls are built per profile, so rebuild them whenever the
+  // profile changes, not just on data changes (added 2026-10-06).
+  renderTable();
+  renderSalesVerifyControl();
 }
 
 function renderAuthGateState(){

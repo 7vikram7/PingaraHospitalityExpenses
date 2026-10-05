@@ -644,12 +644,18 @@ async function renderStaffDailyTable(cfg){
   empty.style.display = 'none';
   const table = document.createElement('table');
   const thead = document.createElement('thead');
-  thead.innerHTML = '<tr><th>Employee</th><th class="num">Amount</th><th></th></tr>';
+  thead.innerHTML = '<tr><th>Employee</th><th class="num">Amount</th><th>Verified</th><th></th></tr>';
   const tbody = document.createElement('tbody');
   dayEntries.slice().sort((a,b)=>a.createdAt-b.createdAt).forEach(e=>{
     const tr = document.createElement('tr');
     const tdName = document.createElement('td'); tdName.textContent = e.employeeName; tdName.className = 'supplier';
     const tdAmt = document.createElement('td'); tdAmt.className = 'amount'; tdAmt.textContent = fmtMoney(e.amount);
+
+    const tdVerify = document.createElement('td');
+    tdVerify.appendChild(buildVerifyControl(!!e.verified, canVerifyEntries, async ()=>{
+      await toggleOTVerified(restId, staffOtSelectedDate, e.id, currentVerifierLabel());
+      await renderStaffDailyTable(cfg);
+    }));
 
     const tdDel = document.createElement('td');
     const delBtn = document.createElement('button');
@@ -663,7 +669,7 @@ async function renderStaffDailyTable(cfg){
     });
     tdDel.appendChild(delBtn);
 
-    tr.appendChild(tdName); tr.appendChild(tdAmt); tr.appendChild(tdDel);
+    tr.appendChild(tdName); tr.appendChild(tdAmt); tr.appendChild(tdVerify); tr.appendChild(tdDel);
     tbody.appendChild(tr);
   });
   table.appendChild(thead); table.appendChild(tbody);
