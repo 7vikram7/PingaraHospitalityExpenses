@@ -26,6 +26,13 @@ const TENANT_FIREBASE_CONFIG = {
   measurementId: "G-1LKF1KY8T1"
 };
 
+// Login passwords are checked by signing in to Firebase Auth (added 2026-10-06).
+// One account per role: owner@<domain>, central-kitchen@<domain>, and
+// <restaurant-id>@<domain>. The domain is only a label for Firebase Auth
+// accounts, not a real mailbox.
+const TENANT_FIREBASE_AUTH = true;
+const TENANT_AUTH_DOMAIN = "pingara-ledger.com";
+
 // Same admin password as the Reports tab. sha256("Admin123").
 const TENANT_REPORTS_PASSWORD_HASH = "3b612c75a7b5048a435fb6ec81e52ff92d6d795a8b5a9c17070f6a63c97a53b2";
 

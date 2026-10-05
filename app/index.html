@@ -51,6 +51,10 @@ window.__firebaseSdkReady = (async ()=>{
       "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js",
       "https://cdnjs.cloudflare.com/ajax/libs/firebase/10.12.2/firebase-storage-compat.js"
     ]);
+    await __loadScriptWithFallback([
+      "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js",
+      "https://cdnjs.cloudflare.com/ajax/libs/firebase/10.12.2/firebase-auth-compat.js"
+    ]);
     return true;
   }catch(e){
     console.error("Firebase SDK failed to load from all sources", e);

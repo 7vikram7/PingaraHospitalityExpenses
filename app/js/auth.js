@@ -115,8 +115,7 @@ document.getElementById('ownerLoginBack').addEventListener('click', showProfileG
 document.getElementById('ownerLoginBtn').addEventListener('click', async ()=>{
   const input = document.getElementById('ownerLoginPasswordInput');
   const errEl = document.getElementById('ownerLoginError');
-  const hash = await sha256Hex(input.value);
-  if(hash === REPORTS_PASSWORD_HASH){
+  if(await verifyLoginPassword('owner', input.value, REPORTS_PASSWORD_HASH)){
     setProfile('owner');
     // Owner login also satisfies the Reports/Vendor Ledger tabs' own password gate —
     // "once the owner logs in, no other passwords are required" applies there too.
@@ -144,8 +143,7 @@ document.getElementById('restaurantConfirmBtn').addEventListener('click', async 
   if(!isOwnerProfile()){
     const pwInput = document.getElementById('restaurantPasswordInput');
     const errEl = document.getElementById('restaurantPasswordError');
-    const hash = await sha256Hex(pwInput.value);
-    if(hash !== RESTAURANT_PASSWORD_HASH[selectedId]){
+    if(!(await verifyLoginPassword(selectedId, pwInput.value, RESTAURANT_PASSWORD_HASH[selectedId]))){
       errEl.classList.add('show');
       return;
     }
@@ -171,7 +169,8 @@ document.getElementById('desktopViewToggle').addEventListener('click', ()=>{
 // reports-unlock state all persist in localStorage (2026-08-28) instead of
 // resetting on browser close — clears every piece of login state so a fresh
 // login is a genuinely clean slate, not just profile/restaurant.
-document.getElementById('switchProfileBtn').addEventListener('click', ()=>{
+document.getElementById('switchProfileBtn').addEventListener('click', async ()=>{
+  await signOutFirebaseAuth();
   setProfile(null);
   setUnlockedRestaurantId(null);
   try{ localStorage.removeItem(REPORTS_UNLOCK_KEY); }catch(e){}

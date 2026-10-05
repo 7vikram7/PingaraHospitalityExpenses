@@ -100,12 +100,49 @@ async function initFirebase(){
       firebase.initializeApp(cfg);
     }
     firebaseDb = firebase.firestore();
+    if(window.__firestoreEmulator && !firestoreEmulatorWired){
+      firebaseDb.useEmulator(window.__firestoreEmulator.host, window.__firestoreEmulator.port);
+      firestoreEmulatorWired = true;
+    }
     return firebaseDb;
   }catch(e){
     console.error("firebase init failed", e);
     firebaseDb = null;
     return null;
   }
+}
+
+// ---- Firebase Auth sign-in for the login gates (added 2026-10-06) ----
+// When a tenant sets TENANT_FIREBASE_AUTH = true, the typed login password is
+// checked by signing in to a Firebase account (one per role: "owner",
+// "central-kitchen", each restaurant id), instead of comparing a local hash.
+// Tenants without the flag (currently RK Twelve21) keep the hash check.
+// Owner-password overrides (Modify bill, sales edit, Reports unlock) still use
+// the hash, so they never switch the Firebase session mid-use.
+let firebaseAuthEmulatorWired = false;
+let firestoreEmulatorWired = false;
+function firebaseAuthEnabled(){
+  return typeof TENANT_FIREBASE_AUTH !== 'undefined' && TENANT_FIREBASE_AUTH === true;
+}
+async function verifyLoginPassword(roleKey, password, legacyHash){
+  if(!firebaseAuthEnabled()) return (await sha256Hex(password)) === legacyHash;
+  try{
+    await ensureFirebaseSdkLoaded();
+    await initFirebase();
+    if(window.__authEmulatorUrl && !firebaseAuthEmulatorWired){
+      firebase.auth().useEmulator(window.__authEmulatorUrl);
+      firebaseAuthEmulatorWired = true;
+    }
+    await firebase.auth().signInWithEmailAndPassword(roleKey + '@' + TENANT_AUTH_DOMAIN, password);
+    return true;
+  }catch(e){
+    console.error('sign-in failed', e && e.code);
+    return false;
+  }
+}
+async function signOutFirebaseAuth(){
+  if(!firebaseAuthEnabled() || typeof firebase === 'undefined' || !firebase.apps || !firebase.apps.length) return;
+  try{ await firebase.auth().signOut(); }catch(e){ console.error('sign-out failed', e); }
 }
 
 // ---- Firebase Storage (added 2026-10-01, bill attachments) ----
