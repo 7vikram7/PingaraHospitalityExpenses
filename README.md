@@ -23,14 +23,12 @@ Firebase Hosting.
   password was used — no separate profile type): full Owner-level
   visibility into Reports, Vendor Ledger, Suppliers, and Staff Expenses
   (every restaurant, not just its own), can toggle bills paid/unpaid and
-  add new bills/suppliers/staff entries same as normal, but can never
-  *modify* an existing bill's amount/category/date or an existing
-  supplier's category default, and never sees sales/profit figures
-  anywhere in the app (Add Expenses' sales field, and Reports' sales/
-  profit/profit% and its chart, are all hidden for this login — only
-  expense totals and the category breakdown remain). Its own Add Expenses
-  bill-entry stays scoped to Central Kitchen specifically, same as any
-  other Manager.
+  add new bills/suppliers/staff entries and add bills for any restaurant
+  (same restaurant selector as the Owner, no per-restaurant password), but
+  can never *modify* an existing bill's amount/category/date or an existing
+  supplier's category default. It sees sales and profit the same way the
+  Owner does, and gets the same Verify button on bills, sales days, and
+  staff entries.
 - **Installable as a mobile app** — manifest.json + iOS meta tags let you
   "Add to Home Screen" on Android/iPhone and it opens full-screen, no
   browser chrome, with its own icon. Layout (tab bar, stat rows, tables)

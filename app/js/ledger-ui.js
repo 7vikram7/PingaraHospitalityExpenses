@@ -4,7 +4,7 @@
 async function renderSalesVerifyControl(){
   const wrap = document.getElementById('salesVerifyControl');
   wrap.innerHTML = "";
-  if(!canSeeSalesData() || currentSales === null) return;
+  if(currentSales === null) return;
   const restId = currentRestaurantId, date = currentDate;
   const verified = await isSalesVerified(restId, date);
   wrap.appendChild(buildVerifyControl(verified, canVerifySales, async ()=>{

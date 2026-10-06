@@ -674,18 +674,12 @@ function buildDashCompareCol(month, data){
     cell.appendChild(lbl); cell.appendChild(val);
     return cell;
   };
-  // Sales/Profit/Profit % skipped entirely for Central Kitchen (same
-  // canSeeSalesData() rule as the single view above) -- just Expenses.
-  if(canSeeSalesData()){
-    stats.appendChild(mkStat('Sales', fmtMoney(data.totalSales)));
-  }
+  stats.appendChild(mkStat('Sales', fmtMoney(data.totalSales)));
   stats.appendChild(mkStat('Expenses', fmtMoney(data.totalExpenses)));
-  if(canSeeSalesData()){
-    stats.appendChild(mkStat('Profit', fmtMoney(data.totalProfit), data.totalProfit < 0 ? 'negative' : data.totalProfit > 0 ? 'positive' : ''));
-    const profitPctText = data.totalSales > 0 ? (data.totalProfit / data.totalSales * 100).toFixed(1) + '%' : '—';
-    const profitPctCls = data.totalSales > 0 ? (data.totalProfit < 0 ? 'negative' : 'positive') : '';
-    stats.appendChild(mkStat('Profit %', profitPctText, profitPctCls));
-  }
+  stats.appendChild(mkStat('Profit', fmtMoney(data.totalProfit), data.totalProfit < 0 ? 'negative' : data.totalProfit > 0 ? 'positive' : ''));
+  const profitPctText = data.totalSales > 0 ? (data.totalProfit / data.totalSales * 100).toFixed(1) + '%' : '—';
+  const profitPctCls = data.totalSales > 0 ? (data.totalProfit < 0 ? 'negative' : 'positive') : '';
+  stats.appendChild(mkStat('Profit %', profitPctText, profitPctCls));
   col.appendChild(stats);
 
   // The category table is shown regardless of whether any restaurant logged
@@ -721,16 +715,10 @@ async function renderDashboard(){
   document.getElementById('dashCompareMonthA').value = dashCompareMonthA;
   document.getElementById('dashCompareMonthB').value = dashCompareMonthB;
 
-  // Sales hidden entirely for Central Kitchen (core.js's canSeeSalesData()) --
-  // Profit/Profit % are derived from Sales, so they're hidden alongside it
-  // (Expenses + Profit would let Sales be back-calculated otherwise). The
-  // main chart plots sales-vs-expenses per restaurant, so it's hidden too;
-  // only the expense-only category breakdown stays visible for this profile.
-  const salesVisible = canSeeSalesData();
-  document.getElementById('dashHeroSales').style.display = salesVisible ? '' : 'none';
-  document.getElementById('dashHeroProfit').style.display = salesVisible ? '' : 'none';
-  document.getElementById('dashHeroProfitPct').style.display = salesVisible ? '' : 'none';
-  document.getElementById('dashChartTypeGroup').style.display = salesVisible ? '' : 'none';
+  document.getElementById('dashHeroSales').style.display = '';
+  document.getElementById('dashHeroProfit').style.display = '';
+  document.getElementById('dashHeroProfitPct').style.display = '';
+  document.getElementById('dashChartTypeGroup').style.display = '';
 
   const panel = document.getElementById('reportsDashboard');
   panel.classList.add('dash-loading');
@@ -754,11 +742,8 @@ async function renderDashboard(){
 
     const hasData = data.restaurants.length > 0;
     const hasCategoryData = Object.keys(data.byCategoryAll).length > 0;
-    // For Central Kitchen, the "no sales yet" empty state and the chart it
-    // explains are both irrelevant (sales are hidden outright, not merely
-    // empty) -- both just stay hidden regardless of hasData.
-    document.getElementById('dashEmpty').style.display = (!salesVisible || hasData) ? 'none' : 'block';
-    document.getElementById('dashChartCard').style.display = (salesVisible && hasData) ? 'block' : 'none';
+    document.getElementById('dashEmpty').style.display = hasData ? 'none' : 'block';
+    document.getElementById('dashChartCard').style.display = hasData ? 'block' : 'none';
     // Category card has its own data source (byCategoryAll isn't gated by
     // whether a restaurant logged sales), so it can stay visible even when
     // the sales-driven chart above has nothing to show (or is hidden

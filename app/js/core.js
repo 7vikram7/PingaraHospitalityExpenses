@@ -238,11 +238,6 @@ function isCentralKitchenProfile(){
 function hasElevatedAccess(){
   return isOwnerProfile() || isCentralKitchenProfile();
 }
-// Sales figures are hidden entirely from the Central Kitchen profile (not
-// just the "Sales" label -- Profit/Profit % are derived from Sales too, so
-// those are hidden alongside it, since showing Expenses + Profit would let
-// Sales be back-calculated anyway).
-function canSeeSalesData(){ return !isCentralKitchenProfile(); }
 // Central Kitchen can toggle a bill's paid/unpaid status, add new bills, and
 // add new suppliers, but can never modify an EXISTING record's own fields --
 // a bill's amount/category/invoice/date (unlike the normal 1-hour-then-
@@ -254,10 +249,9 @@ function canEditExistingRecords(){ return !isCentralKitchenProfile(); }
 
 // ---- Cross-verification (added 2026-10-06) ----
 // Owner and Central Kitchen can mark bills and staff entries verified (a
-// toggle). Sales verification is Owner-only, since Central Kitchen never sees
-// sales. Everyone else sees a read-only status badge.
+// toggle), sales days included. Everyone else sees a read-only status badge.
 function canVerifyEntries(){ return hasElevatedAccess(); }
-function canVerifySales(){ return isOwnerProfile(); }
+function canVerifySales(){ return hasElevatedAccess(); }
 function currentVerifierLabel(){ return isOwnerProfile() ? 'owner' : 'central-kitchen'; }
 // `canFn` is re-checked on click too, so a control built under one profile can
 // never act under another (the same page can switch profiles without a reload).
@@ -297,7 +291,7 @@ function setUnlockedRestaurantId(id){
 // one browser session. Name kept as-is; "session" here now means "since
 // last login," not "since last browser close."
 function isRestaurantUnlockedForSession(id){
-  return isOwnerProfile() || getUnlockedRestaurantId() === id;
+  return hasElevatedAccess() || getUnlockedRestaurantId() === id;
 }
 
 /* ---------- Desktop view toggle (added 2026-08-28) ----------

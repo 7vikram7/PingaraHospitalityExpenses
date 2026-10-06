@@ -1220,3 +1220,23 @@ still opens directly over `file://` for local testing.
   usage grows.
 - No other open bugs/requests as of this handoff — everything asked for so far
   has been implemented and tested.
+
+## Central Kitchen access update (2026-10-06)
+Supersedes the earlier sales and restaurant rules in the section above:
+- **Sales are visible** to Central Kitchen, the same as the Owner. The
+  `canSeeSalesData()` helper was removed, along with its gates in Add
+  Expenses and Reports. Profit and profit % show as well.
+- **Add Expenses restaurant selector** (`#expensesRestaurantControl`) is
+  shown to Central Kitchen, so it can add bills for any restaurant without a
+  password. "Change restaurant" is hidden for it, the same as for the Owner.
+  `isRestaurantUnlockedForSession()` now uses `hasElevatedAccess()`, so
+  switching restaurants doesn't re-trigger the gate on reload.
+- **Verify on sales**: `canVerifySales()` now uses `hasElevatedAccess()`, so
+  Central Kitchen verifies sales days like the Owner.
+- **Still locked for Central Kitchen**: editing existing bills
+  (`canEditExistingRecords()`) and editing existing supplier categories.
+  Adding bills, suppliers, and staff entries is unchanged.
+
+Tested in `test_ck_cross_restaurant.js` (switch to another restaurant with no
+prompt, add a bill there, verify sales, stay signed in after reload) and the
+updated `test_central_kitchen_profile.js`.

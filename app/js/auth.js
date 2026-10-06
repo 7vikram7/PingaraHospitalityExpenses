@@ -50,11 +50,8 @@ function showRestaurantGateStep(){
 // the two restaurant-switching affordances between profiles: an owner gets
 // the in-toolbar selector (no gate, no password) instead of "Change
 // restaurant" (which re-triggers the gate — meaningless for an owner who
-// never goes through it). Central Kitchen is deliberately NOT given that
-// in-toolbar selector -- its own Add Expenses bill-entry stays scoped to
-// Central Kitchen specifically, same restaurant-gate boundary as any other
-// manager; only Reports/Vendor Ledger/Suppliers/Staff Expenses go
-// cross-restaurant for it.
+// never goes through it). Central Kitchen gets the same in-toolbar selector
+// and no restaurant gate, so it can add and view bills for every restaurant.
 function updateTabVisibilityForProfile(){
   const owner = isOwnerProfile();
   const elevated = hasElevatedAccess();
@@ -69,13 +66,10 @@ function updateTabVisibilityForProfile(){
   // (full cross-restaurant staff-data rights for both); a normal Manager has
   // nothing to pick between and operates on currentRestaurantId directly.
   document.getElementById('staffRestaurantControl').style.display = elevated ? 'flex' : 'none';
-  document.getElementById('expensesRestaurantControl').style.display = owner ? 'flex' : 'none';
-  document.getElementById('restaurantChangeBtn').style.display = owner ? 'none' : '';
-  // Sales hidden entirely for Central Kitchen (see core.js's canSeeSalesData()) --
-  // both the entry field in Add Expenses and the ledger strip's own Sales figure.
-  const salesVisible = canSeeSalesData();
-  document.getElementById('salesInlineSection').style.display = salesVisible ? '' : 'none';
-  document.getElementById('ledSalesCell').style.display = salesVisible ? '' : 'none';
+  document.getElementById('expensesRestaurantControl').style.display = elevated ? 'flex' : 'none';
+  document.getElementById('restaurantChangeBtn').style.display = elevated ? 'none' : '';
+  document.getElementById('salesInlineSection').style.display = '';
+  document.getElementById('ledSalesCell').style.display = '';
   if(!owner){
     const activePanel = document.querySelector('.tab-panel.active');
     const allowedPanelIds = elevated
