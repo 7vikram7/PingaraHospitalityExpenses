@@ -7,13 +7,11 @@
    and Manager (see auth.js's updateTabVisibilityForProfile) — a Manager can
    add/view staff and log entries for their own restaurant, the same
    boundary that already applies to Add Expenses via the restaurant password
-   gate. Only the restaurant SELECTOR here is owner-only: a Manager has
-   nothing to pick between and always operates on currentRestaurantId.
+   gate. Restaurant choice comes from the shared top-bar selector (Owner and
+   Central Kitchen), the same restaurant every tab follows; a Manager has
+   nothing to pick and always operates on currentRestaurantId.
 
-   Several sub-concerns share one restaurant scope, chosen independently of
-   whatever Add Expenses currently has active (staffRestaurantId, not
-   currentRestaurantId, for an Owner — mirrors Reports/Vendor Ledger's own
-   independent restaurant selectors):
+   Several sub-concerns share that one restaurant scope:
      - the staff directory itself (flat list per restaurant, data-store.js)
      - daily OT/Captain Incentive/Waiter Tips entries — still one
        underlying Firestore collection (month-bucketed by date, like bills,
@@ -29,36 +27,19 @@
    Bank name + IFSC code are remembered account-wide (staffBankDefaults,
    data-store.js) so adding the next employee is a pick, not a retype. */
 
-let staffRestaurantId;
 let staffOtSelectedDate;
 let staffSalaryMonth;
 let currentStaffList = [];
 
+// The restaurant shared across tabs (see ledger-ui.js's applySharedRestaurantPick):
+// Staff Expenses always follows currentRestaurantId, the single restaurant
+// the app is currently set to.
 function getStaffActiveRestaurantId(){
-  return hasElevatedAccess() ? (staffRestaurantId || RESTAURANTS[0].id) : currentRestaurantId;
+  return currentRestaurantId;
 }
-
-/* ---------- Restaurant selector (owner + Central Kitchen) ---------- */
-function renderStaffRestaurantSelect(){
-  const sel = document.getElementById('staffRestaurantSelect');
-  const prev = sel.value || staffRestaurantId;
-  sel.innerHTML = "";
-  RESTAURANTS.forEach(r=>{
-    const opt = document.createElement('option');
-    opt.value = r.id; opt.textContent = r.label;
-    sel.appendChild(opt);
-  });
-  if(prev && RESTAURANTS.some(r=>r.id === prev)) sel.value = prev;
-  staffRestaurantId = sel.value;
-}
-document.getElementById('staffRestaurantSelect').addEventListener('change', (ev)=>{
-  staffRestaurantId = ev.target.value;
-  renderStaffPanel();
-});
 
 /* ---------- Entry point + master render ---------- */
 async function showStaffTabPanel(){
-  if(hasElevatedAccess()) renderStaffRestaurantSelect();
   if(staffOtSelectedDate === undefined) staffOtSelectedDate = todayStr();
   if(staffSalaryMonth === undefined) staffSalaryMonth = todayStr().slice(0,7);
   document.getElementById('staffOtDatePicker').value = staffOtSelectedDate;

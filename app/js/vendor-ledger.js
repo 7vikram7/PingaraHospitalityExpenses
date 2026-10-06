@@ -4,7 +4,7 @@
 let vlPeriodType = 'month';  // 'day' | 'month' | 'range'
 let vlSelectedDate, vlSelectedMonth;
 let vlRangeFrom, vlRangeTo;
-let vlRestaurantFilter = 'all'; // 'all' or a restaurant id
+let vlRestaurantFilter = 'all'; // 'all' or a restaurant id, set from the shared top-bar selector
 
 // Inclusive list of "YYYY-MM" month keys spanned by a date range — a range can
 // cross month-bucket document boundaries, so every covered month needs its own fetch.
@@ -20,24 +20,11 @@ function monthsBetween(fromDate, toDate){
   return months;
 }
 
-function renderVLRestaurantSelect(){
-  const sel = document.getElementById('vlRestaurantSelect');
-  const prev = sel.value || vlRestaurantFilter;
-  sel.innerHTML = '<option value="all">All restaurants</option>';
-  RESTAURANTS.forEach(r=>{
-    const opt = document.createElement('option');
-    opt.value = r.id; opt.textContent = r.label;
-    sel.appendChild(opt);
-  });
-  sel.value = prev;
-}
-
 function showVLPanel(){
   const unlocked = reportsUnlocked();
   document.getElementById('vlLock').style.display = unlocked ? 'none' : 'block';
   document.getElementById('vlContent').style.display = unlocked ? 'block' : 'none';
   if(unlocked){
-    renderVLRestaurantSelect();
     renderVendorLedger();
   }
 }
@@ -302,11 +289,6 @@ async function renderVendorLedger(){
   }
 }
 
-document.getElementById('vlRestaurantSelect').addEventListener('change', (ev)=>{
-  vlRestaurantFilter = ev.target.value;
-  vlExpandedVendor = null;
-  renderVendorLedger();
-});
 
 const VL_PERIOD_BTNS = { day: 'vlPeriodDay', month: 'vlPeriodMonth', range: 'vlPeriodRange' };
 const VL_PERIOD_FIELDS = {

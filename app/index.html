@@ -114,6 +114,10 @@ window.__firebaseSdkReady = (async ()=>{
 
 <div class="restaurant-context-bar" id="restaurantConfirmedBar" style="display:none;">
   <h2 class="restaurant-context-name" id="restaurantConfirmedName"></h2>
+  <div class="shared-restaurant" id="sharedRestaurantWrap" style="display:none;">
+    <select id="sharedRestaurantSelect" class="dash-date-input" aria-label="Restaurant"></select>
+    <span class="shared-restaurant-hint" id="sharedRestaurantHint" style="display:none;"></span>
+  </div>
   <button type="button" class="restaurant-change-btn" id="restaurantChangeBtn">Change restaurant</button>
   <button type="button" class="restaurant-change-btn" id="desktopViewToggle">Desktop view</button>
   <button type="button" class="restaurant-change-btn" id="switchProfileBtn">Logout</button>
@@ -217,10 +221,6 @@ window.__firebaseSdkReady = (async ()=>{
 <div id="tabPanelExpenses" class="tab-panel active">
 
 <div class="expenses-toolbar">
-  <div class="date-control" id="expensesRestaurantControl" style="display:none;">
-    <span class="toolbar-label">Restaurant</span>
-    <select id="expensesRestaurantSelect" class="dash-date-input"></select>
-  </div>
   <button class="history-btn" id="manageSuppliersBtn" type="button">Manage Suppliers</button>
   <button class="history-btn" id="historyToggle" type="button">History</button>
   <div class="date-control">
@@ -404,7 +404,6 @@ window.__firebaseSdkReady = (async ()=>{
     <main>
       <div class="viz-root dash-panel" id="reportsDashboard">
         <div class="dash-filter-row">
-          <select id="dashRestaurantSelect" class="dash-date-input"></select>
           <div class="dash-toggle-group" role="group" aria-label="Chart type" id="dashChartTypeGroup">
             <button type="button" class="dash-toggle-btn active" id="dashChartBar" data-chart="bar">Bar view</button>
             <button type="button" class="dash-toggle-btn" id="dashChartPie" data-chart="pie">Pie view</button>
@@ -505,7 +504,6 @@ window.__firebaseSdkReady = (async ()=>{
     <main>
       <div class="viz-root dash-panel">
         <div class="dash-filter-row">
-          <select id="vlRestaurantSelect" class="dash-date-input"></select>
           <div class="dash-toggle-group" role="group" aria-label="Reporting period">
             <button type="button" class="dash-toggle-btn" id="vlPeriodDay" data-period="day">Day</button>
             <button type="button" class="dash-toggle-btn active" id="vlPeriodMonth" data-period="month">Month</button>
@@ -593,11 +591,6 @@ window.__firebaseSdkReady = (async ()=>{
 <div id="tabPanelStaff" class="tab-panel">
   <main>
     <div class="viz-root dash-panel">
-
-      <div class="dash-filter-row" id="staffRestaurantControl" style="display:none;">
-        <span class="toolbar-label">Restaurant</span>
-        <select id="staffRestaurantSelect" class="dash-date-input"></select>
-      </div>
 
       <section class="manage-section">
         <h3>Daily entries — OT, Captain Incentive &amp; Waiter Tips</h3>

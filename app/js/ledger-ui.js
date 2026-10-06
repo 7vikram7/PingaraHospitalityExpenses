@@ -191,16 +191,55 @@ function renderAll(){
   document.getElementById('datePick').value = currentDate;
 }
 function renderRestaurantSelect(){
-  [document.getElementById('restaurantSelect'), document.getElementById('expensesRestaurantSelect')].forEach(sel=>{
-    sel.innerHTML = "";
+  const sel = document.getElementById('restaurantSelect');
+  sel.innerHTML = "";
+  RESTAURANTS.forEach(r=>{
+    const opt = document.createElement('option');
+    opt.value = r.id; opt.textContent = r.label;
+    sel.appendChild(opt);
+  });
+  sel.value = currentRestaurantId;
+  updateSyncBtnLabel();
+}
+// The one restaurant selector for Owner and Central Kitchen (top bar, added
+// 2026-10-06). Options are "All restaurants" plus each restaurant. "All" only
+// affects Reports and Vendor Ledger; Add Expenses and Staff Expenses keep
+// working on currentRestaurantId, which the hint spells out.
+function renderSharedRestaurantBar(){
+  const sel = document.getElementById('sharedRestaurantSelect');
+  const pick = getSharedRestaurantPick();
+  if(sel.options.length === 0){
+    const all = document.createElement('option');
+    all.value = 'all'; all.textContent = 'All restaurants';
+    sel.appendChild(all);
     RESTAURANTS.forEach(r=>{
       const opt = document.createElement('option');
       opt.value = r.id; opt.textContent = r.label;
       sel.appendChild(opt);
     });
-    sel.value = currentRestaurantId;
-  });
-  updateSyncBtnLabel();
+  }
+  sel.value = pick;
+  const hint = document.getElementById('sharedRestaurantHint');
+  hint.textContent = 'Add Expenses & Staff use: ' + restaurantLabel(currentRestaurantId);
+  hint.style.display = pick === 'all' ? 'inline' : 'none';
+}
+function refreshActiveTab(){
+  const active = document.querySelector('.tab-panel.active');
+  const id = active && active.id;
+  if(id === 'tabPanelReports') renderDashboard();
+  else if(id === 'tabPanelLedger') renderVendorLedger();
+  else if(id === 'tabPanelStaff') renderStaffPanel();
+}
+async function applySharedRestaurantPick(value){
+  setSharedRestaurantStored(value);
+  if(value !== 'all' && value !== currentRestaurantId){
+    await switchRestaurant(value);
+  }
+  dashRestaurantFilter = value;
+  vlRestaurantFilter = value;
+  vlExpandedVendor = null;
+  renderSharedRestaurantBar();
+  refreshActiveTab();
 }
 function updateSyncBtnLabel(){
   const btn = document.getElementById('syncBtn');
@@ -222,14 +261,15 @@ async function switchRestaurant(newId){
   await loadEntries(currentDate);
   await loadSales(currentDate);
   renderAll();
+  renderSharedRestaurantBar();
 }
 
 /* ---------- Events ---------- */
 document.getElementById('restaurantSelect').addEventListener('change', (ev)=>{
   switchRestaurant(ev.target.value);
 });
-document.getElementById('expensesRestaurantSelect').addEventListener('change', (ev)=>{
-  switchRestaurant(ev.target.value);
+document.getElementById('sharedRestaurantSelect').addEventListener('change', (ev)=>{
+  applySharedRestaurantPick(ev.target.value);
 });
 
 /* ---------- Restaurant selection gate ----------

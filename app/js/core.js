@@ -23,6 +23,23 @@ function getCurrentRestaurantId(){
 function setCurrentRestaurantId(id){
   try{ localStorage.setItem(CURRENT_RESTAURANT_KEY, id); }catch(e){}
 }
+// The restaurant chosen in the shared top-bar selector ('all' or an id), for
+// Owner and Central Kitchen. Cleared on Logout (auth.js). Defaults to the
+// current restaurant when nothing has been picked yet.
+const SHARED_RESTAURANT_KEY = "sharedRestaurantPick";
+function getSharedRestaurantPick(){
+  try{
+    const saved = localStorage.getItem(SHARED_RESTAURANT_KEY);
+    if(saved === 'all' || RESTAURANTS.some(r=>r.id === saved)) return saved;
+  }catch(e){}
+  return currentRestaurantId;
+}
+function setSharedRestaurantStored(value){
+  try{
+    if(value) localStorage.setItem(SHARED_RESTAURANT_KEY, value);
+    else localStorage.removeItem(SHARED_RESTAURANT_KEY);
+  }catch(e){}
+}
 function restaurantLabel(id){
   const r = RESTAURANTS.find(r=>r.id === id);
   return r ? r.label : id;

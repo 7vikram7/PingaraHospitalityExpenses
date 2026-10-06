@@ -1240,3 +1240,20 @@ Supersedes the earlier sales and restaurant rules in the section above:
 Tested in `test_ck_cross_restaurant.js` (switch to another restaurant with no
 prompt, add a bill there, verify sales, stay signed in after reload) and the
 updated `test_central_kitchen_profile.js`.
+
+## One shared restaurant selector (added 2026-10-06)
+Owner and Central Kitchen used to have a separate restaurant picker on each
+tab. There is now one selector in the top bar (`#sharedRestaurantSelect`),
+which every tab follows.
+- Choosing a specific restaurant calls `applySharedRestaurantPick()`
+  (ledger-ui.js), which runs `switchRestaurant()`, so `currentRestaurantId`
+  moves to that restaurant. Add Expenses, Staff Expenses, Reports, and
+  Vendor Ledger all read from it. The staff tab's own `staffRestaurantId`
+  selector and its variable were removed.
+- "All restaurants" is also an option. It only sets the Reports and Vendor
+  Ledger filters to combined data. Add Expenses and Staff Expenses keep the
+  last specific restaurant, and a hint next to the selector says which one.
+- The choice is stored under `sharedRestaurantPick` in localStorage, so it
+  survives a reload, and Logout clears it (`setSharedRestaurantStored(null)`).
+- Managers don't get the selector. Their restaurant is fixed by the gate
+  and shown as the name in the top bar.

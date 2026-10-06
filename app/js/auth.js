@@ -65,9 +65,12 @@ function updateTabVisibilityForProfile(){
   // SELECTOR inside that tab is shown to Owner and Central Kitchen alike
   // (full cross-restaurant staff-data rights for both); a normal Manager has
   // nothing to pick between and operates on currentRestaurantId directly.
-  document.getElementById('staffRestaurantControl').style.display = elevated ? 'flex' : 'none';
-  document.getElementById('expensesRestaurantControl').style.display = elevated ? 'flex' : 'none';
+  // One restaurant selector in the top bar serves every tab for Owner and
+  // Central Kitchen; a Manager's restaurant is fixed and shown as the name.
   document.getElementById('restaurantChangeBtn').style.display = elevated ? 'none' : '';
+  document.getElementById('sharedRestaurantWrap').style.display = elevated ? 'flex' : 'none';
+  document.getElementById('restaurantConfirmedName').style.display = elevated ? 'none' : '';
+  if(elevated) renderSharedRestaurantBar();
   document.getElementById('salesInlineSection').style.display = '';
   document.getElementById('ledSalesCell').style.display = '';
   if(!owner){
@@ -168,6 +171,7 @@ document.getElementById('desktopViewToggle').addEventListener('click', ()=>{
 document.getElementById('switchProfileBtn').addEventListener('click', ()=>{
   setProfile(null);
   setUnlockedRestaurantId(null);
+  setSharedRestaurantStored(null);
   try{ localStorage.removeItem(REPORTS_UNLOCK_KEY); }catch(e){}
   showProfileGate();
 });

@@ -24,7 +24,7 @@ Firebase Hosting.
   visibility into Reports, Vendor Ledger, Suppliers, and Staff Expenses
   (every restaurant, not just its own), can toggle bills paid/unpaid and
   add new bills/suppliers/staff entries and add bills for any restaurant
-  (same restaurant selector as the Owner, no per-restaurant password), but
+  (the same shared restaurant selector as the Owner, no per-restaurant password), but
   can never *modify* an existing bill's amount/category/date or an existing
   supplier's category default. It sees sales and profit the same way the
   Owner does, and gets the same Verify button on bills, sales days, and

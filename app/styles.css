@@ -551,6 +551,9 @@ h1{
   margin:0;
   letter-spacing:-0.01em;
 }
+.shared-restaurant{display:flex; align-items:center; gap:10px; flex-wrap:wrap;}
+.shared-restaurant select{font-size:15px; min-width:200px;}
+.shared-restaurant-hint{font-family:'IBM Plex Mono',monospace; font-size:11px; color:var(--ink-soft);}
 .restaurant-change-btn{
   background:transparent;
   border:1.5px solid var(--brass);

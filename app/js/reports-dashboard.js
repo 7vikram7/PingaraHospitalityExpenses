@@ -22,7 +22,6 @@ function showReportsPanel(){
   document.getElementById('reportsLock').style.display = unlocked ? 'none' : 'block';
   document.getElementById('reportsContent').style.display = unlocked ? 'block' : 'none';
   if(unlocked){
-    renderDashRestaurantSelect();
     renderDashboard();
   }
 }
@@ -122,7 +121,7 @@ let dashPeriodType = 'day';  // 'day' | 'month' | 'range'
 let dashSelectedDate, dashSelectedMonth; // set from init(), after todayStr()/addDaysStr() exist
 let dashRangeFrom, dashRangeTo;
 let dashCompareMonthA, dashCompareMonthB;
-let dashRestaurantFilter = 'all'; // 'all' or a restaurant id
+let dashRestaurantFilter = 'all'; // 'all' or a restaurant id, set from the shared top-bar selector
 
 function addMonthsStr(monthStr, delta){
   const [y, m] = monthStr.split('-').map(Number);
@@ -134,18 +133,6 @@ function addMonthsStr(monthStr, delta){
 function fmtMonthLabel(monthStr){
   const [y, m] = monthStr.split('-').map(Number);
   return new Date(y, m - 1, 1).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
-}
-
-function renderDashRestaurantSelect(){
-  const sel = document.getElementById('dashRestaurantSelect');
-  const prev = sel.value || dashRestaurantFilter;
-  sel.innerHTML = '<option value="all">All restaurants</option>';
-  RESTAURANTS.forEach(r=>{
-    const opt = document.createElement('option');
-    opt.value = r.id; opt.textContent = r.label;
-    sel.appendChild(opt);
-  });
-  sel.value = prev;
 }
 
 function restaurantBillsKeyFor(restaurantId, monthKey){
@@ -782,10 +769,6 @@ document.getElementById('dashChartPie').addEventListener('click', ()=>{
   document.getElementById('dashChartBar').classList.remove('active');
   document.getElementById('dashBarChart').style.display = 'none';
   document.getElementById('dashPieGrid').style.display = 'grid';
-  renderDashboard();
-});
-document.getElementById('dashRestaurantSelect').addEventListener('change', (ev)=>{
-  dashRestaurantFilter = ev.target.value;
   renderDashboard();
 });
 
