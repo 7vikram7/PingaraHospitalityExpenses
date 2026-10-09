@@ -977,6 +977,64 @@ Five tab panels, switched by `.tab-bar` buttons (`tabBtnExpenses` /
     the flat Monthly Salary table already refreshes itself
     (`staffSaveEmployeeBtn`'s handler and the bulk-upload handler) — fixed
     by adding the same call alongside `renderStaffSalaryTable()` in both.
+    - **Bank transfer (.xlsx) download added the same day**, on both this
+      report and the combined OT/Incentive/Tips report above — the user
+      shared their actual downloaded bank template
+      (`BLKPAY_YYYYMMDD.xlsx`, IDFC FIRST's bulk-payment format) and asked
+      for a download that matches it, kept separate from the existing CSV
+      downloads. Read with the `xlsx` npm package first (not the Read
+      tool, which can't parse binary files) to capture the real column
+      headers (`BANK_TRANSFER_HEADER_ROW`) and the bank's own per-column
+      instructions text (`BANK_TRANSFER_INSTRUCTIONS_ROW`), both
+      reproduced verbatim as rows 1–2 of the generated file, in case the
+      bank's own bulk-upload parser is strict about the template's exact
+      structure — data starts row 3, same as the real template. Built with
+      the same SheetJS (`XLSX.utils.aoa_to_sheet()` + `XLSX.writeFile()`)
+      pattern `excel-export.js` already uses for the FY register, not a
+      new dependency. Three design decisions needed real answers before
+      building (asked via questions, since this generates a file that
+      moves real money and a wrong guess isn't just inconvenient): the
+      required "Debit Account Number" field is one shared value across
+      every restaurant, not per-restaurant; Transaction Type is always
+      `"NEFT"` (never auto-detected `"IFT"`, which would have needed
+      knowing IDFC FIRST's own IFSC prefix); and the feature applies to
+      both reports independently, each producing its own file, not a
+      merged one. **The debit account number is deliberately never typed
+      into chat or committed to git** — `bankDebitAccountNumber`
+      (core state in data-store.js) is entered once in a new "Bank
+      Transfer Settings" field in the Staff tab and stored the same
+      account-wide way `staffBankDefaults` already is, same as every other
+      piece of real financial PII in this app (see "Data & security
+      notes" below). `staffEmployeeHasFullBankDetails(emp)` is a stricter
+      bar than the plain CSV's `staffEmployeeHasBankAccount()` — NEFT
+      needs both an account number *and* an IFSC code, so an employee
+      missing either is silently excluded here (still included normally
+      in the plain CSV). The salary version also excludes any employee
+      whose net pay isn't strictly positive (an advance larger than the
+      days-present gross), since a bank transfer amount can't be zero or
+      negative — that employee still appears correctly, negative net and
+      all, in the plain CSV. Account number, IFSC, and the debit account
+      are written as real JS strings into the `.xlsx` cells, so (unlike
+      the CSV downloads) they render as text with no scientific-notation
+      risk and need no `csvForceText()`-style workaround — that trick is
+      specific to a CSV being *opened* by Excel, not to a binary `.xlsx`
+      built directly via SheetJS. Amount is written as an actual JS
+      number (not a string), since the bank's own instructions say
+      "Enter payment amount" without any text-preservation concern the
+      way an account/mobile number has. Transaction Date is always
+      today's date (`todayDDMMYYYY()`, converting `todayStr()`'s
+      `YYYY-MM-DD` to the bank's required `DD/MM/YYYY`) — no separate date
+      picker, matching the minimal scope actually requested; a future
+      date can still be hand-edited into the downloaded file before
+      upload if needed. Verified with `test_bank_transfer.js` (18/18:
+      download blocked with a clear message before the debit account is
+      set, the setting persists across reload, the header and
+      instructions rows match the real template exactly, an
+      account-without-IFSC employee is excluded from both reports' bank
+      files while still appearing in the plain CSV, Transaction Type/
+      Debit Account/Date/Currency are all correct, Amount is a real
+      number not text, account/IFSC are preserved as exact text) plus the
+      full existing suite re-run clean.
   - **Monthly salary** (hidden from the UI 2026-10-02 via `display:none` on
     its `<section>` — "not required right now," not removed; the data
     model, `renderStaffSalaryTable()`, and all its Firestore reads/writes

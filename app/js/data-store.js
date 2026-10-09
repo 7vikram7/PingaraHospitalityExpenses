@@ -637,6 +637,26 @@ async function toggleSalaryPaid(restaurantId, monthKey, employeeId, employeeName
 // the days in that calendar month, and that month's Staff Advance total, so
 // editing a salary or an advance afterward is reflected immediately without
 // needing to re-save anything here.
+// ---- Bank transfer settings (added 2026-10-09) ----
+// One shared "debit account number" (the business's own account the bank
+// bulk-payment file pays FROM), used on every row of every bank-transfer
+// download regardless of restaurant -- the user explicitly chose "one
+// account for everything" over a per-restaurant value. Deliberately never
+// committed to git (unlike app/tenant.js) and never typed into chat -- it's
+// entered once in the Staff tab and stored the same account-wide way
+// staffBankDefaults already is.
+const BANK_DEBIT_ACCOUNT_KEY = "bankDebitAccountNumber";
+let bankDebitAccountNumber = "";
+async function loadBankDebitAccountNumber(){
+  const raw = await safeGet(BANK_DEBIT_ACCOUNT_KEY);
+  bankDebitAccountNumber = raw || "";
+  return bankDebitAccountNumber;
+}
+async function saveBankDebitAccountNumber(value){
+  bankDebitAccountNumber = (value || "").trim();
+  await safeSet(BANK_DEBIT_ACCOUNT_KEY, bankDebitAccountNumber);
+}
+
 function salaryDaysKeyFor(restaurantId, monthKey){ return "rest:" + restaurantId + ":salaryDays:" + monthKey; }
 async function loadSalaryDays(restaurantId, monthKey){
   const raw = await safeGet(salaryDaysKeyFor(restaurantId, monthKey));

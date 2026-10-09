@@ -688,6 +688,18 @@ window.__firebaseSdkReady = (async ()=>{
       </section>
 
       <section class="manage-section">
+        <h3>Bank Transfer Settings</h3>
+        <p class="sup-tab-note">Your own IDFC FIRST account to pay FROM — included on every row of the
+          "Bank transfer (.xlsx)" files below, as the bank's bulk-payment format requires. Saved once,
+          shared across every restaurant. Type it directly here; it's never written to the codebase.</p>
+        <div class="new-supplier-box open">
+          <input type="text" id="bankDebitAccountInput" placeholder="Debit account number (IDFC FIRST)">
+          <button type="button" id="bankDebitAccountSaveBtn">Save</button>
+          <span class="sales-saved-hint" id="bankDebitAccountSavedHint" style="display:none;">Saved ✓</span>
+        </div>
+      </section>
+
+      <section class="manage-section">
         <h3>Combined OT, Incentive &amp; Tips report</h3>
         <p class="sup-tab-note">Summary for the restaurant selected above — defaults to yesterday, or pick
           any date range below. Download a payment-ready CSV with each employee's bank details for
@@ -722,6 +734,10 @@ window.__firebaseSdkReady = (async ()=>{
           <button type="button" class="history-btn" id="staffReportDownloadWithBankBtn">With bank details (CSV)</button>
           <button type="button" class="history-btn" id="staffReportDownloadWithoutBankBtn">Without bank details (CSV)</button>
         </div>
+        <div class="staff-report-downloads">
+          <button type="button" class="history-btn bank-transfer-btn" id="staffReportDownloadBankBtn">Bank transfer file (.xlsx)</button>
+          <span class="bank-transfer-note">IDFC FIRST bulk-payment format — check it before uploading.</span>
+        </div>
       </section>
 
       <section class="manage-section">
@@ -754,6 +770,10 @@ window.__firebaseSdkReady = (async ()=>{
           <button type="button" class="history-btn" id="staffSalaryCalcDownloadAllBtn">Download all (CSV)</button>
           <button type="button" class="history-btn" id="staffSalaryCalcDownloadWithBankBtn">With bank details (CSV)</button>
           <button type="button" class="history-btn" id="staffSalaryCalcDownloadWithoutBankBtn">Without bank details (CSV)</button>
+        </div>
+        <div class="staff-report-downloads">
+          <button type="button" class="history-btn bank-transfer-btn" id="staffSalaryCalcDownloadBankBtn">Bank transfer file (.xlsx)</button>
+          <span class="bank-transfer-note">IDFC FIRST bulk-payment format — check it before uploading.</span>
         </div>
       </section>
 

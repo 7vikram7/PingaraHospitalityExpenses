@@ -48,8 +48,16 @@ async function showStaffTabPanel(){
   document.getElementById('staffSalaryMonthPicker').value = staffSalaryMonth;
   document.getElementById('staffSalaryCalcMonthPicker').value = staffSalaryCalcMonth;
   staffReportDefaultDates();
+  await loadBankDebitAccountNumber();
+  document.getElementById('bankDebitAccountInput').value = bankDebitAccountNumber;
   await renderStaffPanel();
 }
+document.getElementById('bankDebitAccountSaveBtn').addEventListener('click', async ()=>{
+  await saveBankDebitAccountNumber(document.getElementById('bankDebitAccountInput').value);
+  const hint = document.getElementById('bankDebitAccountSavedHint');
+  hint.style.display = 'inline';
+  setTimeout(()=>{ hint.style.display = 'none'; }, 2500);
+});
 async function renderStaffPanel(){
   const restId = getStaffActiveRestaurantId();
   currentStaffList = await loadStaffList(restId);
@@ -768,6 +776,72 @@ document.getElementById('staffReportTo').addEventListener('change', renderStaffR
 function staffEmployeeHasBankAccount(emp){
   return !!(emp && emp.accountNumber && emp.accountNumber.trim());
 }
+
+/* ---------- Bank transfer (.xlsx) downloads (added 2026-10-09) ----------
+   A separate format from the CSV downloads above -- matches the exact
+   column layout of the owner's bank's own bulk-payment upload template
+   (IDFC FIRST "BLKPAY" format), row for row, so the downloaded file can be
+   uploaded to the bank's portal with no reformatting. Requires an account
+   number AND an IFSC (NEFT needs both) -- an employee failing either check
+   is silently excluded, same principle as the existing with/without-bank
+   CSV split, just a stricter bar. */
+function staffEmployeeHasFullBankDetails(emp){
+  return staffEmployeeHasBankAccount(emp) && !!(emp.ifscCode && emp.ifscCode.trim());
+}
+// "DD/MM/YYYY", the exact format the bank template's instructions require
+// for Transaction Date -- todayStr() is "YYYY-MM-DD".
+function todayDDMMYYYY(){
+  const [y, m, d] = todayStr().split('-');
+  return `${d}/${m}/${y}`;
+}
+// Row 1 (column headers) and row 2 (the bank's own per-column instructions)
+// copied verbatim from the owner's real downloaded template so the file
+// matches it exactly -- banks' bulk-upload parsers can be strict about the
+// template's own structure, so these two rows are reproduced rather than
+// just approximated.
+const BANK_TRANSFER_HEADER_ROW = [
+  "Beneficiary Name", "Beneficiary Account Number", "IFSC", "Transaction Type",
+  "Debit Account Number", "Transaction Date", "Amount", "Currency",
+  "Beneficiary Email ID", "Remarks", "Custom Header – 1", "Custom Header – 2",
+  "Custom Header – 3", "Custom Header – 4", "Custom Header – 5"
+];
+const BANK_TRANSFER_INSTRUCTIONS_ROW = [
+  "Enter beneficiary name.\r\nMANDATORY",
+  "Enter beneficiary account number. \r\nThis can be IDFC FIRST Bank account or other Bank account.\r\nMANDATORY",
+  "Enter beneficiary bank IFSC code. Required only for Inter bank (NEFT/RTGS) payment.",
+  "Enter payment type:\r\nIFT - Within Bank payment\r\nNEFT - Inter-Bank(NEFT) payment\r\nRTGS - Inter-Bank(RTGS) payment\r\nMANDATORY",
+  "Enter debit account number. This should be IDFC FIRST Bank account only. User should have access to do transaction on this account",
+  "Enter transaction value date. Should be today's date or future date.\r\nMANDATORY\r\nDD/MM/YYYY format",
+  "Enter payment amount.\r\nMANDATORY",
+  "Enter transaction currency. Should be INR only.\r\nMANDATORY",
+  "Enter beneficiary email id\r\nOPTIONAL",
+  "Enter remarks\r\nOPTIONAL",
+  "Credit Advice:\r\nEnter Custom Info -1\r\nNote: Header label is editable in Row 1\r\nOPTIONAL",
+  "Credit Advice:\r\nEnter Custom Info -2\r\nNote: Header label is editable in Row 1\r\nOPTIONAL",
+  "Credit Advice:\r\nEnter Custom Info -3\r\nNote: Header label is editable in Row 1\r\nOPTIONAL",
+  "Credit Advice:\r\nEnter Custom Info -4\r\nNote: Header label is editable in Row 1\r\nOPTIONAL",
+  "Credit Advice:\r\nEnter Custom Info -5\r\nNote: Header label is editable in Row 1\r\nOPTIONAL"
+];
+// One row per qualifying employee: name, account number and IFSC as actual
+// text (an .xlsx cell built from a JS string stays text -- unlike a CSV
+// opened in Excel, there's no scientific-notation risk here, so no
+// csvForceText() needed), always "NEFT" (the user's explicit choice over
+// auto-detecting IFT, since it works for every bank including the owner's
+// own), the shared debit account, today's date, and the amount as a real
+// number (bank parsers expect Amount numeric, unlike account/mobile numbers).
+function buildBankTransferRow(emp, amount, remarks){
+  return [
+    emp.name, emp.accountNumber, emp.ifscCode, "NEFT",
+    bankDebitAccountNumber, todayDDMMYYYY(), Number(amount.toFixed(2)), "INR",
+    "", remarks, "", "", "", "", ""
+  ];
+}
+function downloadBankTransferWorkbook(dataRows, filename){
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.aoa_to_sheet([BANK_TRANSFER_HEADER_ROW, BANK_TRANSFER_INSTRUCTIONS_ROW, ...dataRows]);
+  XLSX.utils.book_append_sheet(wb, ws, "Sheet1");
+  XLSX.writeFile(wb, filename);
+}
 // bankFilter: 'all' | 'with' | 'without' -- which employees' rows to include,
 // added 2026-10-09 so the owner/Central Kitchen can hand off just the piece
 // relevant to whoever is processing payments (e.g. bank transfer for the
@@ -839,6 +913,33 @@ async function downloadStaffCombinedReport(bankFilter){
 document.getElementById('staffReportDownloadAllBtn').addEventListener('click', ()=>downloadStaffCombinedReport('all'));
 document.getElementById('staffReportDownloadWithBankBtn').addEventListener('click', ()=>downloadStaffCombinedReport('with'));
 document.getElementById('staffReportDownloadWithoutBankBtn').addEventListener('click', ()=>downloadStaffCombinedReport('without'));
+
+async function downloadBankTransferCombinedReport(){
+  if(!bankDebitAccountNumber){
+    alert('Set your Debit Account Number above (Bank Transfer Settings) before downloading a bank transfer file.');
+    return;
+  }
+  const restId = getStaffActiveRestaurantId();
+  const from = document.getElementById('staffReportFrom').value;
+  const to = document.getElementById('staffReportTo').value;
+  if(!from || !to || from > to){
+    alert("Pick a valid From and To date first.");
+    return;
+  }
+  const totals = await computeStaffReportTotals(restId, from, to);
+  const dataRows = Object.keys(totals)
+    .map(empId => ({ emp: currentStaffList.find(e => e.id === empId), t: totals[empId] }))
+    .filter(({ emp, t }) => staffEmployeeHasFullBankDetails(emp) && (t.ot + t.captain_incentive + t.waiter_tips) > 0)
+    .sort((a, b) => a.emp.name.localeCompare(b.emp.name))
+    .map(({ emp, t }) => buildBankTransferRow(emp, t.ot + t.captain_incentive + t.waiter_tips, "OT/Incentive/Tips payout"));
+
+  if(dataRows.length === 0){
+    alert("No employees with a complete bank account + IFSC on file have OT/Incentive/Tips entries for that date range.");
+    return;
+  }
+  downloadBankTransferWorkbook(dataRows, `${restId}-bank-transfer-ot-incentive-tips_${from}_to_${to}.xlsx`);
+}
+document.getElementById('staffReportDownloadBankBtn').addEventListener('click', downloadBankTransferCombinedReport);
 
 /* ---------- Salary — Days Present (added 2026-10-09) ----------
    A separate, simpler alternative to the flat Monthly Salary table below
@@ -1001,6 +1102,38 @@ async function downloadStaffSalaryReport(bankFilter){
 document.getElementById('staffSalaryCalcDownloadAllBtn').addEventListener('click', ()=>downloadStaffSalaryReport('all'));
 document.getElementById('staffSalaryCalcDownloadWithBankBtn').addEventListener('click', ()=>downloadStaffSalaryReport('with'));
 document.getElementById('staffSalaryCalcDownloadWithoutBankBtn').addEventListener('click', ()=>downloadStaffSalaryReport('without'));
+
+async function downloadBankTransferSalaryReport(){
+  if(!bankDebitAccountNumber){
+    alert('Set your Debit Account Number above (Bank Transfer Settings) before downloading a bank transfer file.');
+    return;
+  }
+  const restId = getStaffActiveRestaurantId();
+  const monthKey = staffSalaryCalcMonth;
+  const daysInMonth = daysInCalendarMonth(monthKey);
+  const daysObj = await loadSalaryDays(restId, monthKey);
+  const advanceTotals = await computeStaffAdvanceTotalsForMonth(restId, monthKey);
+
+  const dataRows = currentStaffList
+    .filter(emp => daysObj[emp.id] && daysObj[emp.id].days > 0 && staffEmployeeHasFullBankDetails(emp))
+    .map(emp => {
+      const calc = staffSalaryCalcFor(emp, daysObj[emp.id].days, daysInMonth, advanceTotals[emp.id] || 0);
+      return { emp, net: calc.net };
+    })
+    // A bank transfer amount can't be zero or negative (e.g. an advance
+    // larger than the days-present gross) -- skip it here rather than send
+    // an invalid row; it still shows correctly in the plain CSV downloads.
+    .filter(({ net }) => net > 0)
+    .sort((a, b) => a.emp.name.localeCompare(b.emp.name))
+    .map(({ emp, net }) => buildBankTransferRow(emp, net, `Salary ${monthKey}`));
+
+  if(dataRows.length === 0){
+    alert("No employees with a complete bank account + IFSC on file have a positive net salary for this month.");
+    return;
+  }
+  downloadBankTransferWorkbook(dataRows, `${restId}-bank-transfer-salary_${monthKey}.xlsx`);
+}
+document.getElementById('staffSalaryCalcDownloadBankBtn').addEventListener('click', downloadBankTransferSalaryReport);
 
 /* ---------- Monthly salary ---------- */
 // One row per CURRENT staff member — a saved entry for this month, if any,

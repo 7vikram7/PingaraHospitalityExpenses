@@ -551,7 +551,10 @@ h1{
   margin:0;
   letter-spacing:-0.01em;
 }
-.staff-report-downloads{display:flex; gap:10px; flex-wrap:wrap;}
+.staff-report-downloads{display:flex; align-items:center; gap:10px; flex-wrap:wrap;}
+.bank-transfer-btn{background:var(--brass); color:#fff; border-color:var(--brass);}
+.bank-transfer-btn:hover{background:var(--brass-deep); border-color:var(--brass-deep);}
+.bank-transfer-note{font-family:'IBM Plex Mono',monospace; font-size:11px; color:var(--ink-soft);}
 .shared-restaurant{display:flex; align-items:center; gap:10px; flex-wrap:wrap;}
 .shared-restaurant select{font-size:15px; min-width:200px;}
 .shared-restaurant-hint{font-family:'IBM Plex Mono',monospace; font-size:11px; color:var(--ink-soft);}

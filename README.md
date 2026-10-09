@@ -147,6 +147,14 @@ Firebase Hosting.
   Monthly Salary table also exists (pre-filled from each employee's
   default, editable per month) but its section is currently hidden from
   the UI (not removed — just not needed right now).
+  Both reports also offer a **bank transfer file (.xlsx)** — a separate
+  format matching the owner's bank's own bulk-payment upload template
+  (IDFC FIRST's "BLKPAY" format) exactly, so it can be uploaded with no
+  reformatting. Only employees with a complete account number *and* IFSC
+  qualify (NEFT needs both), and the transfer amount must be positive. A
+  **Bank Transfer Settings** field holds the one shared debit account
+  (your own IDFC FIRST account the file pays *from*) — entered once in
+  the app, never written to the codebase.
 - **Cross-verification (Owner and Central Kitchen)** — bills, sales days,
   and staff entries (OT, Captain Incentive, Waiter Tips, Staff Advance) each
   have a **Verify** toggle. Owner and Central Kitchen can mark an entry
@@ -263,6 +271,11 @@ running list of known limitations — see [`CONTEXT.md`](./CONTEXT.md).
   exposure as everything else** — see the point above. This is real
   financial PII, more sensitive than anything else this app stores; the
   tradeoff was made consciously for this feature too, not overlooked.
+- **The shared bank-transfer debit account number carries the same
+  tradeoff** — it's never written to the codebase or typed into chat
+  (entered directly in the app, in the Staff tab's "Bank Transfer
+  Settings"), but it's stored in the same open Firestore as everything
+  else.
 - Real reports, exports, and any restaurant-specific data are intentionally
   **not** in this repo.
 
