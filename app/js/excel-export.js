@@ -5,6 +5,18 @@ function csvEscape(v){
   if(/[",\n]/.test(s)) return '"' + s.replace(/"/g,'""') + '"';
   return s;
 }
+// Wraps a long numeric-looking value (mobile numbers, bank account numbers)
+// as an Excel formula literal (="..."), added 2026-10-09 -- opened as plain
+// text in a CSV, Excel auto-converts a 10+ digit numeric string to
+// scientific notation (9.97E+09) and silently drops precision beyond 15
+// digits, which breaks a mobile/account number. ="1234567890" forces Excel
+// to show the digits exactly as given instead of treating the cell as a
+// number. Passed through csvEscape() same as any other field -- the quotes
+// in the formula get correctly doubled and the whole thing outer-quoted.
+function csvForceText(v){
+  if(v === null || v === undefined || v === "") return "";
+  return '="' + String(v).replace(/"/g,'""') + '"';
+}
 async function buildCsv(){
   const rows = [["Date","Category","Subcategory","Supplier","Invoice #","Amount","Status"]];
   const monthKeys = (await listBillMonthKeys()).sort();

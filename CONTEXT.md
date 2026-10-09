@@ -896,6 +896,16 @@ Five tab panels, switched by `.tab-bar` buttons (`tabBtnExpenses` /
       OT/Incentive/Tips entries for that date range") rather than the
       generic one, so it's clear the *filter* came up empty, not the whole
       range.
+    - **Mobile/account numbers forced to text in the CSV, 2026-10-09**:
+      Excel auto-converts a bare 10+ digit numeric string to scientific
+      notation (`9.97E+09`) and silently truncates past 15 digits, which
+      corrupts a mobile or account number opened from a plain CSV.
+      `csvForceText(v)` (excel-export.js) wraps the value as the Excel
+      formula literal `="1234567890"` before it reaches `csvEscape()` —
+      Excel evaluates that as literal text, showing every digit exactly as
+      given. Applied to the Mobile and Account Number columns only (IFSC
+      already has letters, so it's immune); the rest of the row is
+      untouched.
     - **On-screen summary added 2026-10-03** (`renderStaffReportSummary()`)
       — four `.dash-hero` stat cards (OT / Captain Incentive / Waiter Tips
       / Total, same visual pattern as the Reports tab's Total
