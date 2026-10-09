@@ -629,6 +629,42 @@ async function toggleSalaryPaid(restaurantId, monthKey, employeeId, employeeName
   return entry;
 }
 
+// ---- Salary by Days Present (added 2026-10-09) ----
+// Separate from the flat Monthly Salary feature above (still hidden from the
+// UI). `rest:<id>:salaryDays:<YYYY-MM>` -> { employeeId: { days, savedAt } }
+// stores ONLY the days-present input -- gross/advances/net are always
+// computed fresh (staff-tab.js) from the employee's current default salary,
+// the days in that calendar month, and that month's Staff Advance total, so
+// editing a salary or an advance afterward is reflected immediately without
+// needing to re-save anything here.
+function salaryDaysKeyFor(restaurantId, monthKey){ return "rest:" + restaurantId + ":salaryDays:" + monthKey; }
+async function loadSalaryDays(restaurantId, monthKey){
+  const raw = await safeGet(salaryDaysKeyFor(restaurantId, monthKey));
+  if(raw){ try{ return JSON.parse(raw) || {}; }catch(e){} }
+  return {};
+}
+async function saveSalaryDaysForEmployee(restaurantId, monthKey, employeeId, days){
+  const obj = await loadSalaryDays(restaurantId, monthKey);
+  obj[employeeId] = { days: Number(days) || 0, savedAt: Date.now() };
+  await safeSet(salaryDaysKeyFor(restaurantId, monthKey), JSON.stringify(obj));
+  return obj[employeeId];
+}
+// Sums that month's Staff Advance entries per employee -- same
+// `rest:<id>:ot:<YYYY-MM>` collection OT/Incentive/Tips/Advance all share,
+// filtered to type === 'advance'. Only that one calendar month counts, by
+// design (an advance given in an earlier month was already deducted then).
+async function computeStaffAdvanceTotalsForMonth(restaurantId, monthKey){
+  const totals = {};
+  const month = await loadOTMonth(restaurantId, monthKey);
+  Object.keys(month).forEach(date=>{
+    (month[date] || []).forEach(e=>{
+      if((e.type || 'ot') !== 'advance') return;
+      totals[e.employeeId] = (totals[e.employeeId] || 0) + Number(e.amount || 0);
+    });
+  });
+  return totals;
+}
+
 let saveErrorShown = false;
 function showSaveError(){
   if(saveErrorShown) return;

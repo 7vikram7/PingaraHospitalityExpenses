@@ -926,6 +926,57 @@ Five tab panels, switched by `.tab-bar` buttons (`tabBtnExpenses` /
       add/delete (deliberately skipped for Staff Advance adds/deletes,
       since Advance never counts toward this summary either) — so it's
       never stale after an action that could change it.
+  - **Salary — Days Present** (added 2026-10-09, `renderStaffSalaryCalcTable()`)
+    — a new, separate section (not the flat Monthly Salary table below,
+    which stays hidden and untouched) for the request "we just add the
+    number of days present and you calculate the salaries of employees by
+    subtracting their advances." Month picker (its own
+    `staffSalaryCalcMonth`, independent of the flat table's
+    `staffSalaryMonth`) above a table with one row per current employee:
+    an editable Days Present input, then Gross / Advances / Net, all
+    computed, plus the same four `.dash-hero` summary cards and the same
+    all/with-bank/without-bank CSV split the combined report above uses.
+    **Only the days-present number is persisted** — `saveSalaryDaysForEmployee()`
+    writes to a new key, `rest:<id>:salaryDays:<YYYY-MM>` →
+    `{employeeId: {days, savedAt}}` (data-store.js), deliberately separate
+    from `rest:<id>:salary:<YYYY-MM>` (the old flat table's own key).
+    Gross/Advances/Net are **never stored** — `staffSalaryCalcFor(emp, days,
+    daysInMonth, advance)` recomputes them from the employee's *current*
+    `salary` field, `daysInCalendarMonth(monthKey)` (`new Date(y, m, 0)
+    .getDate()` — day 0 of next month is the last day of this one), and
+    `computeStaffAdvanceTotalsForMonth()` (data-store.js, sums that
+    calendar month's `type === 'advance'` entries from the same
+    `rest:<id>:ot:<YYYY-MM>` collection the daily lists use) every time the
+    table renders — so a later salary change or a newly-logged advance is
+    reflected immediately without anything here needing re-saving, by
+    design per the user's explicit choice to persist only days-present, not
+    the calculation. The days input also has a live `input` listener that
+    recomputes just that row's Gross/Net cells as you type, before Save —
+    the four summary cards deliberately do **not** update until Save, same
+    "nothing written (or counted) until Save" discipline the flat Monthly
+    Salary table already follows. Advances only count from the same
+    calendar month as the salary being calculated (an earlier month's
+    advance was already deducted then) — the user's explicit choice over
+    "every unpaid advance ever," which would have needed a
+    settle/already-deducted flag to avoid double-counting. The download
+    only includes employees with a saved days-present value `> 0` for that
+    month (mirrors the combined report only including employees with a
+    qualifying entry) and reuses `staffEmployeeHasBankAccount()` and
+    `csvForceText()` from the combined report unchanged. Verified with
+    `test_salary_days_present.js` (21/21: both employees appear with no
+    roster/assignment step needed, live preview during typing, totals stay
+    at zero until Save then match exactly, days-present persists across
+    leaving and returning to the tab, all three downloads correct
+    including the actual Gross/Net figures and the with/without-bank
+    filtering, a zero-days employee is excluded from every download, no
+    scientific notation / full-precision account numbers via
+    `csvForceText()`) plus the full existing suite re-run clean. **Caught
+    by testing**: the table didn't refresh after adding a new employee or
+    a bulk upload — only `renderStaffPanel()` (tab open/restaurant switch)
+    called the new render function at first, missing the two other places
+    the flat Monthly Salary table already refreshes itself
+    (`staffSaveEmployeeBtn`'s handler and the bulk-upload handler) — fixed
+    by adding the same call alongside `renderStaffSalaryTable()` in both.
   - **Monthly salary** (hidden from the UI 2026-10-02 via `display:none` on
     its `<section>` — "not required right now," not removed; the data
     model, `renderStaffSalaryTable()`, and all its Firestore reads/writes

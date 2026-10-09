@@ -724,6 +724,39 @@ window.__firebaseSdkReady = (async ()=>{
         </div>
       </section>
 
+      <section class="manage-section">
+        <h3>Salary — Days Present</h3>
+        <p class="sup-tab-note">Enter each employee's days present for the month. Net pay is calculated
+          as monthly salary ÷ days in that month × days present, minus that month's Staff Advance total
+          — nothing here is stored except the days present you enter, so it always reflects the current
+          salary and advances.</p>
+        <div class="date-control">
+          <span class="toolbar-label">Month</span>
+          <input type="month" id="staffSalaryCalcMonthPicker" class="dash-date-input">
+        </div>
+        <div class="dash-hero-row">
+          <div class="dash-hero">
+            <div class="dash-hero-label">Gross</div>
+            <div class="dash-hero-value" id="staffSalaryCalcSummaryGross">₹0.00</div>
+          </div>
+          <div class="dash-hero">
+            <div class="dash-hero-label">Advances</div>
+            <div class="dash-hero-value" id="staffSalaryCalcSummaryAdvance">₹0.00</div>
+          </div>
+          <div class="dash-hero">
+            <div class="dash-hero-label">Net</div>
+            <div class="dash-hero-value" id="staffSalaryCalcSummaryNet">₹0.00</div>
+          </div>
+        </div>
+        <div class="dash-empty" id="staffSalaryCalcEmpty" style="display:none;">No staff added for this restaurant yet.</div>
+        <div class="plain-table-wrap" id="staffSalaryCalcTableWrap"></div>
+        <div class="staff-report-downloads">
+          <button type="button" class="history-btn" id="staffSalaryCalcDownloadAllBtn">Download all (CSV)</button>
+          <button type="button" class="history-btn" id="staffSalaryCalcDownloadWithBankBtn">With bank details (CSV)</button>
+          <button type="button" class="history-btn" id="staffSalaryCalcDownloadWithoutBankBtn">Without bank details (CSV)</button>
+        </div>
+      </section>
+
       <section class="manage-section" style="display:none;">
         <h3>Monthly salary</h3>
         <input type="month" id="staffSalaryMonthPicker" class="dash-date-input">

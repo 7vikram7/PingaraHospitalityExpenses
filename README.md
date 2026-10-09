@@ -136,10 +136,17 @@ Firebase Hosting.
   given, not a payout to calculate). Three separate downloads cover every
   employee, only those with bank account details on file, or only those
   without, so the piece relevant to whoever is processing payments can be
-  handed off on its own. Monthly salary tracking also exists
-  (pre-filled from each employee's default, editable per month) but its
-  section is currently hidden from the UI (not removed — just not needed
-  right now).
+  handed off on its own.
+  A **Salary — Days Present** section does the same for salary: enter each
+  employee's days present for a month, and net pay is calculated as
+  monthly salary ÷ days in that month × days present, minus that month's
+  Staff Advance total. Only the days-present number is saved — everything
+  else recalculates live, so a later salary change or a newly-logged
+  advance is always reflected. The same three downloads (all / with bank
+  details / without) are available here too. A separate, older flat
+  Monthly Salary table also exists (pre-filled from each employee's
+  default, editable per month) but its section is currently hidden from
+  the UI (not removed — just not needed right now).
 - **Cross-verification (Owner and Central Kitchen)** — bills, sales days,
   and staff entries (OT, Captain Incentive, Waiter Tips, Staff Advance) each
   have a **Verify** toggle. Owner and Central Kitchen can mark an entry

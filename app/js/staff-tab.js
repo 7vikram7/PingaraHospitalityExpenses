@@ -29,6 +29,7 @@
 
 let staffOtSelectedDate;
 let staffSalaryMonth;
+let staffSalaryCalcMonth;
 let currentStaffList = [];
 
 // The restaurant shared across tabs (see ledger-ui.js's applySharedRestaurantPick):
@@ -42,8 +43,10 @@ function getStaffActiveRestaurantId(){
 async function showStaffTabPanel(){
   if(staffOtSelectedDate === undefined) staffOtSelectedDate = todayStr();
   if(staffSalaryMonth === undefined) staffSalaryMonth = todayStr().slice(0,7);
+  if(staffSalaryCalcMonth === undefined) staffSalaryCalcMonth = todayStr().slice(0,7);
   document.getElementById('staffOtDatePicker').value = staffOtSelectedDate;
   document.getElementById('staffSalaryMonthPicker').value = staffSalaryMonth;
+  document.getElementById('staffSalaryCalcMonthPicker').value = staffSalaryCalcMonth;
   staffReportDefaultDates();
   await renderStaffPanel();
 }
@@ -56,6 +59,7 @@ async function renderStaffPanel(){
   renderAllHeadRosters();
   await renderAllStaffDailyTables();
   await renderStaffReportSummary();
+  await renderStaffSalaryCalcTable();
   await renderStaffSalaryTable();
 }
 
@@ -320,6 +324,7 @@ document.getElementById('staffSaveEmployeeBtn').addEventListener('click', async 
   renderStaffBankDatalists();
   renderStaffDailyEmployeeSelects();
   renderAllHeadRosters();
+  await renderStaffSalaryCalcTable();
   await renderStaffSalaryTable();
 
   document.getElementById('staffNewName').value = "";
@@ -425,6 +430,7 @@ document.getElementById('staffUploadBtn').addEventListener('click', async ()=>{
     renderStaffBankDatalists();
     renderStaffDailyEmployeeSelects();
     renderAllHeadRosters();
+    await renderStaffSalaryCalcTable();
     await renderStaffSalaryTable();
     fileInput.value = "";
   }catch(e){
@@ -833,6 +839,168 @@ async function downloadStaffCombinedReport(bankFilter){
 document.getElementById('staffReportDownloadAllBtn').addEventListener('click', ()=>downloadStaffCombinedReport('all'));
 document.getElementById('staffReportDownloadWithBankBtn').addEventListener('click', ()=>downloadStaffCombinedReport('with'));
 document.getElementById('staffReportDownloadWithoutBankBtn').addEventListener('click', ()=>downloadStaffCombinedReport('without'));
+
+/* ---------- Salary — Days Present (added 2026-10-09) ----------
+   A separate, simpler alternative to the flat Monthly Salary table below
+   (which stays hidden from the UI, unchanged) -- enter days present, get a
+   calculated net pay, no separate "amount" field to keep in sync. Net pay
+   for an employee is always *computed*, never stored: monthly salary ÷ days
+   in that calendar month × days present, minus that month's Staff Advance
+   total (computeStaffAdvanceTotalsForMonth(), data-store.js, summed from the
+   same `rest:<id>:ot:<YYYY-MM>` collection the daily lists already use,
+   filtered to type 'advance'). Only the days-present input itself is saved
+   (saveSalaryDaysForEmployee()), so a later salary change or a newly-logged
+   advance is reflected immediately without anything here needing re-saving. */
+function daysInCalendarMonth(monthKey){
+  const [y, m] = monthKey.split('-').map(Number);
+  return new Date(y, m, 0).getDate(); // day 0 of next month = last day of this one
+}
+function staffSalaryCalcFor(emp, days, daysInMonth, advance){
+  const gross = daysInMonth > 0 ? (Number(emp.salary) || 0) / daysInMonth * days : 0;
+  return { gross, advance, net: gross - advance };
+}
+async function renderStaffSalaryCalcTable(){
+  const restId = getStaffActiveRestaurantId();
+  const monthKey = staffSalaryCalcMonth;
+  const daysInMonth = daysInCalendarMonth(monthKey);
+  const daysObj = await loadSalaryDays(restId, monthKey);
+  const advanceTotals = await computeStaffAdvanceTotalsForMonth(restId, monthKey);
+
+  const wrap = document.getElementById('staffSalaryCalcTableWrap');
+  const empty = document.getElementById('staffSalaryCalcEmpty');
+  wrap.innerHTML = "";
+  if(currentStaffList.length === 0){
+    empty.style.display = 'block';
+    updateStaffSalaryCalcSummary(0, 0, 0);
+    return;
+  }
+  empty.style.display = 'none';
+
+  const table = document.createElement('table');
+  const thead = document.createElement('thead');
+  thead.innerHTML = '<tr><th>Employee</th><th class="num">Days Present</th><th class="num">Gross</th><th class="num">Advances</th><th class="num">Net</th><th></th></tr>';
+  const tbody = document.createElement('tbody');
+
+  let totalGross = 0, totalAdvance = 0, totalNet = 0;
+  [...currentStaffList].sort((a,b)=>a.name.localeCompare(b.name)).forEach(emp=>{
+    const saved = daysObj[emp.id];
+    const days = saved ? saved.days : 0;
+    const advance = advanceTotals[emp.id] || 0;
+    const calc = staffSalaryCalcFor(emp, days, daysInMonth, advance);
+    totalGross += calc.gross; totalAdvance += calc.advance; totalNet += calc.net;
+
+    const tr = document.createElement('tr');
+    const tdName = document.createElement('td'); tdName.textContent = emp.name; tdName.className = 'supplier';
+
+    const tdDays = document.createElement('td'); tdDays.className = 'amount';
+    const daysInput = document.createElement('input');
+    daysInput.type = 'number'; daysInput.min = '0'; daysInput.max = String(daysInMonth); daysInput.step = '0.5';
+    daysInput.value = days; daysInput.className = 'staff-salary-input';
+    tdDays.appendChild(daysInput);
+
+    const tdGross = document.createElement('td'); tdGross.className = 'amount'; tdGross.textContent = fmtMoney(calc.gross);
+    const tdAdvance = document.createElement('td'); tdAdvance.className = 'amount'; tdAdvance.textContent = fmtMoney(calc.advance);
+    const tdNet = document.createElement('td'); tdNet.className = 'amount'; tdNet.textContent = fmtMoney(calc.net);
+
+    // Live preview as the number is typed, so a mis-entered value is obvious
+    // before Save -- the row's own cells only; totals above stay as-saved
+    // until Save actually persists it (same deliberate "nothing written
+    // until Save" pattern the flat Monthly Salary table already uses).
+    daysInput.addEventListener('input', ()=>{
+      const previewDays = Number(daysInput.value) || 0;
+      const preview = staffSalaryCalcFor(emp, previewDays, daysInMonth, advance);
+      tdGross.textContent = fmtMoney(preview.gross);
+      tdNet.textContent = fmtMoney(preview.net);
+    });
+
+    const tdSave = document.createElement('td');
+    const saveBtn = document.createElement('button');
+    saveBtn.type = 'button'; saveBtn.className = 'msr-save-btn'; saveBtn.textContent = 'Save';
+    saveBtn.addEventListener('click', async ()=>{
+      const newDays = Number(daysInput.value);
+      if(isNaN(newDays) || newDays < 0 || newDays > daysInMonth){
+        alert(`Enter a valid number of days present (0–${daysInMonth}).`);
+        return;
+      }
+      await saveSalaryDaysForEmployee(restId, monthKey, emp.id, newDays);
+      await renderStaffSalaryCalcTable();
+    });
+    tdSave.appendChild(saveBtn);
+
+    tr.appendChild(tdName); tr.appendChild(tdDays); tr.appendChild(tdGross); tr.appendChild(tdAdvance); tr.appendChild(tdNet); tr.appendChild(tdSave);
+    tbody.appendChild(tr);
+  });
+  table.appendChild(thead); table.appendChild(tbody);
+  wrap.appendChild(table);
+
+  updateStaffSalaryCalcSummary(totalGross, totalAdvance, totalNet);
+}
+function updateStaffSalaryCalcSummary(gross, advance, net){
+  document.getElementById('staffSalaryCalcSummaryGross').textContent = fmtMoney(gross);
+  document.getElementById('staffSalaryCalcSummaryAdvance').textContent = fmtMoney(advance);
+  document.getElementById('staffSalaryCalcSummaryNet').textContent = fmtMoney(net);
+}
+document.getElementById('staffSalaryCalcMonthPicker').addEventListener('change', (ev)=>{
+  if(ev.target.value){ staffSalaryCalcMonth = ev.target.value; renderStaffSalaryCalcTable(); }
+});
+
+// Same all/with-bank/without-bank download split as the combined report
+// above, requested the same day ("give option to download these reports in
+// the same way as ot, tips and incentives") -- only employees with a saved
+// days-present value (> 0) for the selected month are included, same as the
+// combined report only including employees with a qualifying entry.
+async function downloadStaffSalaryReport(bankFilter){
+  const restId = getStaffActiveRestaurantId();
+  const monthKey = staffSalaryCalcMonth;
+  const daysInMonth = daysInCalendarMonth(monthKey);
+  const daysObj = await loadSalaryDays(restId, monthKey);
+  const advanceTotals = await computeStaffAdvanceTotalsForMonth(restId, monthKey);
+
+  let employees = currentStaffList.filter(emp => daysObj[emp.id] && daysObj[emp.id].days > 0);
+  if(bankFilter !== 'all'){
+    employees = employees.filter(emp => bankFilter === 'with' ? staffEmployeeHasBankAccount(emp) : !staffEmployeeHasBankAccount(emp));
+  }
+  if(employees.length === 0){
+    const noneMsg = bankFilter === 'with' ? "No employees with bank details on file have days present recorded for this month."
+      : bankFilter === 'without' ? "No employees without bank details on file have days present recorded for this month."
+      : "No employees have days present recorded for this month yet.";
+    alert(noneMsg);
+    return;
+  }
+
+  const rows = [[
+    "Employee Name", "Employee ID", "Designation", "Department", "Mobile",
+    "Bank Name", "Bank Branch", "Account Number", "IFSC Code",
+    "Days Present", "Days In Month", "Monthly Salary", "Gross Pay", "Advances", "Net Pay"
+  ]];
+  employees
+    .sort((a,b)=>a.name.localeCompare(b.name))
+    .forEach(emp=>{
+      const days = daysObj[emp.id].days;
+      const advance = advanceTotals[emp.id] || 0;
+      const calc = staffSalaryCalcFor(emp, days, daysInMonth, advance);
+      rows.push([
+        emp.name, emp.employeeId || "", emp.designation || "", emp.department || "",
+        csvForceText(emp.mobile),
+        emp.bankName || "", emp.bankBranch || "", csvForceText(emp.accountNumber), emp.ifscCode || "",
+        days, daysInMonth, (Number(emp.salary) || 0).toFixed(2),
+        calc.gross.toFixed(2), calc.advance.toFixed(2), calc.net.toFixed(2)
+      ]);
+    });
+
+  const csv = rows.map(r => r.map(csvEscape).join(",")).join("\n");
+  const blob = new Blob([csv], {type:"text/csv;charset=utf-8;"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  const suffix = bankFilter === 'with' ? '_with-bank-details' : bankFilter === 'without' ? '_without-bank-details' : '';
+  a.download = `${restId}-staff-salary${suffix}_${monthKey}.csv`;
+  document.body.appendChild(a); a.click(); a.remove();
+  URL.revokeObjectURL(url);
+}
+document.getElementById('staffSalaryCalcDownloadAllBtn').addEventListener('click', ()=>downloadStaffSalaryReport('all'));
+document.getElementById('staffSalaryCalcDownloadWithBankBtn').addEventListener('click', ()=>downloadStaffSalaryReport('with'));
+document.getElementById('staffSalaryCalcDownloadWithoutBankBtn').addEventListener('click', ()=>downloadStaffSalaryReport('without'));
 
 /* ---------- Monthly salary ---------- */
 // One row per CURRENT staff member — a saved entry for this month, if any,
