@@ -754,7 +754,20 @@ async function renderStaffReportSummary(){
 }
 document.getElementById('staffReportFrom').addEventListener('change', renderStaffReportSummary);
 document.getElementById('staffReportTo').addEventListener('change', renderStaffReportSummary);
-async function downloadStaffCombinedReport(){
+// An employee "has a bank account on file" when accountNumber is actually
+// filled in -- the same field the staff directory's own "No bank details
+// set" badge keys off of. An employee no longer in the directory (denormalized
+// name only, from totals) counts as not having one, since there's nothing to
+// pay into.
+function staffEmployeeHasBankAccount(emp){
+  return !!(emp && emp.accountNumber && emp.accountNumber.trim());
+}
+// bankFilter: 'all' | 'with' | 'without' -- which employees' rows to include,
+// added 2026-10-09 so the owner/Central Kitchen can hand off just the piece
+// relevant to whoever is processing payments (e.g. bank transfer for the
+// "with" list, cash/other handling for the "without" list) instead of always
+// downloading everyone together.
+async function downloadStaffCombinedReport(bankFilter){
   const restId = getStaffActiveRestaurantId();
   const from = document.getElementById('staffReportFrom').value;
   const to = document.getElementById('staffReportTo').value;
@@ -764,9 +777,18 @@ async function downloadStaffCombinedReport(){
   }
   const totals = await computeStaffReportTotals(restId, from, to);
 
-  const employeeIds = Object.keys(totals);
+  let employeeIds = Object.keys(totals);
+  if(bankFilter !== 'all'){
+    employeeIds = employeeIds.filter(empId=>{
+      const hasAccount = staffEmployeeHasBankAccount(currentStaffList.find(e => e.id === empId));
+      return bankFilter === 'with' ? hasAccount : !hasAccount;
+    });
+  }
   if(employeeIds.length === 0){
-    alert("No OT/Incentive/Tips entries found for that date range.");
+    const noneMsg = bankFilter === 'with' ? "No employees with bank details on file have OT/Incentive/Tips entries for that date range."
+      : bankFilter === 'without' ? "No employees without bank details on file have OT/Incentive/Tips entries for that date range."
+      : "No OT/Incentive/Tips entries found for that date range.";
+    alert(noneMsg);
     return;
   }
 
@@ -803,11 +825,14 @@ async function downloadStaffCombinedReport(){
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `${restId}-staff-ot-incentive-tips_${from}_to_${to}.csv`;
+  const suffix = bankFilter === 'with' ? '_with-bank-details' : bankFilter === 'without' ? '_without-bank-details' : '';
+  a.download = `${restId}-staff-ot-incentive-tips${suffix}_${from}_to_${to}.csv`;
   document.body.appendChild(a); a.click(); a.remove();
   URL.revokeObjectURL(url);
 }
-document.getElementById('staffReportDownloadBtn').addEventListener('click', downloadStaffCombinedReport);
+document.getElementById('staffReportDownloadAllBtn').addEventListener('click', ()=>downloadStaffCombinedReport('all'));
+document.getElementById('staffReportDownloadWithBankBtn').addEventListener('click', ()=>downloadStaffCombinedReport('with'));
+document.getElementById('staffReportDownloadWithoutBankBtn').addEventListener('click', ()=>downloadStaffCombinedReport('without'));
 
 /* ---------- Monthly salary ---------- */
 // One row per CURRENT staff member — a saved entry for this month, if any,

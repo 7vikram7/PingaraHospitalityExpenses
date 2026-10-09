@@ -717,7 +717,11 @@ window.__firebaseSdkReady = (async ()=>{
           </div>
         </div>
         <div class="dash-empty" id="staffReportSummaryEmpty" style="display:none;">No OT/Incentive/Tips entries for this date range yet.</div>
-        <button type="button" class="history-btn" id="staffReportDownloadBtn">Download combined report (CSV)</button>
+        <div class="staff-report-downloads">
+          <button type="button" class="history-btn" id="staffReportDownloadAllBtn">Download all (CSV)</button>
+          <button type="button" class="history-btn" id="staffReportDownloadWithBankBtn">With bank details (CSV)</button>
+          <button type="button" class="history-btn" id="staffReportDownloadWithoutBankBtn">Without bank details (CSV)</button>
+        </div>
       </section>
 
       <section class="manage-section" style="display:none;">

@@ -861,11 +861,12 @@ Five tab panels, switched by `.tab-bar` buttons (`tabBtnExpenses` /
       assignment step, while still needing explicit roster assignment for
       OT/Incentive/Tips as before.
   - **Combined OT/Incentive/Tips report** (added 2026-10-02,
-    `downloadStaffCombinedReport()`) — a From/To date-range picker above a
-    "Download combined report (CSV)" button (originally also had an
-    "Unpaid entries only" checkbox; removed the same day the paid/unpaid
-    concept was removed entirely, see above — every qualifying entry in
-    range always counts now). Scans `rest:<id>:ot:<YYYY-MM>` across every
+    `downloadStaffCombinedReport(bankFilter)`) — a From/To date-range picker
+    above three download buttons (originally one; split 2026-10-09 — see
+    below) (originally also had an "Unpaid entries only" checkbox; removed
+    the same day the paid/unpaid concept was removed entirely, see above —
+    every qualifying entry in range always counts now). Scans
+    `rest:<id>:ot:<YYYY-MM>` across every
     month the range touches (`monthsBetween()`, reused from
     vendor-ledger.js), sums each employee's OT/Captain Incentive/Waiter
     Tips separately (skipping `type === 'advance'` entries), then joins that
@@ -879,6 +880,22 @@ Five tab panels, switched by `.tab-bar` buttons (`tabBtnExpenses` /
     directory. Plain CSV via the same `Blob`+`URL.createObjectURL`+
     `csvEscape()` pattern `excel-export.js`'s `downloadCsv()` and the
     bulk-upload template already use.
+    - **Split into three downloads, 2026-10-09**: "Download all",
+      "With bank details", and "Without bank details" all call the same
+      `downloadStaffCombinedReport(bankFilter)`, just with `'all'`/`'with'`/
+      `'without'` — the totals-scanning and row-building are completely
+      unchanged, only which `employeeIds` make it into `rows` differs.
+      `staffEmployeeHasBankAccount(emp)` checks `accountNumber` specifically
+      (the same field the staff directory's own "No bank details set" badge
+      keys off, not just `bankName` alone) — an employee who's since been
+      removed from the directory (denormalized name only) counts as not
+      having one, since there's nothing left to pay into. Filenames get a
+      `_with-bank-details`/`_without-bank-details` suffix; "all" keeps the
+      original unsuffixed name. An empty result shows a filter-specific
+      alert ("No employees with/without bank details on file have
+      OT/Incentive/Tips entries for that date range") rather than the
+      generic one, so it's clear the *filter* came up empty, not the whole
+      range.
     - **On-screen summary added 2026-10-03** (`renderStaffReportSummary()`)
       — four `.dash-hero` stat cards (OT / Captain Incentive / Waiter Tips
       / Total, same visual pattern as the Reports tab's Total

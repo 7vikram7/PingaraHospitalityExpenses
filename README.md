@@ -133,7 +133,10 @@ Firebase Hosting.
   range also drives a payment-ready CSV download — one row per employee
   with their bank name/branch/account/IFSC plus the per-type totals
   (Staff Advance isn't part of this report — an advance is money already
-  given, not a payout to calculate). Monthly salary tracking also exists
+  given, not a payout to calculate). Three separate downloads cover every
+  employee, only those with bank account details on file, or only those
+  without, so the piece relevant to whoever is processing payments can be
+  handed off on its own. Monthly salary tracking also exists
   (pre-filled from each employee's default, editable per month) but its
   section is currently hidden from the UI (not removed — just not needed
   right now).
