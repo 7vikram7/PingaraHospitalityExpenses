@@ -62,10 +62,16 @@ const RESTAURANT_PASSWORD_HASH = TENANT_RESTAURANT_PASSWORD_HASH;
 function catsKey(){ return "categories"; }
 function supKey(){ return "suppliers"; }
 function supDefaultsKey(){ return "supplierDefaults"; }
+// Added 2026-10-15, alongside bank-transfer downloads for pending bills --
+// deliberately a separate key from supplierDefaults (category/subcategory),
+// not merged into it, so the two stay independent exactly like staff's own
+// name/role fields vs. bankName/accountNumber/ifscCode split.
+function supBankDetailsKey(){ return "supplierBankDetails"; }
 
 let categories = {};
 let suppliers = [];
 let supplierDefaults = {};
+let supplierBankDetails = {}; // supplierKey(name) -> {accountNumber, ifscCode}
 // supplierKey() -> Set of restaurant ids that have actually billed that
 // supplier (see data-store.js's buildSupplierUsageIndex()) — drives which
 // suppliers a given restaurant's picker shows. Built once at init, kept

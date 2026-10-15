@@ -324,3 +324,80 @@ document.getElementById('vlRangeFromPicker').addEventListener('change', (ev)=>{
 document.getElementById('vlRangeToPicker').addEventListener('change', (ev)=>{
   if(ev.target.value){ vlRangeTo = ev.target.value; vlExpandedVendor = null; renderVendorLedger(); }
 });
+
+/* ---------- Pending bills download (added 2026-10-15) ----------
+   A payment-ready export of PENDING (unpaid) bills for whatever
+   period/restaurant scope the table above is currently showing -- reuses
+   vlLastRows rather than recomputing, so the download can never disagree
+   with what's on screen. Supplier bank details (account number + IFSC,
+   added the same day on the Suppliers tab) get joined in from
+   supplierBankDetails; the plain CSV includes every pending bill regardless
+   of whether its supplier has bank details on file, the bank-transfer
+   .xlsx requires a complete account number + IFSC (NEFT needs both) --
+   same split the Staff tab's combined report already established. */
+function vlPendingBillRows(){
+  const rows = [];
+  vlLastRows.forEach(r=>{
+    r.bills.forEach(b=>{
+      if(b.status === 'paid') return;
+      rows.push({ supplier: r.name, category: r.category, restaurantId: b.restaurantId, date: b.date, invoice: b.invoice, amount: b.amount });
+    });
+  });
+  return rows.sort((a,b)=> a.date === b.date ? a.supplier.localeCompare(b.supplier) : (a.date < b.date ? -1 : 1));
+}
+function vlPeriodFilenameSuffix(){
+  if(vlPeriodType === 'day') return vlSelectedDate;
+  if(vlPeriodType === 'month') return vlSelectedMonth;
+  return `${vlRangeFrom}_to_${vlRangeTo}`;
+}
+function downloadPendingBillsReport(){
+  const rows = vlPendingBillRows();
+  if(rows.length === 0){
+    alert("No pending bills for this period/restaurant scope.");
+    return;
+  }
+  const out = [["Date", "Restaurant", "Supplier", "Category", "Invoice #", "Amount", "Account Number", "IFSC Code"]];
+  rows.forEach(b=>{
+    const bank = supplierBankDetails[supplierKey(b.supplier)] || {};
+    out.push([
+      fmtDateLabel(b.date), restaurantLabel(b.restaurantId), b.supplier, b.category,
+      b.invoice || "", b.amount.toFixed(2),
+      csvForceText(bank.accountNumber), bank.ifscCode || ""
+    ]);
+  });
+  const csv = out.map(r => r.map(csvEscape).join(",")).join("\n");
+  const blob = new Blob([csv], {type:"text/csv;charset=utf-8;"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `pending-bills_${vlPeriodFilenameSuffix()}.csv`;
+  document.body.appendChild(a); a.click(); a.remove();
+  URL.revokeObjectURL(url);
+}
+document.getElementById('vlDownloadPendingBtn').addEventListener('click', downloadPendingBillsReport);
+
+async function downloadPendingBillsBankTransfer(){
+  // Loaded lazily here (not just on the Staff tab's own showStaffTabPanel())
+  // so this works correctly even if Vendor Ledger is opened first in a
+  // session, before Staff Expenses has had a chance to load it.
+  await loadBankDebitAccountNumber();
+  if(!bankDebitAccountNumber){
+    alert('Set your Debit Account Number in the Staff tab (Bank Transfer Settings) before downloading a bank transfer file.');
+    return;
+  }
+  const rows = vlPendingBillRows().filter(b => supplierHasFullBankDetails(b.supplier));
+  if(rows.length === 0){
+    alert("No pending bills with a complete supplier account number + IFSC on file for this period/restaurant scope.");
+    return;
+  }
+  const dataRows = rows.map(b=>{
+    const bank = supplierBankDetails[supplierKey(b.supplier)];
+    return buildBankTransferRow(
+      { name: b.supplier, accountNumber: bank.accountNumber, ifscCode: bank.ifscCode },
+      b.amount,
+      `Bill payment - ${b.supplier}${b.invoice ? ' - Invoice ' + b.invoice : ''}`
+    );
+  });
+  downloadBankTransferWorkbook(dataRows, `pending-bills-bank-transfer_${vlPeriodFilenameSuffix()}.xlsx`);
+}
+document.getElementById('vlDownloadPendingBankBtn').addEventListener('click', downloadPendingBillsBankTransfer);

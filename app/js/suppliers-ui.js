@@ -161,8 +161,10 @@ function buildManageSupplierRow(name, onChange){
     if(!confirm(`Remove "${name}" from the supplier list? Past bills already logged under this supplier are not affected.`)) return;
     suppliers = suppliers.filter(s=>s !== name);
     delete supplierDefaults[supplierKey(name)];
+    delete supplierBankDetails[supplierKey(name)];
     await saveSuppliers();
     await saveSupplierDefaults();
+    await saveSupplierBankDetails();
     onChange();
     renderSupplierSelect();
   });
@@ -171,6 +173,7 @@ function buildManageSupplierRow(name, onChange){
 }
 function buildManageSupplierEditForm(name, onChange){
   const def = supplierDefaults[supplierKey(name)];
+  const bank = supplierBankDetails[supplierKey(name)];
   const wrap = document.createElement('div');
   wrap.className = 'msr-edit';
 
@@ -205,6 +208,16 @@ function buildManageSupplierEditForm(name, onChange){
   refreshSubDatalist();
   catSelect.addEventListener('change', refreshSubDatalist);
 
+  const accountInput = document.createElement('input');
+  accountInput.type = 'text';
+  accountInput.placeholder = 'Account number (optional)';
+  accountInput.value = (bank && bank.accountNumber) || '';
+
+  const ifscInput = document.createElement('input');
+  ifscInput.type = 'text';
+  ifscInput.placeholder = 'IFSC code (optional)';
+  ifscInput.value = (bank && bank.ifscCode) || '';
+
   const saveBtn = document.createElement('button');
   saveBtn.type = 'button';
   saveBtn.className = 'msr-save-btn';
@@ -227,14 +240,19 @@ function buildManageSupplierEditForm(name, onChange){
       categories[newCat].push(newSub);
       await saveCategories();
     }
+    const accountNumber = accountInput.value.trim();
+    const ifscCode = ifscInput.value.trim().toUpperCase();
     if(newName !== name){
       const idx = suppliers.indexOf(name);
       if(idx !== -1) suppliers[idx] = newName;
       delete supplierDefaults[supplierKey(name)];
+      delete supplierBankDetails[supplierKey(name)];
     }
     supplierDefaults[supplierKey(newName)] = { category: newCat, subcategory: newSub };
+    supplierBankDetails[supplierKey(newName)] = { accountNumber, ifscCode };
     await saveSuppliers();
     await saveSupplierDefaults();
+    await saveSupplierBankDetails();
 
     // Retroactively fix every past bill logged under this supplier's OLD name
     // (rename, if any, doesn't touch historical bills' supplier field — same
@@ -260,6 +278,8 @@ function buildManageSupplierEditForm(name, onChange){
   wrap.appendChild(catSelect);
   wrap.appendChild(subInput);
   wrap.appendChild(datalist);
+  wrap.appendChild(accountInput);
+  wrap.appendChild(ifscInput);
   wrap.appendChild(saveBtn);
   wrap.appendChild(cancelBtn);
   return wrap;

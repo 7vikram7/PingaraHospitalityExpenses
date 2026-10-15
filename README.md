@@ -81,11 +81,26 @@ Firebase Hosting.
   by day, across all restaurants or one, for a day, month, or custom date
   range. Click a vendor to expand its individual bills (date, invoice #,
   amount, paid/unpaid) and flip paid status right there, with the paid
-  date recorded alongside it
+  date recorded alongside it. A **download pending bills** option covers
+  whatever period/restaurant scope is currently selected: a plain CSV of
+  every unpaid bill with its supplier's account number and IFSC code, or a
+  bank-transfer `.xlsx` (same IDFC FIRST bulk-payment format the Staff tab
+  uses) with one row per pending bill — only bills whose supplier has a
+  complete account number *and* IFSC on file qualify for the bank-transfer
+  file, same bar as everywhere else this format is used.
 - **Suppliers tab** (Owner only): every supplier with its category/
-  subcategory, shared across every restaurant on the account, plus adding
-  new ones. Editing a supplier's category/subcategory here retroactively
-  updates every past bill logged under that supplier too, not just new ones
+  subcategory and, now, an optional account number + IFSC code, shared
+  across every restaurant on the account, plus adding new ones. Editing a
+  supplier's category/subcategory here retroactively updates every past
+  bill logged under that supplier too, not just new ones. A **bulk edit via
+  Excel** option downloads every current supplier (with its category/
+  subcategory/bank details already filled in) as an `.xlsx` template —
+  editing a cell and re-uploading the same file updates that supplier in
+  place (matched by name), while a name with no existing match is added as
+  a new supplier. Central Kitchen can still add new suppliers one at a time
+  but doesn't get this bulk-edit option, since it can retroactively change
+  an existing supplier's category — the same boundary it already has on
+  the per-supplier Edit button.
 - **Staff Expenses tab** (Owner, or Manager for their own restaurant only;
   named "Staff OT & Salary" until 2026-10-02): a staff directory per
   restaurant — name, employee ID/code, designation, department, gender,

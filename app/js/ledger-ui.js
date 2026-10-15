@@ -258,6 +258,7 @@ async function switchRestaurant(newId){
   await loadCategories();
   await loadSuppliers();
   await loadSupplierDefaults();
+  await loadSupplierBankDetails();
   await loadEntries(currentDate);
   await loadSales(currentDate);
   renderAll();

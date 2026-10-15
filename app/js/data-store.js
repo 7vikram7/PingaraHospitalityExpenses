@@ -64,6 +64,22 @@ async function loadSupplierDefaults(){
 async function saveSupplierDefaults(){ await safeSet(supDefaultsKey(), JSON.stringify(supplierDefaults)); }
 function supplierKey(name){ return (name||"").trim().toLowerCase(); }
 
+// Supplier bank details (added 2026-10-15, for the Vendor Ledger tab's
+// pending-bills bank-transfer download) -- shared account-wide, same scope
+// as supplierDefaults, not restaurant-scoped.
+async function loadSupplierBankDetails(){
+  const raw = await safeGet(supBankDetailsKey());
+  if(raw){ try{ supplierBankDetails = JSON.parse(raw) || {}; return; }catch(e){} }
+  supplierBankDetails = {};
+}
+async function saveSupplierBankDetails(){ await safeSet(supBankDetailsKey(), JSON.stringify(supplierBankDetails)); }
+// NEFT needs both an account number and an IFSC code -- same bar
+// staffEmployeeHasFullBankDetails() applies to staff.
+function supplierHasFullBankDetails(name){
+  const d = supplierBankDetails[supplierKey(name)];
+  return !!(d && d.accountNumber && d.accountNumber.trim() && d.ifscCode && d.ifscCode.trim());
+}
+
 // ---- Month-bucketed bills & sales ----
 // One document per restaurant per month (not per day) — e.g. "rest:savali:bills:2026-07"
 // holds { "2026-07-01": [...entries], "2026-07-02": [...], ... }. This keeps well under

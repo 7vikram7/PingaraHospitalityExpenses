@@ -536,6 +536,12 @@ window.__firebaseSdkReady = (async ()=>{
           </div>
         </div>
 
+        <div class="staff-report-downloads">
+          <button type="button" class="history-btn" id="vlDownloadPendingBtn">Download pending bills (CSV)</button>
+          <button type="button" class="history-btn bank-transfer-btn" id="vlDownloadPendingBankBtn">Bank transfer file (.xlsx)</button>
+          <span class="bank-transfer-note">For the period/restaurant scope selected above.</span>
+        </div>
+
         <div class="dash-empty" id="vlEmpty" style="display:none;">No bills logged for this period yet.</div>
 
         <div class="plain-table-wrap" id="vlTableWrap"></div>
@@ -556,6 +562,15 @@ window.__firebaseSdkReady = (async ()=>{
           list and categories apply everywhere. Changing a supplier's category or subcategory here
           updates every past bill logged under that supplier too, not just new ones.</p>
         <div class="manage-supplier-list" id="supTabList"></div>
+        <div id="supBulkEditWrap">
+          <span class="addlink" id="supBulkEditLink">+ bulk edit via Excel</span>
+          <div class="inline-add-mini" id="supBulkEditBox">
+            <button type="button" class="history-btn" id="supDownloadTemplateBtn">Download template</button>
+            <input type="file" id="supUploadFile" accept=".csv,.xlsx,.xls">
+            <button type="button" id="supUploadBtn">Upload</button>
+          </div>
+          <div id="supUploadResult" class="count-hint"></div>
+        </div>
       </section>
 
       <section class="manage-section manage-section-add">
@@ -580,6 +595,10 @@ window.__firebaseSdkReady = (async ()=>{
                 <button type="button" id="supTabNewSubSave">Save</button>
               </div>
             </div>
+          </div>
+          <div class="row">
+            <input type="text" id="supTabNewAccount" placeholder="Account number (optional)">
+            <input type="text" id="supTabNewIfsc" placeholder="IFSC code (optional)">
           </div>
           <button type="button" id="supTabSaveSupplierBtn">Save supplier</button>
         </div>

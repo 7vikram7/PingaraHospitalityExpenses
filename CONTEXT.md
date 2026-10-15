@@ -534,6 +534,34 @@ Five tab panels, switched by `.tab-bar` buttons (`tabBtnExpenses` /
     — it reuses the month cache when it happens to be the same
     restaurant+month, otherwise fetches fresh, and syncs the live `entries`
     array too if it is the same day currently being viewed there.
+  - **Pending bills download, added 2026-10-15** — two buttons
+    (`vlDownloadPendingBtn`, plain CSV; `vlDownloadPendingBankBtn`, bank
+    transfer `.xlsx`) reusing whatever period/restaurant scope the table
+    above is already showing, no separate date picker of its own. Built
+    from `vlPendingBillRows()`, which filters `vlLastRows` (the already-
+    computed, already-rendered rows — never recomputed, so the download can
+    never disagree with what's on screen) down to bills with
+    `status !== 'paid'`. The plain CSV joins in each bill's supplier's
+    `supplierBankDetails` (Account Number via `csvForceText()`, same
+    scientific-notation guard the Staff reports use, + IFSC Code) and
+    includes every pending bill regardless of whether its supplier has bank
+    details on file (blank columns otherwise). The bank-transfer `.xlsx`
+    reuses Staff's own `buildBankTransferRow()`/`downloadBankTransferWorkbook()`
+    /`bankDebitAccountNumber` wholesale (staff-tab.js, loaded as a plain
+    global like everything else in this app, so no refactor was needed to
+    call it from vendor-ledger.js) and requires `supplierHasFullBankDetails()`
+    — unlike Staff's own report, which aggregates one row per employee, this
+    is **one row per pending bill**, not per supplier, since each bill is
+    already a discrete real-world payable with its own invoice number;
+    Remarks reads `"Bill payment - <supplier> - Invoice <invoice#>"` so a
+    multi-invoice supplier still shows up as separate, traceable
+    transactions. `bankDebitAccountNumber` is loaded lazily inside
+    `downloadPendingBillsBankTransfer()` itself (`await
+    loadBankDebitAccountNumber()`) rather than assuming Staff's tab was
+    already visited this session, since the two tabs load it independently
+    now. No extra access gating beyond what Vendor Ledger already has —
+    both buttons are owner/Central-Kitchen-only by virtue of the whole tab
+    already being gated behind `reportsUnlocked()`/`hasElevatedAccess()`.
 - **"Suppliers"** (`#tabPanelSuppliers`, `app/js/suppliers-tab.js`) —
   owner-only, same tab-visibility toggle as Reports/Vendor Ledger
   (`updateTabVisibilityForProfile()` in auth.js), no separate password
@@ -570,6 +598,57 @@ Five tab panels, switched by `.tab-bar` buttons (`tabBtnExpenses` /
     bill's `supplier` name field if the supplier was also renamed in the
     same edit — same as before, a rename doesn't reach into history, only
     category/subcategory do now.
+  - **Account number + IFSC code, added 2026-10-15** — a new,
+    deliberately separate key (`supplierBankDetails`, `supBankDetailsKey()`
+    in core.js) alongside `supplierDefaults` rather than merged into it,
+    same split staff's own name/role fields keep from
+    bankName/accountNumber/ifscCode. Shared account-wide like every other
+    supplier key. `supplierHasFullBankDetails(name)` (data-store.js) mirrors
+    `staffEmployeeHasFullBankDetails()` — both an account number AND an IFSC
+    required (NEFT needs both), used to gate the Vendor Ledger bank-transfer
+    download below. Editable from both the Suppliers tab's "Add a new
+    supplier" form and `buildManageSupplierEditForm()` (so the Manage
+    Suppliers modal gets it too, being the same shared edit form) — on a
+    rename, the old key's bank-details entry is deleted and a fresh one
+    written under the new name, same handling `supplierDefaults` already
+    gets on rename. Deliberately **not** shown in the supplier list's
+    collapsed view (same "editing is good, just simplify viewing" call
+    already made for Staff's own bank fields) — only visible/editable via
+    Edit.
+  - **Bulk edit via Excel, added 2026-10-15** — unlike Staff's own bulk
+    upload (`staff-tab.js`, add-only, no matching against existing records),
+    this is a genuine round-trip **edit**: "Download template"
+    (`supDownloadTemplateBtn`) exports every current supplier with its
+    category/subcategory/account number/IFSC already filled in as an actual
+    `.xlsx` (built via the same SheetJS `aoa_to_sheet()`/`writeFile()`
+    pattern the bank-transfer downloads use, not a `.csv` like Staff's
+    template — the request's own wording was specifically "excel file").
+    Editing a cell and re-uploading the same file updates that supplier **in
+    place**, matched by `supplierKey()` (case/whitespace-insensitive) against
+    the uploaded "Supplier Name" column — a name with no existing match is
+    added as a brand-new supplier instead, so one upload covers both bulk
+    edits and bulk additions. A blank Category/Subcategory/Account/IFSC cell
+    on an EXISTING supplier's row **clears** that field — the file is
+    treated as the intended final state, not a partial patch (new suppliers
+    with a blank category are still added, just left uncategorized, same
+    representable state `buildManageSupplierRow()` already renders as "No
+    category set"). A category that doesn't match any existing category name
+    is left as a warning in the result summary rather than silently
+    creating a new category from a typo. Category changes propagate to past
+    bills exactly like the manual Edit form
+    (`propagateSupplierCategoryToAllBills()`), tallied into one summary
+    alert for the whole batch rather than one per row. Gated behind
+    `canEditExistingRecords()` both at render time (the whole
+    `#supBulkEditWrap` block hidden for Central Kitchen, same boundary the
+    per-row Edit button already has) and again at click time inside the
+    upload handler — same defense-in-depth pattern established for Staff's
+    "all restaurants" downloads. Verified with a new test
+    (`test_supplier_bank_and_pending_bills.js`) covering the full round
+    trip: add with bank details via the UI, Edit form prefilled correctly,
+    rename carries bank details to the new name, downloaded template
+    reflects current state, uploading an edited copy updates the existing
+    supplier and adds a new one, and the block is hidden/inert for Central
+    Kitchen.
   - **Supplier *pickers* are scoped per restaurant (added 2026-10-02)** —
     the underlying `suppliers`/`categories`/`supplierDefaults` stay fully
     shared account-wide as above; only the `#supplierSelect` (Add Expenses)
