@@ -1035,6 +1035,44 @@ Five tab panels, switched by `.tab-bar` buttons (`tabBtnExpenses` /
       Debit Account/Date/Currency are all correct, Amount is a real
       number not text, account/IFSC are preserved as exact text) plus the
       full existing suite re-run clean.
+    - **"All restaurants" cross-restaurant version, added 2026-10-15**
+      (`computeStaffReportTotalsAllRestaurants(from, to)`,
+      `downloadStaffCombinedReportAllRestaurants(bankFilter)`,
+      `downloadBankTransferCombinedReportAllRestaurants()`) — a second
+      sub-section inside the Combined OT/Incentive/Tips report, "All
+      restaurants," with its own four buttons mirroring the single-restaurant
+      ones above but covering every restaurant in `RESTAURANTS` (including
+      Central Kitchen) in one file, over the same From/To range already on
+      screen. Owner/Central Kitchen only (`hasElevatedAccess()`) — a Manager
+      is restricted to their own restaurant everywhere else in this app, so
+      the wrapping `<div id="staffReportAllRestaurantsWrap">` is toggled
+      alongside `sharedRestaurantWrap` in `updateTabVisibilityForProfile()`
+      (auth.js), and each download function re-checks `hasElevatedAccess()`
+      at call time too — same defense-in-depth as `canVerifyEntries()`, since
+      a profile can switch mid-session without a reload. Deliberately scoped
+      to OT/Captain Incentive/Waiter Tips only (not Salary — Days Present or
+      Staff Advance), matching the single-restaurant Combined report's own
+      scope. `computeStaffReportTotalsAllRestaurants()` loops `RESTAURANTS`,
+      calling the existing `computeStaffReportTotals(r.id, from, to)` and
+      `loadStaffList(r.id)` per id — both already took a restaurant id as a
+      parameter and don't touch `currentStaffList`/`currentRestaurantId`, so
+      this never disturbs whichever restaurant happens to be selected on
+      screen. The CSV output gets a new leading **Restaurant** column
+      (restaurant name, not id); the bank-transfer `.xlsx` has no spare
+      column for it (fixed template), so the restaurant name is appended to
+      the Remarks field instead (`"OT/Incentive/Tips payout - <restaurant
+      label>"` vs. the single-restaurant version's plain `"OT/Incentive/Tips
+      payout"`). Filenames drop the restaurant id prefix entirely
+      (`all-restaurants-staff-ot-incentive-tips_<from>_to_<to>.csv` /
+      `all-restaurants-bank-transfer-ot-incentive-tips_<from>_to_<to>.xlsx`).
+      Verified with `test_all_restaurants_staff_report.js` (20/20: the block
+      is visible for Owner and hidden for a normal Manager, a direct console
+      call is a no-op for Manager even with the button hidden, all four
+      downloads correctly combine entries seeded on two different
+      restaurants, the Restaurant column and per-row totals are correct, the
+      with/without-bank-details split is correct across restaurants, and the
+      bank-transfer file's Remarks column correctly names which restaurant
+      each row is from) plus the full existing suite re-run clean.
   - **Monthly salary** (hidden from the UI 2026-10-02 via `display:none` on
     its `<section>` — "not required right now," not removed; the data
     model, `renderStaffSalaryTable()`, and all its Firestore reads/writes

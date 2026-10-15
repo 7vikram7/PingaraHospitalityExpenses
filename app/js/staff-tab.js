@@ -941,6 +941,121 @@ async function downloadBankTransferCombinedReport(){
 }
 document.getElementById('staffReportDownloadBankBtn').addEventListener('click', downloadBankTransferCombinedReport);
 
+/* ---------- All-restaurants OT/Incentive/Tips downloads (added 2026-10-15) ----------
+   The four downloads above, but across every restaurant in one file instead
+   of just the one selected above -- Owner/Central Kitchen only, since a
+   Manager is restricted to their own restaurant everywhere else in this app
+   (the buttons are hidden for Manager in auth.js; hasElevatedAccess() is
+   re-checked here too, same defense-in-depth as the verify controls). Loops
+   loadStaffList()/computeStaffReportTotals() per restaurant id rather than
+   touching currentStaffList/getStaffActiveRestaurantId(), so it never
+   disturbs whichever restaurant is actually selected on screen. Deliberately
+   scoped to OT/Captain Incentive/Waiter Tips only, not Salary or Advance --
+   this is the cross-restaurant version of the Combined report above, not of
+   the Salary — Days Present section below. */
+async function computeStaffReportTotalsAllRestaurants(from, to){
+  const rows = []; // [{restId, restLabel, emp, t}]
+  for(const r of RESTAURANTS){
+    const totals = await computeStaffReportTotals(r.id, from, to);
+    const empIds = Object.keys(totals);
+    if(empIds.length === 0) continue;
+    const staffList = await loadStaffList(r.id);
+    empIds.forEach(empId=>{
+      rows.push({ restId: r.id, restLabel: restaurantLabel(r.id), emp: staffList.find(e => e.id === empId), t: totals[empId] });
+    });
+  }
+  return rows;
+}
+async function downloadStaffCombinedReportAllRestaurants(bankFilter){
+  if(!hasElevatedAccess()) return;
+  const from = document.getElementById('staffReportFrom').value;
+  const to = document.getElementById('staffReportTo').value;
+  if(!from || !to || from > to){
+    alert("Pick a valid From and To date first.");
+    return;
+  }
+  let rows = await computeStaffReportTotalsAllRestaurants(from, to);
+  if(bankFilter !== 'all'){
+    rows = rows.filter(({emp})=>{
+      const hasAccount = staffEmployeeHasBankAccount(emp);
+      return bankFilter === 'with' ? hasAccount : !hasAccount;
+    });
+  }
+  if(rows.length === 0){
+    const noneMsg = bankFilter === 'with' ? "No employees with bank details on file have OT/Incentive/Tips entries for that date range, across any restaurant."
+      : bankFilter === 'without' ? "No employees without bank details on file have OT/Incentive/Tips entries for that date range, across any restaurant."
+      : "No OT/Incentive/Tips entries found for that date range, across any restaurant.";
+    alert(noneMsg);
+    return;
+  }
+
+  const outRows = [[
+    "Restaurant", "Employee Name", "Employee ID", "Designation", "Department", "Mobile",
+    "Bank Name", "Bank Branch", "Account Number", "IFSC Code",
+    "OT", "Captain Incentive", "Waiter Tips", "Total"
+  ]];
+  rows
+    .sort((a,b)=> a.restLabel.localeCompare(b.restLabel) || (a.t.name||'').localeCompare(b.t.name||''))
+    .forEach(({restLabel, emp, t})=>{
+      const total = t.ot + t.captain_incentive + t.waiter_tips;
+      outRows.push([
+        restLabel,
+        emp ? emp.name : t.name,
+        emp ? (emp.employeeId || "") : "",
+        emp ? (emp.designation || "") : "",
+        emp ? (emp.department || "") : "",
+        emp ? csvForceText(emp.mobile) : "",
+        emp ? (emp.bankName || "") : "",
+        emp ? (emp.bankBranch || "") : "",
+        emp ? csvForceText(emp.accountNumber) : "",
+        emp ? (emp.ifscCode || "") : "",
+        t.ot.toFixed(2),
+        t.captain_incentive.toFixed(2),
+        t.waiter_tips.toFixed(2),
+        total.toFixed(2)
+      ]);
+    });
+
+  const csv = outRows.map(r => r.map(csvEscape).join(",")).join("\n");
+  const blob = new Blob([csv], {type:"text/csv;charset=utf-8;"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  const suffix = bankFilter === 'with' ? '_with-bank-details' : bankFilter === 'without' ? '_without-bank-details' : '';
+  a.download = `all-restaurants-staff-ot-incentive-tips${suffix}_${from}_to_${to}.csv`;
+  document.body.appendChild(a); a.click(); a.remove();
+  URL.revokeObjectURL(url);
+}
+document.getElementById('staffReportDownloadAllRestaurantsAllBtn').addEventListener('click', ()=>downloadStaffCombinedReportAllRestaurants('all'));
+document.getElementById('staffReportDownloadAllRestaurantsWithBankBtn').addEventListener('click', ()=>downloadStaffCombinedReportAllRestaurants('with'));
+document.getElementById('staffReportDownloadAllRestaurantsWithoutBankBtn').addEventListener('click', ()=>downloadStaffCombinedReportAllRestaurants('without'));
+
+async function downloadBankTransferCombinedReportAllRestaurants(){
+  if(!hasElevatedAccess()) return;
+  if(!bankDebitAccountNumber){
+    alert('Set your Debit Account Number above (Bank Transfer Settings) before downloading a bank transfer file.');
+    return;
+  }
+  const from = document.getElementById('staffReportFrom').value;
+  const to = document.getElementById('staffReportTo').value;
+  if(!from || !to || from > to){
+    alert("Pick a valid From and To date first.");
+    return;
+  }
+  const rows = await computeStaffReportTotalsAllRestaurants(from, to);
+  const dataRows = rows
+    .filter(({emp, t}) => staffEmployeeHasFullBankDetails(emp) && (t.ot + t.captain_incentive + t.waiter_tips) > 0)
+    .sort((a, b) => a.restLabel.localeCompare(b.restLabel) || a.emp.name.localeCompare(b.emp.name))
+    .map(({restLabel, emp, t}) => buildBankTransferRow(emp, t.ot + t.captain_incentive + t.waiter_tips, `OT/Incentive/Tips payout - ${restLabel}`));
+
+  if(dataRows.length === 0){
+    alert("No employees with a complete bank account + IFSC on file have OT/Incentive/Tips entries for that date range, across any restaurant.");
+    return;
+  }
+  downloadBankTransferWorkbook(dataRows, `all-restaurants-bank-transfer-ot-incentive-tips_${from}_to_${to}.xlsx`);
+}
+document.getElementById('staffReportDownloadAllRestaurantsBankBtn').addEventListener('click', downloadBankTransferCombinedReportAllRestaurants);
+
 /* ---------- Salary — Days Present (added 2026-10-09) ----------
    A separate, simpler alternative to the flat Monthly Salary table below
    (which stays hidden from the UI, unchanged) -- enter days present, get a

@@ -70,6 +70,9 @@ function updateTabVisibilityForProfile(){
   document.getElementById('restaurantChangeBtn').style.display = elevated ? 'none' : '';
   document.getElementById('sharedRestaurantWrap').style.display = elevated ? 'flex' : 'none';
   document.getElementById('restaurantConfirmedName').style.display = elevated ? 'none' : '';
+  // All-restaurants OT/Incentive/Tips downloads (added 2026-10-15) -- same
+  // elevated-only gate as the shared restaurant selector above.
+  document.getElementById('staffReportAllRestaurantsWrap').style.display = elevated ? '' : 'none';
   if(elevated) renderSharedRestaurantBar();
   document.getElementById('salesInlineSection').style.display = '';
   document.getElementById('ledSalesCell').style.display = '';

@@ -136,7 +136,11 @@ Firebase Hosting.
   given, not a payout to calculate). Three separate downloads cover every
   employee, only those with bank account details on file, or only those
   without, so the piece relevant to whoever is processing payments can be
-  handed off on its own.
+  handed off on its own. An **All restaurants** sub-section (Owner/Central
+  Kitchen only) offers the same four downloads again, combined across every
+  restaurant instead of just the one selected, with a Restaurant column
+  added to the CSVs (and named in the Remarks field of the bank-transfer
+  file, which has no spare column) so each row's source restaurant is clear.
   A **Salary — Days Present** section does the same for salary: enter each
   employee's days present for a month, and net pay is calculated as
   monthly salary ÷ days in that month × days present, minus that month's

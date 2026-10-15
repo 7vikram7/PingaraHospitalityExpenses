@@ -738,6 +738,19 @@ window.__firebaseSdkReady = (async ()=>{
           <button type="button" class="history-btn bank-transfer-btn" id="staffReportDownloadBankBtn">Bank transfer file (.xlsx)</button>
           <span class="bank-transfer-note">IDFC FIRST bulk-payment format — check it before uploading.</span>
         </div>
+        <div id="staffReportAllRestaurantsWrap" style="display:none;">
+          <h4 class="staff-daily-subhead">All restaurants</h4>
+          <p class="sup-tab-note">Same OT/Incentive/Tips report and date range above, combined across every restaurant instead of just the one selected.</p>
+          <div class="staff-report-downloads">
+            <button type="button" class="history-btn" id="staffReportDownloadAllRestaurantsAllBtn">Download all (CSV)</button>
+            <button type="button" class="history-btn" id="staffReportDownloadAllRestaurantsWithBankBtn">With bank details (CSV)</button>
+            <button type="button" class="history-btn" id="staffReportDownloadAllRestaurantsWithoutBankBtn">Without bank details (CSV)</button>
+          </div>
+          <div class="staff-report-downloads">
+            <button type="button" class="history-btn bank-transfer-btn" id="staffReportDownloadAllRestaurantsBankBtn">Bank transfer file (.xlsx)</button>
+            <span class="bank-transfer-note">IDFC FIRST bulk-payment format — check it before uploading.</span>
+          </div>
+        </div>
       </section>
 
       <section class="manage-section">
