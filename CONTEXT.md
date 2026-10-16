@@ -856,6 +856,42 @@ Five tab panels, switched by `.tab-bar` buttons (`tabBtnExpenses` /
     confirm message now says "Mark N bills... as paid" instead of always
     "Mark ALL N pending bills," since it may now describe a selected
     subset, not literally everything).
+  - **Download paid bills for one vendor, added 2026-10-20** — "give an
+    option to download paid bill details... bill and restaurant wise for
+    a particular vendor." Three real design forks (time scope, how to
+    pick the vendor, flat-vs-grouped), asked explicitly rather than
+    guessed, per [[feedback-collaboration-style]]/this app's own pattern
+    for consequential-enough requests: scoped to the SAME period/
+    restaurant selection already on screen (not a separate all-time
+    history), triggered via the existing `#payVendorSearch` box rather
+    than a new per-row button, and a flat CSV with a Restaurant column
+    rather than restaurant-grouped sections. `updatePayVendorDownload()`
+    matches the search text against `payLastAllRows` — deliberately NOT
+    `payLastFilteredRows` (the pending-only list the main table reads
+    from) — since a vendor search typed specifically to download a
+    receipt is most likely for a vendor with NOTHING left pending
+    (everything already paid, so they'd never appear in the pending
+    list at all); only when the search narrows to exactly one vendor
+    AND that vendor has at least one `status === 'paid'` bill in scope
+    does `#payVendorDownloadWrap` appear, independent of whether the
+    main pending table/empty-state is showing anything. Download is a
+    plain CSV (`Date, Restaurant, Category, Invoice #, Amount`, sorted
+    by date, filtered to `status === 'paid'` for that one vendor) —
+    reuses the same `csvEscape()`/`fmtDateLabel()`/`restaurantLabel()`
+    helpers every other flat download in this app already uses, no new
+    formatting logic. Filename pattern mirrors Vendor Ledger's own
+    period-suffix downloads (`payPeriodFilenameSuffix()`, a direct copy
+    of `vlPeriodFilenameSuffix()`'s shape for the Payments tab's own
+    period state). Verified with a new test
+    (`test_payments_vendor_download.js`, 16/16): the download button
+    stays hidden with no search text, correctly appears for a vendor
+    whose bills are ALL paid even though the main list shows "no
+    vendors match" for them, a mixed vendor's download includes only
+    the paid bill and excludes the still-pending one, an ambiguous
+    search matching 2+ vendors hides the button rather than guessing
+    which one, a vendor with zero matching bills in scope also hides it,
+    and clearing the search hides it again. Full existing suite re-run
+    clean.
 - **"Suppliers"** (`#tabPanelSuppliers`, `app/js/suppliers-tab.js`) —
   owner-only, same tab-visibility toggle as Reports/Vendor Ledger
   (`updateTabVisibilityForProfile()` in auth.js), no separate password

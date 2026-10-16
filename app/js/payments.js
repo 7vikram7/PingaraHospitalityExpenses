@@ -117,6 +117,11 @@ function applyPaySearchAndRender(){
     .filter(r => r.bills.length > 0);
   const rows = search ? pendingRows.filter(r => r.name.toLowerCase().includes(search)) : pendingRows;
   payLastFilteredRows = rows;
+  // Independent of the pending-only list above -- a vendor can be searched
+  // here specifically BECAUSE everything of theirs is already paid (nothing
+  // left pending, so they wouldn't appear in `rows` at all), and that's
+  // exactly when someone wants their paid-bills download.
+  updatePayVendorDownload();
 
   const totalsBar = document.getElementById('payTotalsBar');
   const markAllWrap = document.getElementById('payMarkAllWrap');
@@ -147,6 +152,68 @@ function applyPaySearchAndRender(){
 document.getElementById('payVendorSearch').addEventListener('input', (ev)=>{
   payVendorSearch = ev.target.value;
   applyPaySearchAndRender();
+});
+
+/* ---------- Download paid bills for one vendor (added 2026-10-20) ----------
+   "give an option to download paid bill details ... for a particular
+   vendor" -- scoped to the same period/restaurant selection already on
+   screen (matches every other download in this app), triggered by the
+   existing vendor search box: narrowing it down to exactly one vendor
+   (matched against payLastAllRows, not the pending-only payLastFilteredRows,
+   since a vendor with nothing left pending -- the exact moment someone
+   wants a paid receipt -- would otherwise never match) reveals a download
+   button for that vendor's paid bills specifically. Flat CSV, one row per
+   bill with its own Restaurant column ("restaurant wise" == a column, not
+   grouped sections, confirmed before building) -- matches the shape of
+   the existing flat pending-bills CSV in Vendor Ledger, just filtered to
+   status === 'paid' for one named vendor instead of every unpaid bill. */
+let payVendorDownloadTarget = null; // { name, category, bills } for the one currently-matched vendor, or null
+function updatePayVendorDownload(){
+  const wrap = document.getElementById('payVendorDownloadWrap');
+  const search = payVendorSearch.trim().toLowerCase();
+  payVendorDownloadTarget = null;
+  if(!search){
+    wrap.style.display = 'none';
+    return;
+  }
+  const matches = payLastAllRows.filter(r => r.name.toLowerCase().includes(search));
+  if(matches.length !== 1){
+    wrap.style.display = 'none';
+    return;
+  }
+  const paidBills = matches[0].bills.filter(b => b.status === 'paid');
+  if(paidBills.length === 0){
+    wrap.style.display = 'none';
+    return;
+  }
+  payVendorDownloadTarget = { name: matches[0].name, category: matches[0].category, bills: paidBills };
+  document.getElementById('payVendorDownloadLabel').textContent =
+    `${paidBills.length} paid bill${paidBills.length === 1 ? '' : 's'} for "${matches[0].name}" in this period`;
+  wrap.style.display = 'flex';
+}
+function payPeriodFilenameSuffix(){
+  if(payPeriodType === 'day') return paySelectedDate;
+  if(payPeriodType === 'month') return paySelectedMonth;
+  return `${payRangeFrom}_to_${payRangeTo}`;
+}
+document.getElementById('payVendorDownloadBtn').addEventListener('click', ()=>{
+  if(!payVendorDownloadTarget) return;
+  const { name, category, bills } = payVendorDownloadTarget;
+  const rows = [["Date", "Restaurant", "Category", "Invoice #", "Amount"]];
+  bills
+    .sort((a,b)=> a.date < b.date ? -1 : (a.date > b.date ? 1 : 0))
+    .forEach(b=>{
+      rows.push([fmtDateLabel(b.date), restaurantLabel(b.restaurantId), category, b.invoice || "", b.amount.toFixed(2)]);
+    });
+  const csv = rows.map(r => r.map(csvEscape).join(",")).join("\n");
+  const blob = new Blob([csv], {type:"text/csv;charset=utf-8;"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  const safeName = name.trim().replace(/[^a-z0-9]+/gi, '-').replace(/^-+|-+$/g, '');
+  a.download = `paid-bills_${safeName}_${payPeriodFilenameSuffix()}.csv`;
+  document.body.appendChild(a); a.click(); a.remove();
+  URL.revokeObjectURL(url);
 });
 
 function renderPayTable(rows, showRestCol){
