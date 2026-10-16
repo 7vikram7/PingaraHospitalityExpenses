@@ -83,6 +83,7 @@ function switchTab(tab){
     expenses: document.getElementById('tabBtnExpenses'),
     reports: document.getElementById('tabBtnReports'),
     ledger: document.getElementById('tabBtnLedger'),
+    payments: document.getElementById('tabBtnPayments'),
     suppliers: document.getElementById('tabBtnSuppliers'),
     staff: document.getElementById('tabBtnStaff')
   };
@@ -90,6 +91,7 @@ function switchTab(tab){
     expenses: document.getElementById('tabPanelExpenses'),
     reports: document.getElementById('tabPanelReports'),
     ledger: document.getElementById('tabPanelLedger'),
+    payments: document.getElementById('tabPanelPayments'),
     suppliers: document.getElementById('tabPanelSuppliers'),
     staff: document.getElementById('tabPanelStaff')
   };
@@ -100,12 +102,14 @@ function switchTab(tab){
   });
   if(tab === 'reports') showReportsPanel();
   else if(tab === 'ledger') showVLPanel();
+  else if(tab === 'payments') showPayPanel();
   else if(tab === 'suppliers') showSuppliersTabPanel();
   else if(tab === 'staff') showStaffTabPanel();
 }
 document.getElementById('tabBtnExpenses').addEventListener('click', ()=>switchTab('expenses'));
 document.getElementById('tabBtnReports').addEventListener('click', ()=>switchTab('reports'));
 document.getElementById('tabBtnLedger').addEventListener('click', ()=>switchTab('ledger'));
+document.getElementById('tabBtnPayments').addEventListener('click', ()=>switchTab('payments'));
 document.getElementById('tabBtnStaff').addEventListener('click', ()=>switchTab('staff'));
 document.getElementById('tabBtnSuppliers').addEventListener('click', ()=>switchTab('suppliers'));
 

@@ -736,6 +736,74 @@ Five tab panels, switched by `.tab-bar` buttons (`tabBtnExpenses` /
     empty period/restaurant scope shows the "no pending bills" alert
     instead of a stale or empty file) plus the full existing suite re-run
     clean.
+- **"Payments"** (`#tabPanelPayments`, `app/js/payments.js`, added
+  2026-10-17) — a focused, bulk-pay view, requested after "marking bills
+  as paid individually is difficult" once the real workflow (paying
+  suppliers 1st–15th and 16th–end-of-month in two batches) made the bill
+  count per batch too large for one-at-a-time toggling. Explored two
+  designs with the user first (a bulk button bolted onto Vendor Ledger vs.
+  a dedicated screen) — landed on a dedicated tab specifically because it
+  can default to showing **only pending bills, grouped by vendor, with no
+  already-paid clutter**, which is what actually makes a payment run fast;
+  it still reuses Vendor Ledger's exact period-picker/restaurant-selector/
+  search machinery and `computeVendorLedgerData()`, not a second parallel
+  data layer. Gated identically to Vendor Ledger: `hasElevatedAccess()`
+  for tab visibility, `reportsUnlocked()` for the password lock (shares
+  the same session flag), shared top-bar restaurant selector
+  (`payRestaurantFilter`, set from `applySharedRestaurantPick()` alongside
+  `dashRestaurantFilter`/`vlRestaurantFilter`).
+  - **Split render like Vendor Ledger's own search** (`renderPayments()`
+    fetches via `computeVendorLedgerData()` on period/restaurant change,
+    caches the raw result in `payLastAllRows`; `applyPaySearchAndRender()`
+    filters that cache down to pending-only + the search term and
+    re-renders synchronously, so typing in `#payVendorSearch` never
+    re-fetches). `payLastFilteredRows` is explicitly exposed as what's
+    **currently on screen** — the "Mark All Paid" button reads straight
+    from it rather than recomputing the pending+search filter a second
+    time, so the button can never mark something that isn't actually
+    visible.
+  - **One row per vendor**: name, category, restaurant(s) (only in "All
+    restaurants" scope), pending bill count, pending amount, and a
+    **"Mark Paid"** button — clicking it calls the new
+    `markBillsPaid(bills)` (data-store.js) with just that vendor's
+    currently-pending bills in scope. A **"Mark All Paid"** button above
+    the table does the same for every bill across every vendor currently
+    shown. Both show a `confirm()` first, naming the exact count and
+    amount — the same "block before acting" treatment the Suppliers
+    combine-duplicates tool uses, since this mutates potentially dozens of
+    bills across restaurants/months at once. A vendor whose last pending
+    bill just got marked paid simply disappears from the list on the next
+    render (it's computed fresh from `payLastAllRows`/`applyPaySearchAndRender()`
+    every time, not maintained as separate state).
+  - **`markBillsPaid(bills)` (data-store.js)** — the bulk sibling of
+    `toggleBillStatusByLocation()`, taking `[{restaurantId, date, id}]`.
+    Groups by restaurant+month document so each one is read and written
+    **at most once** regardless of how many of its bills are in the batch
+    (a real payment run can span several restaurants and, for a date
+    range crossing a month boundary, several months), reusing the exact
+    same `sameCachedMonth` precision `toggleBillStatusByLocation()`
+    already has (restaurant AND month-doc-key must both match
+    `currentRestaurantId`/`currentBillsMonthCacheKey`, not just one).
+    Returns how many bills were actually flipped (an already-paid bill
+    caught in the batch — e.g., from a stale page — isn't recounted).
+  - **Explicit safety property, requested up front**: marking a batch
+    paid is a one-time action on whatever bills exist at the moment of
+    the click — there is no date-range-level "paid" flag anywhere in the
+    data model, so a bill added later (even dated inside an
+    already-processed range) is a brand-new record that starts `unpaid`
+    exactly like any other new bill always has. This didn't need any
+    special code to guarantee — it falls straight out of `markBillsPaid()`
+    only ever touching bill records that already exist when it runs.
+    Verified explicitly, not just assumed: a new test
+    (`test_payments_tab.js`, 21/21) seeds a bill dated inside an
+    already-marked-paid range *after* marking it, and confirms that bill
+    shows up as its own pending item (not silently paid, not merged into
+    the vendor's already-paid total) — alongside the standard checks (only
+    pending bills/vendors shown with correct totals, a paid bill excluded
+    from a vendor's pending count, per-vendor Mark Paid only affects that
+    vendor, Mark All Paid clears the whole visible scope and shows the
+    empty state afterward, and vendor search narrows the list the same
+    way Vendor Ledger's does). Full existing suite re-run clean.
 - **"Suppliers"** (`#tabPanelSuppliers`, `app/js/suppliers-tab.js`) —
   owner-only, same tab-visibility toggle as Reports/Vendor Ledger
   (`updateTabVisibilityForProfile()` in auth.js), no separate password

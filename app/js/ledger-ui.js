@@ -228,6 +228,7 @@ function refreshActiveTab(){
   const id = active && active.id;
   if(id === 'tabPanelReports') renderDashboard();
   else if(id === 'tabPanelLedger') renderVendorLedger();
+  else if(id === 'tabPanelPayments') renderPayments();
   else if(id === 'tabPanelStaff') renderStaffPanel();
 }
 async function applySharedRestaurantPick(value){
@@ -237,6 +238,7 @@ async function applySharedRestaurantPick(value){
   }
   dashRestaurantFilter = value;
   vlRestaurantFilter = value;
+  payRestaurantFilter = value;
   vlExpandedVendor = null;
   renderSharedRestaurantBar();
   refreshActiveTab();

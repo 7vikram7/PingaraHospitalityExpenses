@@ -100,6 +100,15 @@ Firebase Hosting.
   under each vendor instead of listing them flat — vendor name, category,
   and bank details shown once per group, a Subtotal row per vendor, and a
   Grand Total at the end, closer to a classic sub-ledger than a flat list.
+- **Payments tab** (Owner, Central Kitchen, Accountant): a focused view
+  for actually paying bills in batches — pick a date range (e.g. the 1st
+  to the 15th), and it shows only vendors with something still pending,
+  grouped with a pending total each, no already-paid bills cluttering the
+  list. A "Mark Paid" button per vendor, or "Mark All Paid" for everyone
+  shown at once, with a confirmation naming the exact count and amount
+  before anything changes. Marking a batch paid only affects the bills
+  that exist at that moment — a bill added later, even dated inside a
+  range you already paid, always starts unpaid like any other new bill.
 - **Suppliers tab** (Owner only): every supplier with its category/
   subcategory and, now, an optional account number + IFSC code, shared
   across every restaurant on the account, plus adding new ones. Editing a
@@ -268,6 +277,7 @@ app/
     ledger-ui.js             ledger table/totals rendering, restaurant select, Modify-bill dialog
     reports-dashboard.js     Reports tab password gate, tab switching, sales/expense charts
     vendor-ledger.js         Vendor Ledger tab — per-supplier spend by restaurant/period
+    payments.js              Payments tab — pending bills by vendor, bulk mark-paid
     suppliers-tab.js         Suppliers tab — list/add suppliers, retroactive category fixes
     staff-tab.js             Staff OT & Salary tab — staff directory, bulk upload, daily OT, monthly salary
     auth.js                  login: Owner/Manager profile choice, per-restaurant passwords

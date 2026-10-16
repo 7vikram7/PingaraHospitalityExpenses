@@ -57,6 +57,7 @@ function updateTabVisibilityForProfile(){
   const elevated = hasElevatedAccess();
   document.getElementById('tabBtnReports').style.display = elevated ? '' : 'none';
   document.getElementById('tabBtnLedger').style.display = elevated ? '' : 'none';
+  document.getElementById('tabBtnPayments').style.display = elevated ? '' : 'none';
   document.getElementById('tabBtnSuppliers').style.display = elevated ? '' : 'none';
   // Staff Expenses (added 2026-10-01, renamed from "Staff OT & Salary" 2026-10-02) deliberately stays visible for every
   // profile -- a Manager can add/view staff and log OT/salary for their own
@@ -79,7 +80,7 @@ function updateTabVisibilityForProfile(){
   if(!owner){
     const activePanel = document.querySelector('.tab-panel.active');
     const allowedPanelIds = elevated
-      ? ['tabPanelExpenses', 'tabPanelStaff', 'tabPanelReports', 'tabPanelLedger', 'tabPanelSuppliers']
+      ? ['tabPanelExpenses', 'tabPanelStaff', 'tabPanelReports', 'tabPanelLedger', 'tabPanelPayments', 'tabPanelSuppliers']
       : ['tabPanelExpenses', 'tabPanelStaff'];
     if(activePanel && !allowedPanelIds.includes(activePanel.id) && typeof switchTab === 'function'){
       switchTab('expenses');

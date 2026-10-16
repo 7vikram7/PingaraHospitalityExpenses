@@ -160,6 +160,51 @@ async function toggleBillStatusByLocation(restaurantId, date, billId){
   return bill;
 }
 
+// Bulk version of toggleBillStatusByLocation() for the Payments tab (added
+// 2026-10-17) -- marks a whole batch of bills paid in one pass instead of
+// one Firestore round-trip per bill, since a real payment run can be
+// dozens of bills across several restaurants/months at once. `bills` is
+// [{restaurantId, date, id}]; grouped by restaurant+month doc so each
+// month document is read and written at most once regardless of how many
+// of its bills are in the batch. Only ever sets status forward to 'paid'
+// on EXISTING bill records at the moment this runs -- there is no
+// date-range-level "paid" flag anywhere, so a bill added later (even
+// dated inside an already-processed range) is a brand-new record that
+// starts 'unpaid' as always, same as any other new bill. Returns how many
+// bills were actually flipped (already-paid ones in the batch don't
+// recount).
+async function markBillsPaid(bills){
+  const byDoc = {}; // "rest:<id>:bills:<YYYY-MM>" -> [{date, id}]
+  bills.forEach(({ restaurantId, date, id })=>{
+    const key = "rest:" + restaurantId + ":bills:" + date.slice(0,7);
+    if(!byDoc[key]) byDoc[key] = { restaurantId, items: [] };
+    byDoc[key].items.push({ date, id });
+  });
+
+  let updatedCount = 0;
+  for(const key of Object.keys(byDoc)){
+    const { restaurantId, items } = byDoc[key];
+    const sameCachedMonth = (restaurantId === currentRestaurantId) && (key === currentBillsMonthCacheKey);
+    const monthObj = sameCachedMonth ? billsMonthCache
+      : (JSON.parse((await safeGet(key)) || "{}") || {});
+    let changed = false;
+    items.forEach(({ date, id })=>{
+      const bill = (monthObj[date] || []).find(b => b.id === id);
+      if(!bill || bill.status === 'paid') return;
+      bill.status = 'paid';
+      bill.paidAt = Date.now();
+      changed = true;
+      updatedCount++;
+      if(restaurantId === currentRestaurantId && date === currentDate){
+        const localEntry = entries.find(e => e.id === id);
+        if(localEntry){ localEntry.status = bill.status; localEntry.paidAt = bill.paidAt; }
+      }
+    });
+    if(changed) await safeSet(key, JSON.stringify(monthObj));
+  }
+  return updatedCount;
+}
+
 // ---- Cross-verification (added 2026-10-06) ----
 // A bill's verified flag lives on the bill itself (same doc as its status), so
 // it reads and writes exactly like the paid toggle. Sales verification is kept
