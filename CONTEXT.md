@@ -549,13 +549,20 @@ Five tab panels, switched by `.tab-bar` buttons (`tabBtnExpenses` /
     reuses Staff's own `buildBankTransferRow()`/`downloadBankTransferWorkbook()`
     /`bankDebitAccountNumber` wholesale (staff-tab.js, loaded as a plain
     global like everything else in this app, so no refactor was needed to
-    call it from vendor-ledger.js) and requires `supplierHasFullBankDetails()`
-    — unlike Staff's own report, which aggregates one row per employee, this
-    is **one row per pending bill**, not per supplier, since each bill is
-    already a discrete real-world payable with its own invoice number;
-    Remarks reads `"Bill payment - <supplier> - Invoice <invoice#>"` so a
-    multi-invoice supplier still shows up as separate, traceable
-    transactions. `bankDebitAccountNumber` is loaded lazily inside
+    call it from vendor-ledger.js) and requires `supplierHasFullBankDetails()`.
+    Originally shipped as one row per pending bill (so a multi-invoice
+    supplier got separate, traceable transactions) — **changed the same day
+    (2026-10-16), per an explicit follow-up request, to one row per vendor**,
+    its pending bills summed into a single total, matching Staff's own
+    bank-transfer format exactly (which aggregates OT/Incentive/Tips into one
+    row per employee, not one per entry). Bill-level detail (invoice
+    numbers, individual dates) is deliberately NOT in this file anymore —
+    it's still available in the flat CSV and the "by vendor" sub-ledger
+    `.xlsx` below, both unchanged; only this one format aggregates. Remarks
+    is now the generic `"Pending bills payment"` (no invoice numbers,
+    mirroring Staff's own generic `"OT/Incentive/Tips payout"` remarks) since
+    there's no single invoice left to name once several are summed together.
+    `bankDebitAccountNumber` is loaded lazily inside
     `downloadPendingBillsBankTransfer()` itself (`await
     loadBankDebitAccountNumber()`) rather than assuming Staff's tab was
     already visited this session, since the two tabs load it independently

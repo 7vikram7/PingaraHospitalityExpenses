@@ -436,6 +436,14 @@ function downloadPendingBillsByVendor(){
 }
 document.getElementById('vlDownloadPendingByVendorBtn').addEventListener('click', downloadPendingBillsByVendor);
 
+// Changed 2026-10-16 (same day as the "by vendor" download above) from one
+// row per pending BILL to one row per VENDOR -- an explicit request to match
+// the Staff tab's own bank-transfer format exactly, which aggregates OT/
+// Incentive/Tips into a single total per employee, not one row per entry.
+// Bill-level detail (invoice numbers, individual dates) stays available in
+// the flat CSV and the "by vendor" sub-ledger .xlsx above; this file is
+// purely "how much to pay each vendor," matching what you'd actually hand to
+// a bank's bulk-upload screen.
 async function downloadPendingBillsBankTransfer(){
   // Loaded lazily here (not just on the Staff tab's own showStaffTabPanel())
   // so this works correctly even if Vendor Ledger is opened first in a
@@ -445,19 +453,23 @@ async function downloadPendingBillsBankTransfer(){
     alert('Set your Debit Account Number in the Staff tab (Bank Transfer Settings) before downloading a bank transfer file.');
     return;
   }
-  const rows = vlPendingBillRows().filter(b => supplierHasFullBankDetails(b.supplier));
-  if(rows.length === 0){
-    alert("No pending bills with a complete supplier account number + IFSC on file for this period/restaurant scope.");
+  const groups = vlLastRows
+    .map(r => ({ name: r.name, total: r.bills.filter(b => b.status !== 'paid').reduce((s,b)=> s + b.amount, 0) }))
+    .filter(g => g.total > 0 && supplierHasFullBankDetails(g.name));
+  if(groups.length === 0){
+    alert("No vendors with a complete account number + IFSC on file have pending bills for this period/restaurant scope.");
     return;
   }
-  const dataRows = rows.map(b=>{
-    const bank = supplierBankDetails[supplierKey(b.supplier)];
-    return buildBankTransferRow(
-      { name: b.supplier, accountNumber: bank.accountNumber, ifscCode: bank.ifscCode },
-      b.amount,
-      `Bill payment - ${b.supplier}${b.invoice ? ' - Invoice ' + b.invoice : ''}`
-    );
-  });
+  const dataRows = groups
+    .sort((a,b)=> a.name.localeCompare(b.name))
+    .map(g=>{
+      const bank = supplierBankDetails[supplierKey(g.name)];
+      return buildBankTransferRow(
+        { name: g.name, accountNumber: bank.accountNumber, ifscCode: bank.ifscCode },
+        g.total,
+        "Pending bills payment"
+      );
+    });
   downloadBankTransferWorkbook(dataRows, `pending-bills-bank-transfer_${vlPeriodFilenameSuffix()}.xlsx`);
 }
 document.getElementById('vlDownloadPendingBankBtn').addEventListener('click', downloadPendingBillsBankTransfer);

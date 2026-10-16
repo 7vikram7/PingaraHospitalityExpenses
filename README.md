@@ -85,9 +85,11 @@ Firebase Hosting.
   whatever period/restaurant scope is currently selected: a plain CSV of
   every unpaid bill with its supplier's account number and IFSC code, or a
   bank-transfer `.xlsx` (same IDFC FIRST bulk-payment format the Staff tab
-  uses) with one row per pending bill — only bills whose supplier has a
-  complete account number *and* IFSC on file qualify for the bank-transfer
-  file, same bar as everywhere else this format is used. A third option,
+  uses) with **one row per vendor** — each vendor's pending bills summed
+  into a single total, just like the Staff tab's own bank-transfer file
+  aggregates OT/Incentive/Tips per employee, no bill-wise detail in this
+  one. Only vendors with a complete account number *and* IFSC on file
+  qualify, same bar as everywhere else this format is used. A third option,
   **pending bills by vendor (.xlsx)**, groups those same pending bills
   under each vendor instead of listing them flat — vendor name, category,
   and bank details shown once per group, a Subtotal row per vendor, and a
