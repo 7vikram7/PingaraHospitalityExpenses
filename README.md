@@ -115,11 +115,13 @@ Firebase Hosting.
   the exact count and amount either way. Marking paid only affects the
   bills that exist at that moment — a bill added later, even dated inside
   a range you already paid, always starts unpaid like any other new bill.
-  Searching the vendor box down to one vendor also reveals a **download
-  their paid bills (CSV)** option — a flat, date-sorted list with a
-  Restaurant column, scoped to the same period, so it still shows up even
-  for a vendor with nothing left pending (the usual case when you're
-  grabbing a receipt for something you already paid).
+  Any vendor row that already has a paid bill in the current scope shows
+  a small **⬇ N paid** link right next to its name — click it to download
+  a flat, date-sorted CSV (with a Restaurant column) of just that
+  vendor's paid bills for the period, no searching needed. A vendor with
+  nothing left pending at all won't have a row to put that link on, so
+  searching the vendor box down to exactly one match reveals the same
+  download as a fallback for that case.
 - **Suppliers tab** (Owner only): every supplier with its category/
   subcategory and, now, an optional account number + IFSC code, shared
   across every restaurant on the account, plus adding new ones. Editing a

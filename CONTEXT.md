@@ -892,6 +892,32 @@ Five tab panels, switched by `.tab-bar` buttons (`tabBtnExpenses` /
     which one, a vendor with zero matching bills in scope also hides it,
     and clearing the search hides it again. Full existing suite re-run
     clean.
+  - **Inline per-row download link, added the same day as a follow-up**
+    — the search-triggered discovery above turned out to be "very
+    complicated" in practice (the user couldn't find it until walked
+    through the exact steps), so a second, easier path was added
+    alongside it rather than replacing it: every vendor row already
+    shown in the table (i.e., with something still pending) now has a
+    small `⬇ N paid` link right next to its name, rendered only when
+    `findVendorPaidBills(r.name)` (reading the FULL, not pending-
+    filtered, row from `payLastAllRows`) finds at least one paid bill
+    for that vendor in the current scope — no typing, no search. Both
+    download paths share one function, `downloadVendorPaidBillsCsv(name,
+    category, bills)`, factored out of what was previously inline in the
+    search button's click handler. The link has its own click handler
+    with `ev.stopPropagation()` so clicking it doesn't also trigger the
+    row's own expand/collapse toggle (the row itself still listens for
+    clicks to expand). The search-triggered version from earlier the
+    same day is still the only path for a vendor with NOTHING pending at
+    all (such a vendor has no row to attach a link to), so it was kept
+    as the fallback rather than removed. Verified with a new test
+    (`test_payments_inline_download.js`, 9/9): the link appears only
+    next to a vendor that actually has a paid bill in scope (not a
+    pending-only vendor), shows the right count, downloads the correct
+    paid-only CSV, and — the one real risk with adding a clickable
+    element inside an already-clickable row — confirmed clicking it does
+    NOT also expand the row, while clicking elsewhere on the row still
+    does. Full existing Payments suite re-run clean.
 - **"Suppliers"** (`#tabPanelSuppliers`, `app/js/suppliers-tab.js`) —
   owner-only, same tab-visibility toggle as Reports/Vendor Ledger
   (`updateTabVisibilityForProfile()` in auth.js), no separate password

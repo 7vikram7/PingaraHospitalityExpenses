@@ -1364,6 +1364,17 @@ main{padding:24px 28px 60px;max-width:1400px;margin:0 auto;}
 .vl-detail-scroll .addlink{color:var(--brass); cursor:pointer; font-weight:600;}
 .vl-detail-scroll .addlink:hover{color:var(--brass-deep);}
 .pay-mark-cell{display:flex; flex-direction:column; align-items:flex-end; gap:2px;}
+/* Inline "paid bills" download link next to a vendor's name (added
+   2026-10-20), so finding it doesn't depend on typing into the search box. */
+.pay-vendor-dl-link{
+  color:var(--brass);
+  cursor:pointer;
+  font-weight:600;
+  font-size:11px;
+  margin-left:8px;
+  white-space:nowrap;
+}
+.pay-vendor-dl-link:hover{color:var(--brass-deep); text-decoration:underline;}
 table{
   width:100%;
   border-collapse:collapse;

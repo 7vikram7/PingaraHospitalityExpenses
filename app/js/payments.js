@@ -196,9 +196,11 @@ function payPeriodFilenameSuffix(){
   if(payPeriodType === 'month') return paySelectedMonth;
   return `${payRangeFrom}_to_${payRangeTo}`;
 }
-document.getElementById('payVendorDownloadBtn').addEventListener('click', ()=>{
-  if(!payVendorDownloadTarget) return;
-  const { name, category, bills } = payVendorDownloadTarget;
+// Shared by the search-triggered download above and the per-row inline
+// link below (added 2026-10-20 -- "very complicated, give an easier
+// option preferably next to the name of the vendor") -- one CSV builder,
+// two ways to reach it.
+function downloadVendorPaidBillsCsv(name, category, bills){
   const rows = [["Date", "Restaurant", "Category", "Invoice #", "Amount"]];
   bills
     .sort((a,b)=> a.date < b.date ? -1 : (a.date > b.date ? 1 : 0))
@@ -214,6 +216,18 @@ document.getElementById('payVendorDownloadBtn').addEventListener('click', ()=>{
   a.download = `paid-bills_${safeName}_${payPeriodFilenameSuffix()}.csv`;
   document.body.appendChild(a); a.click(); a.remove();
   URL.revokeObjectURL(url);
+}
+// Looks up a vendor's PAID bills from the full (not pending-filtered)
+// scope -- used by the inline per-row link, which needs to know a count
+// even for a vendor currently shown only because of its PENDING bills.
+function findVendorPaidBills(vendorName){
+  const match = payLastAllRows.find(r => r.name === vendorName);
+  return match ? match.bills.filter(b => b.status === 'paid') : [];
+}
+document.getElementById('payVendorDownloadBtn').addEventListener('click', ()=>{
+  if(!payVendorDownloadTarget) return;
+  const { name, category, bills } = payVendorDownloadTarget;
+  downloadVendorPaidBillsCsv(name, category, bills);
 });
 
 function renderPayTable(rows, showRestCol){
@@ -238,7 +252,30 @@ function renderPayTable(rows, showRestCol){
 
     const tdName = document.createElement('td');
     tdName.className = 'supplier';
-    tdName.innerHTML = `<span class="vl-expand-caret">${expanded ? '▾' : '▸'}</span>${escapeHtml(r.name)}`;
+    const caret = document.createElement('span');
+    caret.className = 'vl-expand-caret';
+    caret.textContent = expanded ? '▾' : '▸';
+    tdName.appendChild(caret);
+    tdName.appendChild(document.createTextNode(r.name));
+    // Inline "paid bills" link, added 2026-10-20 -- the search-box-triggered
+    // download above was "very complicated" to find; this is the easy path
+    // for the common case (a vendor already visible here, with SOME paid
+    // bills in this scope alongside what's still pending). Only rendered
+    // when there's actually something to download -- findVendorPaidBills()
+    // reads the full (not pending-filtered) row, since r.bills here is
+    // pending-only and wouldn't reflect paid bills at all.
+    const paidBills = findVendorPaidBills(r.name);
+    if(paidBills.length > 0){
+      const dlLink = document.createElement('span');
+      dlLink.className = 'addlink pay-vendor-dl-link';
+      dlLink.textContent = `⬇ ${paidBills.length} paid`;
+      dlLink.title = `Download ${paidBills.length} paid bill${paidBills.length === 1 ? '' : 's'} for "${r.name}" in this period`;
+      dlLink.addEventListener('click', (ev)=>{
+        ev.stopPropagation(); // don't also toggle the row's expand/collapse
+        downloadVendorPaidBillsCsv(r.name, r.category, paidBills);
+      });
+      tdName.appendChild(dlLink);
+    }
     tr.appendChild(tdName);
 
     const tdCat = document.createElement('td');
