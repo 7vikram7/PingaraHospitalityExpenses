@@ -108,13 +108,30 @@ function renderManageSupplierList(filterText){
 // caller's own list re-renders — shared between the Manage Suppliers modal
 // (Add Expenses toolbar, all profiles) and the owner-only Suppliers tab
 // (suppliers-tab.js), which are otherwise independent UI surfaces over the
-// same underlying supplier/category data.
-function buildManageSupplierRow(name, onChange){
+// same underlying supplier/category data. `combineMode` (added 2026-10-19)
+// is the one piece that's deliberately NOT shared -- the Suppliers tab asks
+// for it when its own "combine duplicate suppliers" mode is active; the
+// Manage Suppliers modal's own list never passes it, since that merge tool
+// was explicitly asked for in the Suppliers tab only, not here too.
+function buildManageSupplierRow(name, onChange, combineMode){
   const row = document.createElement('div');
   row.className = 'manage-supplier-row';
 
   const view = document.createElement('div');
   view.className = 'msr-view';
+
+  if(combineMode){
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.className = 'msr-combine-check';
+    checkbox.checked = supCombineSelected.has(name);
+    checkbox.addEventListener('change', ()=>{
+      if(checkbox.checked) supCombineSelected.add(name);
+      else supCombineSelected.delete(name);
+      renderSupCombineBar();
+    });
+    view.appendChild(checkbox);
+  }
 
   const nameEl = document.createElement('span');
   nameEl.className = 'msr-name';
@@ -254,18 +271,22 @@ function buildManageSupplierEditForm(name, onChange){
     await saveSupplierDefaults();
     await saveSupplierBankDetails();
 
-    // Retroactively fix every past bill logged under this supplier's OLD name
-    // (rename, if any, doesn't touch historical bills' supplier field — same
-    // as it never has — this only fixes category/subcategory) so a corrected
-    // category doesn't just apply going forward.
+    // Retroactively fix every past bill logged under this supplier's OLD
+    // name -- both a rename and a category/subcategory change are now
+    // fully retroactive (reversed 2026-10-19; a rename used to NOT touch
+    // historical bills' supplier field, at the user's explicit request to
+    // make it just as retroactive as category changes already were).
+    const nameChanged = newName !== name;
     const categoryChanged = def && (def.category !== newCat || (def.subcategory||"") !== newSub);
-    if(categoryChanged){
+    if(nameChanged || categoryChanged){
       saveBtn.disabled = true;
       cancelBtn.disabled = true;
       saveBtn.textContent = 'Updating past bills…';
-      const count = await propagateSupplierCategoryToAllBills(name, newCat, newSub);
+      const count = await propagateSupplierEditToAllBills(name, newName, newCat, newSub);
       if(count > 0){
-        alert(`Updated ${count} past bill${count === 1 ? '' : 's'} to match the new category.`);
+        const what = nameChanged && categoryChanged ? 'name and category'
+          : nameChanged ? 'name' : 'category';
+        alert(`Updated ${count} past bill${count === 1 ? '' : 's'} to match the new ${what}.`);
       }
     }
 

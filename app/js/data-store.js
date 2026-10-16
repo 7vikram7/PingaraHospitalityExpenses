@@ -370,13 +370,23 @@ async function listAllRestaurantsBillMonthKeys(){
   return Array.from(out); // each like "rest:<id>:bills:2026-07"
 }
 
-// Retroactively applies a supplier's new category/subcategory to every past
-// bill logged under that supplier, across every restaurant and every month —
-// not just new bills going forward. Returns how many bills were actually
-// changed. Bills are matched by supplierKey() (case/whitespace-insensitive),
-// same normalization supplierDefaults itself uses.
-async function propagateSupplierCategoryToAllBills(supplierName, newCategory, newSubcategory){
-  const key = supplierKey(supplierName);
+// Retroactively applies a supplier's new name/category/subcategory to every
+// past bill logged under its OLD name, across every restaurant and every
+// month — not just new bills going forward. Originally just category/
+// subcategory (`propagateSupplierCategoryToAllBills`, renaming never
+// touched history); generalized 2026-10-19 to also rewrite the bill's
+// `supplier` field on a real rename, at the user's explicit request to make
+// a name correction just as retroactive as a category correction already
+// was. Both kinds of change are handled in a SINGLE pass deliberately —
+// doing them as two separate scans would have the second scan try to match
+// bills by the OLD name right after the first scan already rewrote it,
+// finding nothing. Pass `oldName === newName` for a category-only change
+// (no rename) — the no-op rename check below correctly skips rewriting
+// `supplier` in that case. Returns how many bills were actually changed.
+// Bills are matched by supplierKey() (case/whitespace-insensitive), same
+// normalization supplierDefaults itself uses.
+async function propagateSupplierEditToAllBills(oldName, newName, newCategory, newSubcategory){
+  const key = supplierKey(oldName);
   const monthKeys = await listAllRestaurantsBillMonthKeys();
   let updatedCount = 0;
   for(const fullKey of monthKeys){
@@ -386,13 +396,18 @@ async function propagateSupplierCategoryToAllBills(supplierName, newCategory, ne
     let changed = false;
     Object.keys(monthObj).forEach(date=>{
       (monthObj[date] || []).forEach(bill=>{
-        if(supplierKey(bill.supplier) === key &&
-           (bill.category !== newCategory || (bill.subcategory||"") !== (newSubcategory||""))){
+        if(supplierKey(bill.supplier) !== key) return;
+        let billChanged = false;
+        if(bill.supplier !== newName){
+          bill.supplier = newName;
+          billChanged = true;
+        }
+        if(bill.category !== newCategory || (bill.subcategory||"") !== (newSubcategory||"")){
           bill.category = newCategory;
           bill.subcategory = newSubcategory || "";
-          changed = true;
-          updatedCount++;
+          billChanged = true;
         }
+        if(billChanged){ changed = true; updatedCount++; }
       });
     });
     if(changed){

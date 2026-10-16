@@ -13,12 +13,13 @@
 function showSuppliersTabPanel(){
   renderSupTabNewCatSelect();
   renderSuppliersTabList();
-  // Bulk edit can retroactively change an EXISTING supplier's category
-  // (same propagate-to-past-bills effect as the manual Edit form) --
-  // Central Kitchen gets the same "no modifying existing records" boundary
-  // here as it does on the per-row Edit button (canEditExistingRecords(),
-  // core.js).
+  // Bulk edit and combine-duplicates can both retroactively change an
+  // EXISTING supplier's category/name (same propagate-to-past-bills effect
+  // as the manual Edit form) -- Central Kitchen gets the same "no
+  // modifying existing records" boundary here as it does on the per-row
+  // Edit button (canEditExistingRecords(), core.js).
   document.getElementById('supBulkEditWrap').style.display = canEditExistingRecords() ? '' : 'none';
+  document.getElementById('supCombineWrap').style.display = canEditExistingRecords() ? '' : 'none';
 }
 
 function renderSuppliersTabList(filterText){
@@ -35,7 +36,7 @@ function renderSuppliersTabList(filterText){
     listEl.appendChild(empty);
     return;
   }
-  filtered.forEach(name=>{ listEl.appendChild(buildManageSupplierRow(name, renderSuppliersTabList)); });
+  filtered.forEach(name=>{ listEl.appendChild(buildManageSupplierRow(name, renderSuppliersTabList, supCombineModeActive)); });
 }
 document.getElementById('supTabSearch').addEventListener('input', (ev)=>{
   renderSuppliersTabList(ev.target.value);
@@ -228,7 +229,7 @@ document.getElementById('supUploadBtn').addEventListener('click', async ()=>{
 
     let billsUpdated = 0;
     for(const p of pendingPropagations){
-      billsUpdated += await propagateSupplierCategoryToAllBills(p.name, p.category, p.subcategory);
+      billsUpdated += await propagateSupplierEditToAllBills(p.name, p.name, p.category, p.subcategory);
     }
 
     let msg = `Added ${added} new supplier${added===1?'':'s'}, updated ${updated} existing.`;
@@ -244,4 +245,115 @@ document.getElementById('supUploadBtn').addEventListener('click', async ()=>{
     console.error("supplier bulk edit failed", e);
     resultEl.textContent = "Couldn't read that file — make sure it's a .csv or .xlsx matching the template.";
   }
+});
+
+/* ---------- Combine duplicate suppliers (added 2026-10-19) ----------
+   Managers have entered the same real vendor under more than one name over
+   time (a typo, a spelling variant, a different capitalization) --
+   `buildManageSupplierRow()` (suppliers-ui.js) grows a checkbox per row
+   when this mode is active (combineMode arg, Suppliers-tab-only by
+   design -- the Manage Suppliers modal's own list never passes it). Check
+   2+ of the duplicates, type the name to use henceforth (or pick one of
+   the checked suppliers' own exact spellings from the datalist), and every
+   checked supplier's past bills get retroactively renamed to that one
+   name via propagateSupplierEditToAllBills() -- the same function the
+   Edit form's own rename handling (suppliers-ui.js) uses, reused here
+   rather than duplicated. Per the user's explicit choice: if the final
+   name matches one of the checked suppliers exactly, that supplier's own
+   category/subcategory/bank details are kept on the merged entry;
+   otherwise (a brand-new spelling) the FIRST checked supplier's data is
+   used as the base -- no per-field picking UI, just this one rule. */
+let supCombineModeActive = false;
+let supCombineSelected = new Set(); // exact supplier names currently checked
+function renderSupCombineBar(){
+  const bar = document.getElementById('supCombineBar');
+  const n = supCombineSelected.size;
+  bar.style.display = n >= 2 ? 'flex' : 'none';
+  if(n < 2) return;
+  document.getElementById('supCombineCount').textContent = `${n} selected`;
+  const dl = document.getElementById('supCombineNameList');
+  dl.innerHTML = "";
+  const names = Array.from(supCombineSelected);
+  names.forEach(n2=>{
+    const opt = document.createElement('option');
+    opt.value = n2;
+    dl.appendChild(opt);
+  });
+  const nameInput = document.getElementById('supCombineNameInput');
+  if(!nameInput.value) nameInput.value = names[0]; // default: first checked, still editable
+}
+document.getElementById('supCombineLink').addEventListener('click', ()=>{
+  supCombineModeActive = !supCombineModeActive;
+  document.getElementById('supCombineBox').classList.toggle('open', supCombineModeActive);
+  if(!supCombineModeActive){
+    supCombineSelected.clear();
+    document.getElementById('supCombineNameInput').value = "";
+  }
+  renderSuppliersTabList();
+  renderSupCombineBar();
+});
+document.getElementById('supCombineCancelBtn').addEventListener('click', ()=>{
+  supCombineSelected.clear();
+  document.getElementById('supCombineNameInput').value = "";
+  renderSuppliersTabList();
+  renderSupCombineBar();
+});
+document.getElementById('supCombineConfirmBtn').addEventListener('click', async ()=>{
+  if(!canEditExistingRecords()) return;
+  const selected = Array.from(supCombineSelected);
+  if(selected.length < 2) return;
+  const finalName = document.getElementById('supCombineNameInput').value.trim();
+  if(!finalName){
+    alert("Enter the name to use for the combined supplier.");
+    return;
+  }
+
+  const exactMatchName = selected.find(n => supplierKey(n) === supplierKey(finalName));
+  const sourceName = exactMatchName || selected[0];
+  const keptDef = supplierDefaults[supplierKey(sourceName)] || {};
+  const keptBank = supplierBankDetails[supplierKey(sourceName)] || {};
+  const keptCategory = keptDef.category || "";
+  const keptSubcategory = keptDef.subcategory || "";
+  const keptAccountNumber = keptBank.accountNumber || "";
+  const keptIfscCode = keptBank.ifscCode || "";
+
+  const confirmBtn = document.getElementById('supCombineConfirmBtn');
+  if(!confirm(`Combine ${selected.length} suppliers into "${finalName}"?\n\nEvery past bill logged under the other name${selected.length === 2 ? '' : 's'} will be updated to "${finalName}", across every restaurant. The now-duplicate supplier entries will be removed. This cannot be undone.`)) return;
+
+  confirmBtn.disabled = true;
+  confirmBtn.textContent = 'Combining…';
+  let billsUpdated = 0;
+  for(const srcName of selected){
+    billsUpdated += await propagateSupplierEditToAllBills(srcName, finalName, keptCategory, keptSubcategory);
+  }
+
+  selected.forEach(srcName=>{
+    suppliers = suppliers.filter(s => s !== srcName);
+    delete supplierDefaults[supplierKey(srcName)];
+    delete supplierBankDetails[supplierKey(srcName)];
+  });
+  if(!suppliers.includes(finalName)) suppliers.push(finalName);
+  supplierDefaults[supplierKey(finalName)] = { category: keptCategory, subcategory: keptSubcategory };
+  supplierBankDetails[supplierKey(finalName)] = { accountNumber: keptAccountNumber, ifscCode: keptIfscCode };
+
+  await saveSuppliers();
+  await saveSupplierDefaults();
+  await saveSupplierBankDetails();
+  // Rebuilt in-session too (not just on next reload) -- usage is keyed by
+  // supplierKey() per restaurant, and the merged-away names' usage would
+  // otherwise look stale for the rest of this session.
+  await loadSupplierUsageIndex();
+
+  supCombineSelected.clear();
+  supCombineModeActive = false;
+  document.getElementById('supCombineBox').classList.remove('open');
+  document.getElementById('supCombineNameInput').value = "";
+  confirmBtn.disabled = false;
+  confirmBtn.textContent = 'Combine';
+
+  renderSupplierSelect();
+  renderSuppliersTabList();
+  renderSupCombineBar();
+
+  alert(`Combined ${selected.length} suppliers into "${finalName}". Updated ${billsUpdated} past bill${billsUpdated === 1 ? '' : 's'} across every restaurant.`);
 });

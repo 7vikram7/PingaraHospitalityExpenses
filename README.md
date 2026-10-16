@@ -100,16 +100,23 @@ Firebase Hosting.
 - **Suppliers tab** (Owner only): every supplier with its category/
   subcategory and, now, an optional account number + IFSC code, shared
   across every restaurant on the account, plus adding new ones. Editing a
-  supplier's category/subcategory here retroactively updates every past
-  bill logged under that supplier too, not just new ones. A **bulk edit via
-  Excel** option downloads every current supplier (with its category/
-  subcategory/bank details already filled in) as an `.xlsx` template —
-  editing a cell and re-uploading the same file updates that supplier in
-  place (matched by name), while a name with no existing match is added as
-  a new supplier. Central Kitchen can still add new suppliers one at a time
-  but doesn't get this bulk-edit option, since it can retroactively change
-  an existing supplier's category — the same boundary it already has on
-  the per-supplier Edit button.
+  supplier's name, category, or subcategory here retroactively updates
+  every past bill logged under that supplier too, not just new ones — a
+  rename included, so correcting a name fixes it everywhere it was ever
+  billed. A **bulk edit via Excel** option downloads every current supplier
+  (with its category/subcategory/bank details already filled in) as an
+  `.xlsx` template — editing a cell and re-uploading the same file updates
+  that supplier in place (matched by name), while a name with no existing
+  match is added as a new supplier. A **combine duplicate suppliers**
+  option handles the same vendor having been entered more than once (a
+  typo or spelling variant by different managers): check 2 or more
+  suppliers that are really the same vendor, type the name to use going
+  forward, and every past bill logged under the others is updated to match
+  — the duplicate entries are then removed. Central Kitchen can still add
+  new suppliers one at a time but doesn't get the bulk-edit or
+  combine-duplicates options, since both can retroactively change an
+  existing supplier's history — the same boundary it already has on the
+  per-supplier Edit button.
 - **Staff Expenses tab** (Owner, or Manager for their own restaurant only;
   named "Staff OT & Salary" until 2026-10-02): a staff directory per
   restaurant — name, employee ID/code, designation, department, gender,

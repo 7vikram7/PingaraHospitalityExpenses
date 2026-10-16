@@ -680,24 +680,40 @@ Five tab panels, switched by `.tab-bar` buttons (`tabBtnExpenses` /
     parallel copy with its own element ids (`supTab*`) rather than shared,
     since that logic wasn't already isolated from the modal's specific ids
     without a bigger refactor.
-  - **Editing a supplier's category/subcategory retroactively updates every
-    past bill logged under that supplier** — not just new ones — across
-    every restaurant and every month, not just the current one. This is the
-    one genuinely new piece of logic (`propagateSupplierCategoryToAllBills()`
-    in data-store.js): it discovers every `rest:*:bills:*` month-document
-    key across every restaurant (`listAllRestaurantsBillMonthKeys()`, a
-    broad-prefix Firestore range query on `"rest:"` rather than one
-    restaurant's own prefix), loads each one that isn't already cached,
-    rewrites `category`/`subcategory` on every bill matching the supplier
-    (matched via `supplierKey()`, same case/whitespace-insensitive
-    normalization `supplierDefaults` itself uses), and only writes back the
-    documents that actually changed. Runs from `buildManageSupplierEditForm`'s
-    save handler whenever the category/subcategory actually changed, so it
-    also fires from the old Manage Suppliers modal, not just this tab —
-    edited from either surface, behavior is identical. Does **not** touch a
-    bill's `supplier` name field if the supplier was also renamed in the
-    same edit — same as before, a rename doesn't reach into history, only
-    category/subcategory do now.
+  - **Editing a supplier's name, category, or subcategory retroactively
+    updates every past bill logged under that supplier** — not just new
+    ones — across every restaurant and every month, not just the current
+    one. `propagateSupplierEditToAllBills(oldName, newName, newCategory,
+    newSubcategory)` (data-store.js) discovers every `rest:*:bills:*`
+    month-document key across every restaurant
+    (`listAllRestaurantsBillMonthKeys()`, a broad-prefix Firestore range
+    query on `"rest:"` rather than one restaurant's own prefix), loads each
+    one that isn't already cached, and on every bill matching the supplier
+    (via `supplierKey()`, case/whitespace-insensitive) rewrites `supplier`
+    to `newName` and `category`/`subcategory` to the new values — both in
+    the SAME pass, only writing back documents that actually changed.
+    Originally (`propagateSupplierCategoryToAllBills()`, 2026-10-02)
+    category/subcategory only, with a rename deliberately NOT touching
+    history. **Reversed 2026-10-19 at the user's explicit request** ("if a
+    vendor name or any other detail is changed go into the data
+    retrospectively") — a rename is now exactly as retroactive as a
+    category change always was. Doing both kinds of change in one combined
+    pass (rather than two separate scans, one per concern) was a deliberate
+    choice, not just tidiness: a rename-then-category-scan ordering would
+    have the category scan try to match bills by the OLD name right after
+    the rename scan already rewrote it to the new one, finding nothing —
+    caught while implementing, before it ever shipped. Runs from
+    `buildManageSupplierEditForm`'s save handler whenever the name and/or
+    category/subcategory actually changed, so it also fires from the old
+    Manage Suppliers modal, not just this tab — edited from either surface,
+    behavior is identical. The Suppliers bulk-edit-via-Excel feature below
+    calls the same function with `oldName === newName` (bulk edit never
+    renames, only matches-and-updates by existing name) — no behavior
+    change there. Verified by extending the existing supplier test suite
+    (`test_supplier_rename_and_combine.js`, part of a combined 15/15 — see
+    "Combine duplicate suppliers" below) to seed a supplier with bills on
+    two restaurants, rename it via the Edit form, and confirm both
+    restaurants' bills show the new name afterward.
   - **Account number + IFSC code, added 2026-10-15** — a new,
     deliberately separate key (`supplierBankDetails`, `supBankDetailsKey()`
     in core.js) alongside `supplierDefaults` rather than merged into it,
@@ -749,6 +765,64 @@ Five tab panels, switched by `.tab-bar` buttons (`tabBtnExpenses` /
     reflects current state, uploading an edited copy updates the existing
     supplier and adds a new one, and the block is hidden/inert for Central
     Kitchen.
+  - **Combine duplicate suppliers, added 2026-10-19** — "some suppliers
+    have been entered multiple times by my managers give option to combine
+    them and ask what name is to be used hence forth." "+ combine duplicate
+    suppliers" (`supCombineLink`) toggles `supCombineModeActive`, which
+    makes `buildManageSupplierRow()` (suppliers-ui.js) grow a checkbox per
+    row via its new optional `combineMode` parameter — deliberately passed
+    ONLY from the Suppliers tab's own `renderSuppliersTabList()`, never
+    from the Manage Suppliers modal's `renderManageSupplierList()`, since
+    this tool was explicitly asked for in the Suppliers tab only. Checking
+    2+ suppliers (`supCombineSelected`, a `Set` of exact names) reveals a
+    bar (`renderSupCombineBar()`) with a name input — a `<datalist>` of the
+    checked suppliers' own exact spellings for quick-pick, but free text is
+    also accepted — defaulting to whichever was checked first. Two real
+    design forks were asked about explicitly before building, since this
+    retags real history across the whole account (see
+    [[feedback-collaboration-style]] — genuinely consequential + several
+    valid designs = ask): (1) when the checked suppliers have DIFFERING
+    category/subcategory/bank details, the user chose "use the chosen
+    name's own data" — if the typed final name exactly matches one of the
+    checked suppliers, THAT one's category/bank details become the merged
+    entry's; otherwise (a brand-new spelling) the FIRST checked supplier's
+    data is the base, no per-field picking UI; (2) Owner-only, same
+    `canEditExistingRecords()` boundary the per-row Edit button and the
+    bulk-edit tool above already have, gated at both render time
+    (`supCombineWrap` hidden for Central Kitchen) and click time (the
+    Confirm handler re-checks and no-ops). Confirming shows a `confirm()`
+    dialog naming the vendor count and warning it's irreversible (the one
+    place in this flow that blocks before acting, unlike a plain rename's
+    after-the-fact alert — merging also deletes supplier entries outright,
+    not just retags them) before calling the SAME
+    `propagateSupplierEditToAllBills()` the Edit form's own rename uses,
+    once per checked supplier (including the one whose data was kept, if
+    its own name differs from the typed final name) — every checked
+    supplier's bills end up under the one final name with zero
+    special-casing needed, since a no-op rename for an already-matching
+    bill is just not counted as changed. `suppliers`/`supplierDefaults`/
+    `supplierBankDetails` entries for every checked name except the final
+    one are deleted; `loadSupplierUsageIndex()` is also re-run immediately
+    (not left to the next reload) so the merged-away names don't look
+    stale in the current session's restaurant-scoped supplier pickers.
+    Verified with a new test (`test_supplier_rename_and_combine.js`, 15/15
+    combined with the rename-propagation test above): checkboxes appear
+    only in combine mode, the name input defaults sensibly, three
+    deliberately similarly-named/differently-cased duplicate suppliers
+    (one of them sharing a bill already under the chosen final name, to
+    verify the "already correct, don't double-count" case) correctly merge
+    into one with the kept supplier's own bank details surviving, every
+    affected bill ends up with the right supplier name, and the whole tool
+    is hidden AND inert (direct click is a no-op) for Central Kitchen.
+    **Caught while writing this test, not the app's own logic**: the test's
+    own bill-seeding helper wrote bills directly into localStorage, which
+    bypasses `billsMonthCache` (the in-memory cache `loadBillsMonth()`
+    serves from for whichever restaurant+month is already active) — in
+    real usage every bill write goes through functions that keep that
+    cache in sync, so this only ever surfaces as a test-seeding artifact,
+    never a production bug; fixed in the test by invalidating
+    `currentBillsMonthCacheKey` before reloading, not by changing any app
+    code.
   - **Supplier *pickers* are scoped per restaurant (added 2026-10-02)** —
     the underlying `suppliers`/`categories`/`supplierDefaults` stay fully
     shared account-wide as above; only the `#supplierSelect` (Add Expenses)
