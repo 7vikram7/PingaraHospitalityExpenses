@@ -328,6 +328,80 @@ restaurant other than Central Kitchen itself. A second test
 normal (non-Central-Kitchen) Manager session are both completely
 unchanged, plus the full pre-existing staff/supplier suite re-run clean.
 
+**Note**: the sales-hiding behavior above (`canSeeSalesData()`) was later
+explicitly reversed — a follow-up request gave Central Kitchen full
+Owner-level access including sales and Add Expenses verify controls (see
+the Verify/Cross-verification section). `updateTabVisibilityForProfile()`
+now unconditionally shows `salesInlineSection`/`ledSalesCell` for every
+profile; `canSeeSalesData()` no longer exists in the code. Left this
+section's original wording above as a historical record of the feature's
+first shape rather than rewriting it, since the "why" (what was asked,
+in what order) still matters more than keeping every paragraph in sync
+with the latest state — current gating logic is always the code itself.
+
+### Generalized to a second elevated profile: Accountant (added 2026-10-19)
+A second real person (the owner's accountant) needed the exact same rights
+as Central Kitchen — asked for explicitly as "same access as that for
+central kitchen." Rather than hardcoding a second raw id check everywhere
+`isCentralKitchenProfile()` was called, core.js now has:
+```js
+const ACCOUNTANT_RESTAURANT_ID = "accountant";
+function isAccountantProfile(){
+  return !isOwnerProfile() && getUnlockedRestaurantId() === ACCOUNTANT_RESTAURANT_ID;
+}
+const ELEVATED_NON_OWNER_RESTAURANT_IDS = [CENTRAL_KITCHEN_RESTAURANT_ID, ACCOUNTANT_RESTAURANT_ID];
+function isElevatedNonOwnerProfile(){
+  return !isOwnerProfile() && ELEVATED_NON_OWNER_RESTAURANT_IDS.includes(getUnlockedRestaurantId());
+}
+```
+`hasElevatedAccess()`, `canEditExistingRecords()`, and `reportsUnlocked()`
+(reports-dashboard.js) were switched from `isCentralKitchenProfile()` to
+`isElevatedNonOwnerProfile()` — the only three call sites that actually
+needed to generalize, since every OTHER gate in the app is already built
+on top of `hasElevatedAccess()`/`canEditExistingRecords()`, not the raw id
+(confirmed by grepping for every reference to `isCentralKitchenProfile`/
+`"central-kitchen"` before making the change). `isCentralKitchenProfile()`
+itself was deliberately left unchanged and still means exactly "logged in
+as Central Kitchen specifically" — still used by `currentVerifierLabel()`,
+which now branches per-profile (`'owner'` / `'central-kitchen'` /
+`'accountant'`) instead of assuming any non-owner elevated session must be
+Central Kitchen, so a bill/sales-day verified by the Accountant is
+correctly attributed, not mislabeled.
+
+Implemented as the same "restaurant-gate login vehicle" trick Central
+Kitchen itself uses — a new `{ id: "accountant", label: "Accountant" }`
+entry in `TENANT_RESTAURANTS` (Pingara tenant only, same as Central
+Kitchen; inert on RK Twelve21) plus its own `TENANT_RESTAURANT_PASSWORD_HASH`
+entry, own password, own login — not a shared Central Kitchen login,
+specifically so `verifiedBy`/any future activity trail can tell the two
+people apart. Because it's a `TENANT_RESTAURANTS` entry, it automatically
+appears in every restaurant selector in the app (login dropdown, Add
+Expenses toolbar, the shared Owner/elevated-profile top-bar selector) with
+zero extra wiring — same as Central Kitchen, confirmed by reading how
+`renderRestaurantSelect()`/`renderSharedRestaurantBar()` (ledger-ui.js)
+work before making the change, not assumed. No restaurant-specific data is
+expected to ever exist under `rest:accountant:*` in practice (the
+Accountant has no reason to pick itself in the shared selector when
+adding a bill, since it's a login identity, not an operational kitchen
+like Central Kitchen) — nothing in the code prevents it, this is just
+expected usage, not an enforced restriction.
+
+Verified with a new test (`test_accountant_profile.js`, 21/21, via the
+real login UI with the actual password, not a bypass): "Accountant"
+appears in the restaurant-gate dropdown, wrong password is rejected,
+correct password grants every elevated tab/selector, `canEditExistingRecords()`
+is false, Reports/Vendor Ledger auto-unlock with no separate password,
+Suppliers' bulk-edit/combine-duplicates tools are hidden (same boundary
+as Central Kitchen), `currentVerifierLabel()` correctly returns
+`'accountant'` not `'central-kitchen'`, sales are visible, and logging
+back in as Central Kitchen afterward still resolves as
+`isCentralKitchenProfile()` (not `isAccountantProfile()`) with its own
+correct verifier label — confirming the two profiles are genuinely
+independent, not aliases of each other. Full existing suite re-run clean
+— one pre-existing test (`test_shared_restaurant.js`) had a hardcoded
+restaurant-selector option count (8) that needed updating to 9 to account
+for the new entry, not a real regression.
+
 ## Mobile: PWA install + phone-width layout (added 2026-08-28)
 Prompted by "this is mostly used on mobile" — two separate pieces:
 

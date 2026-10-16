@@ -13,7 +13,8 @@ const TENANT_RESTAURANTS = [
   { id: "savali",            label: "Savali" },
   { id: "malhaar",           label: "Malhaar" },
   { id: "umami-la-delice",   label: "Umami La Delice" },
-  { id: "central-kitchen",   label: "Central Kitchen" }
+  { id: "central-kitchen",   label: "Central Kitchen" },
+  { id: "accountant",        label: "Accountant" }
 ];
 
 const TENANT_FIREBASE_CONFIG = {
@@ -38,5 +39,6 @@ const TENANT_RESTAURANT_PASSWORD_HASH = {
   "savali":          "a49389c0e960243bb07a679032c1bd2777850aa7db7663da1d1bfc5b896d3316",
   "malhaar":         "889fe9a11fde855aaaf2326ea6c8b397ee85745dd43dbd99bc6e8f3ead79e597",
   "umami-la-delice": "97318b10fb613f4cc830bca4acf33dc296565f25addf97ba103ce3af3a560bb9",
-  "central-kitchen": "02c6ae294ddcf073526908f40f7faa5939076b97231f5611f835320f79188578"
+  "central-kitchen": "02c6ae294ddcf073526908f40f7faa5939076b97231f5611f835320f79188578",
+  "accountant":      "0420101fe35ea0be2401bac6ada0ca52e858d20f4505977397a8da4df453f766"
 };

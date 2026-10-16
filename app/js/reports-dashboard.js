@@ -10,11 +10,12 @@ const REPORTS_PASSWORD_HASH = TENANT_REPORTS_PASSWORD_HASH;
 const REPORTS_UNLOCK_KEY = "reportsUnlockedSession";
 
 function reportsUnlocked(){
-  // Central Kitchen (added 2026-10-03) never learns the Owner's Reports
-  // password, so it's auto-unlocked for that profile rather than relying on
-  // the stored key -- robust across every session, not just ones where the
-  // restaurant-gate login flow happened to run after this feature shipped.
-  if(isCentralKitchenProfile()) return true;
+  // Central Kitchen (added 2026-10-03) and Accountant (added 2026-10-19)
+  // never learn the Owner's Reports password, so every elevated non-owner
+  // profile is auto-unlocked rather than relying on the stored key --
+  // robust across every session, not just ones where the restaurant-gate
+  // login flow happened to run after this feature shipped.
+  if(isElevatedNonOwnerProfile()) return true;
   try{ return localStorage.getItem(REPORTS_UNLOCK_KEY) === '1'; }catch(e){ return false; }
 }
 function showReportsPanel(){

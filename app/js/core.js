@@ -255,27 +255,51 @@ const CENTRAL_KITCHEN_RESTAURANT_ID = "central-kitchen";
 function isCentralKitchenProfile(){
   return !isOwnerProfile() && getUnlockedRestaurantId() === CENTRAL_KITCHEN_RESTAURANT_ID;
 }
-// Who gets owner-level, cross-restaurant visibility into Reports/Vendor
-// Ledger/Suppliers/Staff Expenses -- the real Owner, or the Central Kitchen
-// elevated profile above.
-function hasElevatedAccess(){
-  return isOwnerProfile() || isCentralKitchenProfile();
+// ---- Accountant: a second elevated non-owner profile (added 2026-10-19) ----
+// Same restaurant-gate-as-login-vehicle trick as Central Kitchen above, for
+// a different real person (the owner's accountant) who needs identical
+// rights -- a distinct login (own password, own "Accountant" entry in
+// TENANT_RESTAURANTS) rather than sharing the Central Kitchen one, so
+// `verifiedBy` and any future activity trail can tell who actually did what.
+const ACCOUNTANT_RESTAURANT_ID = "accountant";
+function isAccountantProfile(){
+  return !isOwnerProfile() && getUnlockedRestaurantId() === ACCOUNTANT_RESTAURANT_ID;
 }
-// Central Kitchen can toggle a bill's paid/unpaid status, add new bills, and
-// add new suppliers, but can never modify an EXISTING record's own fields --
-// a bill's amount/category/invoice/date (unlike the normal 1-hour-then-
-// Owner-password window that otherwise applies, there is no override for
-// this profile at all), or a supplier's category/subcategory default (which
-// retroactively re-tags every past bill under that supplier). One flag
-// covers both since they're the same restriction for this profile.
-function canEditExistingRecords(){ return !isCentralKitchenProfile(); }
+// Every non-owner restaurant id that gets Central-Kitchen-equivalent
+// elevated access -- adding a future third such profile is just one more
+// id here (plus its own isXProfile() and currentVerifierLabel() branch),
+// not a change to hasElevatedAccess()/canEditExistingRecords()/etc. below.
+const ELEVATED_NON_OWNER_RESTAURANT_IDS = [CENTRAL_KITCHEN_RESTAURANT_ID, ACCOUNTANT_RESTAURANT_ID];
+function isElevatedNonOwnerProfile(){
+  return !isOwnerProfile() && ELEVATED_NON_OWNER_RESTAURANT_IDS.includes(getUnlockedRestaurantId());
+}
+// Who gets owner-level, cross-restaurant visibility into Reports/Vendor
+// Ledger/Suppliers/Staff Expenses -- the real Owner, or any elevated
+// non-owner profile above (Central Kitchen, Accountant).
+function hasElevatedAccess(){
+  return isOwnerProfile() || isElevatedNonOwnerProfile();
+}
+// Central Kitchen/Accountant can toggle a bill's paid/unpaid status, add new
+// bills, and add new suppliers, but can never modify an EXISTING record's
+// own fields -- a bill's amount/category/invoice/date (unlike the normal
+// 1-hour-then-Owner-password window that otherwise applies, there is no
+// override for these profiles at all), or a supplier's category/subcategory
+// default (which retroactively re-tags every past bill under that
+// supplier). One flag covers both since they're the same restriction.
+function canEditExistingRecords(){ return !isElevatedNonOwnerProfile(); }
 
 // ---- Cross-verification (added 2026-10-06) ----
-// Owner and Central Kitchen can mark bills and staff entries verified (a
-// toggle), sales days included. Everyone else sees a read-only status badge.
+// Owner and every elevated non-owner profile can mark bills and staff
+// entries verified (a toggle), sales days included. Everyone else sees a
+// read-only status badge.
 function canVerifyEntries(){ return hasElevatedAccess(); }
 function canVerifySales(){ return hasElevatedAccess(); }
-function currentVerifierLabel(){ return isOwnerProfile() ? 'owner' : 'central-kitchen'; }
+function currentVerifierLabel(){
+  if(isOwnerProfile()) return 'owner';
+  if(isCentralKitchenProfile()) return 'central-kitchen';
+  if(isAccountantProfile()) return 'accountant';
+  return 'manager'; // never reached today -- verify controls are gated to hasElevatedAccess()
+}
 // `canFn` is re-checked on click too, so a control built under one profile can
 // never act under another (the same page can switch profiles without a reload).
 function buildVerifyControl(verified, canFn, onToggle){

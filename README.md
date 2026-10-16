@@ -18,17 +18,20 @@ Firebase Hosting.
   most use is on mobile, staying logged in matters more than re-prompting
   on every app switch. The only way back to the login screens is the
   explicit **Logout** button.
-  **Central Kitchen (Pingara tenant) is a special-cased elevated Manager
-  login** (added 2026-10-03, detected purely by which restaurant's
-  password was used — no separate profile type): full Owner-level
-  visibility into Reports, Vendor Ledger, Suppliers, and Staff Expenses
-  (every restaurant, not just its own), can toggle bills paid/unpaid and
-  add new bills/suppliers/staff entries and add bills for any restaurant
-  (the same shared restaurant selector as the Owner, no per-restaurant password), but
-  can never *modify* an existing bill's amount/category/date or an existing
-  supplier's category default. It sees sales and profit the same way the
-  Owner does, and gets the same Verify button on bills, sales days, and
-  staff entries.
+  **Central Kitchen and Accountant (Pingara tenant) are special-cased
+  elevated Manager logins** (Central Kitchen added 2026-10-03, Accountant
+  added 2026-10-19 with identical rights but its own separate password —
+  detected purely by which restaurant's password was used, no separate
+  profile type for either): full Owner-level visibility into Reports,
+  Vendor Ledger, Suppliers, and Staff Expenses (every restaurant, not just
+  its own), can toggle bills paid/unpaid and add new bills/suppliers/staff
+  entries and add bills for any restaurant (the same shared restaurant
+  selector as the Owner, no per-restaurant password), but can never
+  *modify* an existing bill's amount/category/date or an existing
+  supplier's category default. Both see sales and profit the same way the
+  Owner does, and get the same Verify button on bills, sales days, and
+  staff entries — correctly attributed to whichever of the two actually
+  did it.
 - **Installable as a mobile app** — manifest.json + iOS meta tags let you
   "Add to Home Screen" on Android/iPhone and it opens full-screen, no
   browser chrome, with its own icon. Layout (tab bar, stat rows, tables)
@@ -115,10 +118,10 @@ Firebase Hosting.
   — the duplicate entries are then removed. It also scans bill history for
   vendor names that aren't in the supplier list at all (e.g. one that was
   removed from the list while still being billed) and lets you check and
-  combine those too. Central Kitchen can still add new suppliers one at a
-  time but doesn't get the bulk-edit or combine-duplicates options, since
-  both can retroactively change an
-  existing supplier's history — the same boundary it already has on the
+  combine those too. Central Kitchen and Accountant can still add new
+  suppliers one at a time but don't get the bulk-edit or combine-duplicates
+  options, since both can retroactively change an
+  existing supplier's history — the same boundary they already have on the
   per-supplier Edit button.
 - **Staff Expenses tab** (Owner, or Manager for their own restaurant only;
   named "Staff OT & Salary" until 2026-10-02): a staff directory per
@@ -193,12 +196,11 @@ Firebase Hosting.
   **Bank Transfer Settings** field holds the one shared debit account
   (your own IDFC FIRST account the file pays *from*) — entered once in
   the app, never written to the codebase.
-- **Cross-verification (Owner and Central Kitchen)** — bills, sales days,
-  and staff entries (OT, Captain Incentive, Waiter Tips, Staff Advance) each
-  have a **Verify** toggle. Owner and Central Kitchen can mark an entry
-  verified (and un-verify it); sales verification is Owner-only, since
-  Central Kitchen never sees sales. Everyone else sees a read-only "✓
-  Verified" or "Not verified" badge. Verified status survives later edits.
+- **Cross-verification (Owner, Central Kitchen, Accountant)** — bills,
+  sales days, and staff entries (OT, Captain Incentive, Waiter Tips, Staff
+  Advance) each have a **Verify** toggle, including sales. Everyone else
+  sees a read-only "✓ Verified" or "Not verified" badge. Verified status
+  survives later edits.
 - **Offline-first**: every write lands in `localStorage` immediately and
   syncs to Firestore in the background, so a flaky connection never blocks
   data entry
