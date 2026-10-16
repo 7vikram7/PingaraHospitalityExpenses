@@ -534,6 +534,32 @@ Five tab panels, switched by `.tab-bar` buttons (`tabBtnExpenses` /
     — it reuses the month cache when it happens to be the same
     restaurant+month, otherwise fetches fresh, and syncs the live `entries`
     array too if it is the same day currently being viewed there.
+  - **Vendor search, added 2026-10-18** (`vlVendorSearch`) — a free-text box
+    in the same filter row as the period toggle, case-insensitive substring
+    match on vendor name. Split the render into two steps specifically so
+    typing doesn't re-fetch from Firestore on every keystroke:
+    `renderVendorLedger()` still does the async `computeVendorLedgerData()`
+    fetch (on period/restaurant change, or a status/verify toggle) and
+    caches the result in `vlLastAllRows`/`vlLastAllTotals`; the search box's
+    own `input` listener calls the new, synchronous
+    `applyVLSearchAndRender()` directly, which just filters that cache and
+    re-renders — instant, no loading flicker, no network. A search that
+    matches nothing shows a distinct "No vendors match your search." empty
+    message, kept separate from "No bills logged for this period yet." so
+    the two causes aren't confused. The hero totals (Vendors/Total spend/
+    Paid/Unpaid) are recomputed from the filtered rows when a search is
+    active, so they always describe what's actually on screen, not the
+    whole unfiltered period. **Deliberately also narrows `vlLastRows`**
+    (and therefore every pending-bills download below) to the search
+    results — the downloads already promise "whatever the table above is
+    showing," and a search result is exactly that, so this preserves that
+    invariant rather than introducing a second, separately-tracked scope
+    concept. Verified with a new test (`test_vendor_ledger_search.js`,
+    14/14): search narrows the table and hero totals correctly, is
+    case-insensitive, a no-match search shows the right empty state without
+    leaving `vlLastRows` stale, clearing the box restores every vendor, and
+    a pending-bills download taken while a search is active correctly only
+    includes the searched-for vendor.
   - **Pending bills download, added 2026-10-15** — two buttons
     (`vlDownloadPendingBtn`, plain CSV; `vlDownloadPendingBankBtn`, bank
     transfer `.xlsx`) reusing whatever period/restaurant scope the table

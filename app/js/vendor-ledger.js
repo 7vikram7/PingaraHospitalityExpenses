@@ -5,6 +5,7 @@ let vlPeriodType = 'month';  // 'day' | 'month' | 'range'
 let vlSelectedDate, vlSelectedMonth;
 let vlRangeFrom, vlRangeTo;
 let vlRestaurantFilter = 'all'; // 'all' or a restaurant id, set from the shared top-bar selector
+let vlVendorSearch = ''; // free-text, case-insensitive substring match on vendor name (added 2026-10-18)
 
 // Inclusive list of "YYYY-MM" month keys spanned by a date range — a range can
 // cross month-bucket document boundaries, so every covered month needs its own fetch.
@@ -244,6 +245,15 @@ function renderVLTable(rows, showRestCol){
   wrap.appendChild(table);
 }
 
+// The full computeVendorLedgerData() result for the current period/
+// restaurant scope, BEFORE the vendor search filter -- cached here (added
+// 2026-10-18) so typing in the search box re-filters and re-renders
+// instantly from memory via applyVLSearchAndRender() instead of re-running
+// the Firestore fetch on every keystroke the way a period/restaurant change
+// does.
+let vlLastAllRows = [];
+let vlLastAllTotals = { amount: 0, paid: 0, unpaid: 0 };
+
 async function renderVendorLedger(){
   if(vlSelectedDate === undefined) vlSelectedDate = addDaysStr(todayStr(), -1);
   if(vlSelectedMonth === undefined) vlSelectedMonth = todayStr().slice(0,7);
@@ -261,42 +271,67 @@ async function renderVendorLedger(){
       : vlPeriodType === 'range' ? { from: vlRangeFrom, to: vlRangeTo }
       : { month: vlSelectedMonth };
     const { rows, totals } = await computeVendorLedgerData(vlPeriodType, params, vlRestaurantFilter);
-
-    const totalsBar = document.getElementById('vlTotalsBar');
-    const empty = document.getElementById('vlEmpty');
-    if(rows.length === 0){
-      document.getElementById('vlTableWrap').innerHTML = "";
-      totalsBar.style.display = 'none';
-      empty.style.display = 'block';
-      // Bug fix (2026-10-16): this early return used to skip renderVLTable(),
-      // which is the ONLY place vlLastRows/vlLastShowRestCol get updated --
-      // so switching to a period/restaurant scope with zero bills left the
-      // pending-bills downloads silently reading the PREVIOUS scope's stale
-      // data instead of correctly finding nothing. Caught by
-      // test_pending_bills_by_vendor.js's empty-scope check.
-      vlLastRows = [];
-      vlLastShowRestCol = vlRestaurantFilter === 'all';
-      return;
-    }
-    empty.style.display = 'none';
-    totalsBar.style.display = 'flex';
-    document.getElementById('vlTotalVendors').textContent = rows.length;
-    document.getElementById('vlTotalAmount').textContent = fmtMoney(totals.amount);
-    document.getElementById('vlTotalPaid').textContent = fmtMoney(totals.paid);
-    document.getElementById('vlTotalUnpaid').textContent = fmtMoney(totals.unpaid);
-
-    renderVLTable(rows, vlRestaurantFilter === 'all');
+    vlLastAllRows = rows;
+    vlLastAllTotals = totals;
+    applyVLSearchAndRender();
   }catch(e){
     console.error('vendor ledger render failed', e);
   }finally{
-    // Must run even on the "no bills for this scope" early return above (or a
-    // thrown error) -- .dash-loading sets pointer-events:none on the whole
-    // panel, which would otherwise permanently disable the restaurant
-    // selector and period toggles the moment a scope has zero bills.
+    // Must run even on a thrown error above -- .dash-loading sets
+    // pointer-events:none on the whole panel, which would otherwise
+    // permanently disable the restaurant selector and period toggles.
     panel.classList.remove('dash-loading');
   }
 }
 
+// Applies vlVendorSearch to the cached vlLastAllRows and renders the result
+// -- called after every fresh fetch, and directly from the search box's own
+// input handler (no re-fetch needed, the data hasn't changed). The
+// downloads below already promise "whatever the table above is showing,"
+// and a search result is exactly that, so a search for one vendor
+// naturally scopes "download pending bills" etc. to just that vendor too --
+// no separate concept to keep in sync. Totals are recomputed from the
+// filtered set rather than reusing vlLastAllTotals, so the hero cards match
+// what's actually filtered.
+function applyVLSearchAndRender(){
+  const allRows = vlLastAllRows;
+  const search = vlVendorSearch.trim().toLowerCase();
+  const rows = search ? allRows.filter(r => r.name.toLowerCase().includes(search)) : allRows;
+
+  const totalsBar = document.getElementById('vlTotalsBar');
+  const empty = document.getElementById('vlEmpty');
+  if(allRows.length === 0 || rows.length === 0){
+    document.getElementById('vlTableWrap').innerHTML = "";
+    totalsBar.style.display = 'none';
+    empty.textContent = allRows.length === 0 ? "No bills logged for this period yet." : "No vendors match your search.";
+    empty.style.display = 'block';
+    // Bug fix (2026-10-16): this early return used to skip renderVLTable(),
+    // which is the ONLY place vlLastRows/vlLastShowRestCol get updated --
+    // so switching to a period/restaurant/search scope with zero matching
+    // rows left the pending-bills downloads silently reading the PREVIOUS
+    // scope's stale data instead of correctly finding nothing. Caught by
+    // test_pending_bills_by_vendor.js's empty-scope check.
+    vlLastRows = [];
+    vlLastShowRestCol = vlRestaurantFilter === 'all';
+    return;
+  }
+  empty.style.display = 'none';
+  totalsBar.style.display = 'flex';
+  const totals = search ? rows.reduce((acc,r)=>({
+    amount: acc.amount + r.amount, paid: acc.paid + r.paid, unpaid: acc.unpaid + r.unpaid
+  }), { amount: 0, paid: 0, unpaid: 0 }) : vlLastAllTotals;
+  document.getElementById('vlTotalVendors').textContent = rows.length;
+  document.getElementById('vlTotalAmount').textContent = fmtMoney(totals.amount);
+  document.getElementById('vlTotalPaid').textContent = fmtMoney(totals.paid);
+  document.getElementById('vlTotalUnpaid').textContent = fmtMoney(totals.unpaid);
+
+  renderVLTable(rows, vlRestaurantFilter === 'all');
+}
+document.getElementById('vlVendorSearch').addEventListener('input', (ev)=>{
+  vlVendorSearch = ev.target.value;
+  vlExpandedVendor = null;
+  applyVLSearchAndRender();
+});
 
 const VL_PERIOD_BTNS = { day: 'vlPeriodDay', month: 'vlPeriodMonth', range: 'vlPeriodRange' };
 const VL_PERIOD_FIELDS = {

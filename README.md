@@ -79,7 +79,10 @@ Firebase Hosting.
   open at a time, independent per column in Compare-months)
 - **Vendor Ledger tab** (Owner only): bills grouped by supplier instead of
   by day, across all restaurants or one, for a day, month, or custom date
-  range. Click a vendor to expand its individual bills (date, invoice #,
+  range. A **search box** narrows the table to vendors matching what you
+  type (case-insensitive) — the totals above it and every download below
+  update to match, so searching for one vendor and downloading pending
+  bills gets you just that vendor's. Click a vendor to expand its individual bills (date, invoice #,
   amount, paid/unpaid) and flip paid status right there, with the paid
   date recorded alongside it. A **download pending bills** option covers
   whatever period/restaurant scope is currently selected: a plain CSV of
