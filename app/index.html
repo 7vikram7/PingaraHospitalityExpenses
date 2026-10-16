@@ -596,8 +596,14 @@ window.__firebaseSdkReady = (async ()=>{
             <div class="dash-hero-label">Total pending</div>
             <div class="dash-hero-value" id="payTotalAmount">₹0.00</div>
           </div>
+          <div class="dash-hero">
+            <div class="dash-hero-label">Selected to mark paid</div>
+            <div class="dash-hero-value" id="paySelectedAmount">₹0.00</div>
+          </div>
         </div>
 
+        <p class="sup-tab-note">Click a vendor to expand its bills and uncheck any that
+          shouldn't be paid in this batch — the totals above and the button below update live.</p>
         <div class="staff-report-downloads" id="payMarkAllWrap" style="display:none;">
           <button type="button" class="history-btn bank-transfer-btn" id="payMarkAllPaidBtn">Mark All Paid</button>
         </div>

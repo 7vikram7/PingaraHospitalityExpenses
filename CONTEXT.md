@@ -804,6 +804,58 @@ Five tab panels, switched by `.tab-bar` buttons (`tabBtnExpenses` /
     vendor, Mark All Paid clears the whole visible scope and shows the
     empty state afterward, and vendor search narrows the list the same
     way Vendor Ledger's does). Full existing suite re-run clean.
+  - **Expandable per-vendor bill list with deselect, added the same day**
+    — "it is a problem if 1 or 2 bills are not paid within a marked date
+    range," since the original version could only mark a vendor's WHOLE
+    pending total paid in one shot. Each vendor row now expands (click the
+    row or its caret — same accordion `.vl-vendor-row`/`.vl-detail-row`
+    structure Vendor Ledger's own detail view already uses, including the
+    CSS, so this didn't need new styling beyond two small additions) into
+    its individual bills, each with a checkbox, **checked by default**
+    (the common case is "pay everything"); unchecking one excludes it from
+    that vendor's "Mark Paid" and the page-level "Mark All Paid"/"Mark
+    Selected Paid" alike. `payExcludedBillIds` (a `Set` of bill ids) is
+    the one piece of selection state, deliberately reset on every fresh
+    fetch (period/restaurant/search change, or right after a mark-paid
+    action completes) rather than persisted — an exclusion is a decision
+    about THAT specific payment run, not a lasting property of the bill;
+    if it genuinely shouldn't be paid next time either, it gets excluded
+    again then, same as the user would naturally re-check a physical
+    stack of bills each run.
+  - **Live totals update via targeted DOM writes, not a table rebuild** —
+    `updatePayLiveTotals()` iterates `payRowRefs` (built fresh each
+    `renderPayTable()` call: `{row, markBtn, captionEl}` per vendor) and
+    rewrites just the Mark Paid button's label/caption and the two
+    page-level numbers (`#paySelectedAmount` hero, `#payMarkAllPaidBtn`'s
+    own label) directly, so unchecking a bill doesn't collapse any other
+    expanded vendor or move the scroll position — only expand/collapse
+    and the period/search filters trigger a full `renderPayTable()`.
+    **"Show the new total beside it," the user's exact ask**, is
+    satisfied at two levels: a new "Selected to mark paid" hero sits
+    beside the existing "Total pending" one at the page level, and each
+    vendor's Mark Paid button itself shows the live selected amount
+    (`Mark Paid (₹X)`) sitting directly beside that row's own unchanging
+    "Pending" column — a visible side-by-side comparison rather than a
+    separate explanation of what got excluded.
+  - Multiple vendors can be expanded at once (no single-accordion
+    restriction, unlike Vendor Ledger's own `vlExpandedVendor`) —
+    deliberate, since reviewing a payment run plausibly means checking
+    several vendors' bill lists before committing to Mark All Paid, not
+    one at a time. Small "select all"/"select none" links inside each
+    expanded vendor's own detail table toggle that vendor's bills only.
+  - Verified with a new test (`test_payments_deselect.js`, 19/19): the
+    page-level Selected/Total split starts equal and diverges correctly
+    as bills are unchecked, a vendor's Mark Paid button and caption
+    update live without affecting the unchanging Pending column, marking
+    paid with one bill unchecked pays only the checked ones and leaves
+    the rest genuinely pending (not silently included), the view
+    correctly resets to the new (smaller) pending scope afterward, and
+    "select all"/"select none" work independently per vendor. Full
+    existing suite re-run clean — `test_payments_tab.js` needed one
+    assertion updated for an intentional wording change (the Mark All
+    confirm message now says "Mark N bills... as paid" instead of always
+    "Mark ALL N pending bills," since it may now describe a selected
+    subset, not literally everything).
 - **"Suppliers"** (`#tabPanelSuppliers`, `app/js/suppliers-tab.js`) —
   owner-only, same tab-visibility toggle as Reports/Vendor Ledger
   (`updateTabVisibilityForProfile()` in auth.js), no separate password

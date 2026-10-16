@@ -18,12 +18,35 @@
    an already-processed range) is a brand-new record and starts 'unpaid'
    as always. markBillsPaid() (data-store.js) only ever flips existing
    records, never anything that could retroactively apply to a future
-   write. */
+   write.
+
+   Expandable per-vendor bill list with deselect, added 2026-10-17 same
+   day -- "it is a problem if 1 or 2 bills are not paid within a marked
+   date range," so marking a vendor's WHOLE pending total paid in one
+   click isn't always right. Each vendor row expands (click the row or its
+   caret, same accordion pattern vendor-ledger.js's own detail view uses)
+   into its individual bills, each with a checkbox -- checked by default
+   (the common case is "pay everything"), unchecking one excludes it from
+   that vendor's Mark Paid action. payExcludedBillIds (a Set of bill ids)
+   is the one piece of selection state; a bill not in it is selected.
+   Deliberately reset on every fresh fetch (period/restaurant/search
+   change, or right after a mark-paid action completes) rather than
+   persisted -- an exclusion is a decision about THIS specific payment
+   run, not a lasting property of the bill; if it still shouldn't be paid
+   next time, it gets excluded again then. Checkbox toggles update totals
+   live via updatePayLiveTotals() (direct DOM text updates against
+   payRowRefs, not a full table rebuild) so unchecking a bill doesn't
+   collapse other expanded rows or jump the scroll position -- expand/
+   collapse and the search/period filters are the only things that
+   trigger a full renderPayTable(). */
 let payPeriodType = 'month';  // 'day' | 'month' | 'range'
 let paySelectedDate, paySelectedMonth;
 let payRangeFrom, payRangeTo;
 let payRestaurantFilter = 'all'; // 'all' or a restaurant id, set from the shared top-bar selector
 let payVendorSearch = '';
+let payExpandedVendors = new Set(); // vendor names currently expanded
+let payExcludedBillIds = new Set(); // bill ids unchecked for the next mark-paid action
+let payRowRefs = []; // [{ row, markBtn, captionEl }] -- live refs for updatePayLiveTotals(), rebuilt every renderPayTable()
 
 function showPayPanel(){
   const unlocked = reportsUnlocked();
@@ -78,6 +101,7 @@ async function renderPayments(){
       : { month: paySelectedMonth };
     const { rows } = await computeVendorLedgerData(payPeriodType, params, payRestaurantFilter);
     payLastAllRows = rows;
+    payExcludedBillIds.clear(); // fresh fetch -- every bill in the new scope starts selected
     applyPaySearchAndRender();
   }catch(e){
     console.error('payments render failed', e);
@@ -118,6 +142,7 @@ function applyPaySearchAndRender(){
   document.getElementById('payTotalAmount').textContent = fmtMoney(totalAmount);
 
   renderPayTable(rows, payRestaurantFilter === 'all');
+  updatePayLiveTotals();
 }
 document.getElementById('payVendorSearch').addEventListener('input', (ev)=>{
   payVendorSearch = ev.target.value;
@@ -125,6 +150,7 @@ document.getElementById('payVendorSearch').addEventListener('input', (ev)=>{
 });
 
 function renderPayTable(rows, showRestCol){
+  payRowRefs = [];
   const wrap = document.getElementById('payTableWrap');
   wrap.innerHTML = "";
   const table = document.createElement('table');
@@ -138,11 +164,14 @@ function renderPayTable(rows, showRestCol){
   const tbody = document.createElement('tbody');
   rows.forEach(r=>{
     const amount = r.bills.reduce((s,b)=> s + b.amount, 0);
+    const expanded = payExpandedVendors.has(r.name);
     const tr = document.createElement('tr');
+    tr.className = 'vl-vendor-row';
+    tr.tabIndex = 0;
 
     const tdName = document.createElement('td');
     tdName.className = 'supplier';
-    tdName.textContent = r.name;
+    tdName.innerHTML = `<span class="vl-expand-caret">${expanded ? '▾' : '▸'}</span>${escapeHtml(r.name)}`;
     tr.appendChild(tdName);
 
     const tdCat = document.createElement('td');
@@ -169,38 +198,183 @@ function renderPayTable(rows, showRestCol){
     tr.appendChild(tdAmt);
 
     const tdBtn = document.createElement('td');
+    const btnWrap = document.createElement('div');
+    btnWrap.className = 'pay-mark-cell';
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'msr-save-btn';
     btn.textContent = 'Mark Paid';
-    btn.addEventListener('click', async ()=>{
-      if(!confirm(`Mark ${r.bills.length} bill${r.bills.length === 1 ? '' : 's'} (${fmtMoney(amount)}) for "${r.name}" as paid?`)) return;
+    const captionEl = document.createElement('span');
+    captionEl.className = 'count-hint';
+    btn.addEventListener('click', async (ev)=>{
+      ev.stopPropagation(); // the whole row also toggles expand on click
+      const selectedBills = r.bills.filter(b => !payExcludedBillIds.has(b.id));
+      if(selectedBills.length === 0){ alert('Nothing selected for this vendor — check at least one bill first.'); return; }
+      const selectedAmount = selectedBills.reduce((s,b)=> s + b.amount, 0);
+      const excludedCount = r.bills.length - selectedBills.length;
+      const excludedNote = excludedCount > 0 ? ` (${excludedCount} unchecked bill${excludedCount === 1 ? '' : 's'} left pending)` : '';
+      if(!confirm(`Mark ${selectedBills.length} bill${selectedBills.length === 1 ? '' : 's'} (${fmtMoney(selectedAmount)}) for "${r.name}" as paid?${excludedNote}`)) return;
       btn.disabled = true;
       btn.textContent = 'Marking…';
-      await markBillsPaid(r.bills.map(b => ({ restaurantId: b.restaurantId, date: b.date, id: b.id })));
+      await markBillsPaid(selectedBills.map(b => ({ restaurantId: b.restaurantId, date: b.date, id: b.id })));
       await renderPayments();
     });
-    tdBtn.appendChild(btn);
+    btnWrap.appendChild(btn);
+    btnWrap.appendChild(captionEl);
+    tdBtn.appendChild(btnWrap);
     tr.appendChild(tdBtn);
 
+    const toggleExpand = ()=>{
+      if(payExpandedVendors.has(r.name)) payExpandedVendors.delete(r.name);
+      else payExpandedVendors.add(r.name);
+      renderPayTable(rows, showRestCol);
+      updatePayLiveTotals();
+    };
+    tr.addEventListener('click', toggleExpand);
+    tr.addEventListener('keydown', (ev)=>{
+      if(ev.key === 'Enter' || ev.key === ' '){ ev.preventDefault(); toggleExpand(); }
+    });
     tbody.appendChild(tr);
+
+    payRowRefs.push({ row: r, markBtn: btn, captionEl });
+
+    if(expanded){
+      const detailTr = document.createElement('tr');
+      detailTr.className = 'vl-detail-row';
+      const detailTd = document.createElement('td');
+      detailTd.colSpan = showRestCol ? 6 : 5;
+      detailTd.appendChild(buildPayDetailTable(r, showRestCol));
+      detailTr.appendChild(detailTd);
+      tbody.appendChild(detailTr);
+    }
   });
   table.appendChild(thead); table.appendChild(tbody);
   wrap.appendChild(table);
 }
 
+function buildPayDetailTable(row, showRestCol){
+  const scroll = document.createElement('div');
+  scroll.className = 'vl-detail-scroll';
+
+  const selectLinks = document.createElement('div');
+  selectLinks.className = 'count-hint';
+  const selectAll = document.createElement('span');
+  selectAll.className = 'addlink';
+  selectAll.textContent = 'select all';
+  selectAll.addEventListener('click', (ev)=>{
+    ev.stopPropagation();
+    row.bills.forEach(b => payExcludedBillIds.delete(b.id));
+    renderPayTable(payLastFilteredRows, payRestaurantFilter === 'all');
+    updatePayLiveTotals();
+  });
+  const selectNone = document.createElement('span');
+  selectNone.className = 'addlink';
+  selectNone.textContent = 'select none';
+  selectNone.addEventListener('click', (ev)=>{
+    ev.stopPropagation();
+    row.bills.forEach(b => payExcludedBillIds.add(b.id));
+    renderPayTable(payLastFilteredRows, payRestaurantFilter === 'all');
+    updatePayLiveTotals();
+  });
+  selectLinks.appendChild(selectAll);
+  selectLinks.appendChild(document.createTextNode(' · '));
+  selectLinks.appendChild(selectNone);
+  scroll.appendChild(selectLinks);
+
+  const table = document.createElement('table');
+  table.className = 'vl-detail-table';
+  const thead = document.createElement('thead');
+  const headRow = document.createElement('tr');
+  headRow.innerHTML = '<th></th><th>Date</th>' + (showRestCol ? '<th>Restaurant</th>' : '') +
+    '<th>Invoice #</th><th class="num">Amount</th>';
+  thead.appendChild(headRow);
+
+  const tbody = document.createElement('tbody');
+  row.bills
+    .sort((a,b)=> a.date < b.date ? -1 : (a.date > b.date ? 1 : 0))
+    .forEach(b=>{
+      const tr = document.createElement('tr');
+      const tdCheck = document.createElement('td');
+      const checkbox = document.createElement('input');
+      checkbox.type = 'checkbox';
+      checkbox.checked = !payExcludedBillIds.has(b.id);
+      checkbox.addEventListener('click', (ev)=> ev.stopPropagation());
+      checkbox.addEventListener('change', ()=>{
+        if(checkbox.checked) payExcludedBillIds.delete(b.id);
+        else payExcludedBillIds.add(b.id);
+        updatePayLiveTotals();
+      });
+      tdCheck.appendChild(checkbox);
+      tr.appendChild(tdCheck);
+
+      const tdDate = document.createElement('td'); tdDate.textContent = fmtDateLabel(b.date);
+      tr.appendChild(tdDate);
+      if(showRestCol){
+        const tdRest = document.createElement('td');
+        tdRest.className = 'subcat';
+        tdRest.textContent = restaurantLabel(b.restaurantId);
+        tr.appendChild(tdRest);
+      }
+      const tdInv = document.createElement('td'); tdInv.className = 'subcat'; tdInv.textContent = b.invoice || '—';
+      tr.appendChild(tdInv);
+      const tdAmt = document.createElement('td'); tdAmt.className = 'amount'; tdAmt.textContent = fmtMoney(b.amount);
+      tr.appendChild(tdAmt);
+      tr.addEventListener('click', (ev)=> ev.stopPropagation()); // don't collapse the vendor row on a detail-row click
+      tbody.appendChild(tr);
+    });
+  table.appendChild(thead); table.appendChild(tbody);
+  scroll.appendChild(table);
+  return scroll;
+}
+
+// Recomputes every vendor's selected subtotal (Mark Paid button label +
+// caption) and the page-level "Selected to mark paid" hero / Mark All
+// Paid button, from payExcludedBillIds -- pure DOM text updates against
+// payRowRefs, no table rebuild, so unchecking a bill doesn't collapse any
+// other expanded vendor or move the scroll position.
+function updatePayLiveTotals(){
+  payRowRefs.forEach(({ row, markBtn, captionEl })=>{
+    const selectedBills = row.bills.filter(b => !payExcludedBillIds.has(b.id));
+    const selectedAmount = selectedBills.reduce((s,b)=> s + b.amount, 0);
+    if(selectedBills.length === row.bills.length){
+      markBtn.textContent = 'Mark Paid';
+      captionEl.textContent = '';
+    } else {
+      markBtn.textContent = `Mark Paid (${fmtMoney(selectedAmount)})`;
+      captionEl.textContent = `${selectedBills.length} of ${row.bills.length} selected`;
+    }
+    markBtn.disabled = selectedBills.length === 0;
+  });
+
+  const allBills = payLastFilteredRows.flatMap(r => r.bills);
+  const selectedBills = allBills.filter(b => !payExcludedBillIds.has(b.id));
+  const selectedAmount = selectedBills.reduce((s,b)=> s + b.amount, 0);
+  const selectedEl = document.getElementById('paySelectedAmount');
+  if(selectedEl) selectedEl.textContent = fmtMoney(selectedAmount);
+
+  const markAllBtn = document.getElementById('payMarkAllPaidBtn');
+  if(markAllBtn){
+    markAllBtn.textContent = selectedBills.length === allBills.length
+      ? 'Mark All Paid'
+      : `Mark Selected Paid (${fmtMoney(selectedAmount)})`;
+    markAllBtn.disabled = selectedBills.length === 0;
+  }
+}
+
 document.getElementById('payMarkAllPaidBtn').addEventListener('click', async ()=>{
-  const rows = payLastFilteredRows;
-  const allBills = rows.flatMap(r => r.bills);
-  if(allBills.length === 0) return;
-  const total = allBills.reduce((s,b)=> s + b.amount, 0);
-  if(!confirm(`Mark ALL ${allBills.length} pending bill${allBills.length === 1 ? '' : 's'} (${fmtMoney(total)}) across ${rows.length} vendor${rows.length === 1 ? '' : 's'} as paid?\n\nThis only affects bills that exist right now.`)) return;
+  const allBills = payLastFilteredRows.flatMap(r => r.bills);
+  const selectedBills = allBills.filter(b => !payExcludedBillIds.has(b.id));
+  if(selectedBills.length === 0) return;
+  const total = selectedBills.reduce((s,b)=> s + b.amount, 0);
+  const excludedCount = allBills.length - selectedBills.length;
+  const excludedNote = excludedCount > 0
+    ? `\n\n${excludedCount} unchecked bill${excludedCount === 1 ? '' : 's'} will be left pending.`
+    : '';
+  if(!confirm(`Mark ${selectedBills.length} bill${selectedBills.length === 1 ? '' : 's'} (${fmtMoney(total)}) as paid?${excludedNote}\n\nThis only affects bills that exist right now.`)) return;
   const btn = document.getElementById('payMarkAllPaidBtn');
   btn.disabled = true;
   btn.textContent = 'Marking…';
-  await markBillsPaid(allBills.map(b => ({ restaurantId: b.restaurantId, date: b.date, id: b.id })));
-  btn.disabled = false;
-  btn.textContent = 'Mark All Paid';
+  await markBillsPaid(selectedBills.map(b => ({ restaurantId: b.restaurantId, date: b.date, id: b.id })));
   await renderPayments();
 });
 

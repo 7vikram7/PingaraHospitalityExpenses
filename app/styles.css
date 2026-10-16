@@ -1358,6 +1358,12 @@ main{padding:24px 28px 60px;max-width:1400px;margin:0 auto;}
 }
 .vl-detail-table thead th{padding:7px 10px;font-size:10px;}
 .vl-detail-table tbody td{padding:7px 10px;}
+/* Payments tab (added 2026-10-17): per-vendor bill selection inside the
+   expanded detail, and the Mark Paid button + live selected-count caption
+   stacked in the summary row. */
+.vl-detail-scroll .addlink{color:var(--brass); cursor:pointer; font-weight:600;}
+.vl-detail-scroll .addlink:hover{color:var(--brass-deep);}
+.pay-mark-cell{display:flex; flex-direction:column; align-items:flex-end; gap:2px;}
 table{
   width:100%;
   border-collapse:collapse;

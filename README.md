@@ -104,11 +104,17 @@ Firebase Hosting.
   for actually paying bills in batches — pick a date range (e.g. the 1st
   to the 15th), and it shows only vendors with something still pending,
   grouped with a pending total each, no already-paid bills cluttering the
-  list. A "Mark Paid" button per vendor, or "Mark All Paid" for everyone
-  shown at once, with a confirmation naming the exact count and amount
-  before anything changes. Marking a batch paid only affects the bills
-  that exist at that moment — a bill added later, even dated inside a
-  range you already paid, always starts unpaid like any other new bill.
+  list. Click a vendor to expand its individual bills, each with a
+  checkbox (checked by default) — uncheck any that shouldn't go out in
+  this batch, and that vendor's "Mark Paid" button updates live to show
+  exactly what it's about to pay, right beside the unchanged pending
+  total, so a mismatch is obvious before you confirm. A page-level
+  "Selected to mark paid" total sits next to "Total pending" the same
+  way. "Mark All Paid" (or "Mark Selected Paid" once something's
+  unchecked) handles everyone shown at once, with a confirmation naming
+  the exact count and amount either way. Marking paid only affects the
+  bills that exist at that moment — a bill added later, even dated inside
+  a range you already paid, always starts unpaid like any other new bill.
 - **Suppliers tab** (Owner only): every supplier with its category/
   subcategory and, now, an optional account number + IFSC code, shared
   across every restaurant on the account, plus adding new ones. Editing a
