@@ -262,9 +262,60 @@ document.getElementById('supUploadBtn').addEventListener('click', async ()=>{
    name matches one of the checked suppliers exactly, that supplier's own
    category/subcategory/bank details are kept on the merged entry;
    otherwise (a brand-new spelling) the FIRST checked supplier's data is
-   used as the base -- no per-field picking UI, just this one rule. */
+   used as the base -- no per-field picking UI, just this one rule.
+
+   Also surfaces "orphaned" vendor names (added 2026-10-19, after a real
+   live case: a supplier had been removed from -- or never added to -- the
+   directory while still actively being billed, so it never showed up here
+   to check, even though Vendor Ledger showed it fine since that reads
+   bills directly) via findOrphanSupplierNamesInBills() (data-store.js) --
+   scanned once when combine mode is entered, rendered as extra checkbox
+   rows below the normal list, feeding the exact same supCombineSelected
+   Set so they merge through identical logic. */
 let supCombineModeActive = false;
 let supCombineSelected = new Set(); // exact supplier names currently checked
+async function renderSupCombineOrphans(){
+  const wrap = document.getElementById('supCombineOrphans');
+  wrap.innerHTML = "";
+  const hint = document.createElement('p');
+  hint.className = 'count-hint';
+  hint.textContent = 'Scanning bill history for vendor names not in your supplier list…';
+  wrap.appendChild(hint);
+  const orphans = await findOrphanSupplierNamesInBills();
+  if(!supCombineModeActive) return; // mode was toggled off again while the scan was running
+  wrap.innerHTML = "";
+  if(orphans.length === 0) return;
+  const heading = document.createElement('p');
+  heading.className = 'sup-tab-note';
+  heading.textContent = 'Also found in bill history, not in your supplier list:';
+  wrap.appendChild(heading);
+  orphans.forEach(({ name, count })=>{
+    const row = document.createElement('div');
+    row.className = 'manage-supplier-row';
+    const view = document.createElement('div');
+    view.className = 'msr-view';
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.className = 'msr-combine-check';
+    checkbox.checked = supCombineSelected.has(name);
+    checkbox.addEventListener('change', ()=>{
+      if(checkbox.checked) supCombineSelected.add(name);
+      else supCombineSelected.delete(name);
+      renderSupCombineBar();
+    });
+    const nameEl = document.createElement('span');
+    nameEl.className = 'msr-name';
+    nameEl.textContent = name;
+    const hintEl = document.createElement('span');
+    hintEl.className = 'msr-cat missing';
+    hintEl.textContent = `${count} bill${count === 1 ? '' : 's'} — not in supplier list`;
+    view.appendChild(checkbox);
+    view.appendChild(nameEl);
+    view.appendChild(hintEl);
+    row.appendChild(view);
+    wrap.appendChild(row);
+  });
+}
 function renderSupCombineBar(){
   const bar = document.getElementById('supCombineBar');
   const n = supCombineSelected.size;
@@ -288,15 +339,18 @@ document.getElementById('supCombineLink').addEventListener('click', ()=>{
   if(!supCombineModeActive){
     supCombineSelected.clear();
     document.getElementById('supCombineNameInput').value = "";
+    document.getElementById('supCombineOrphans').innerHTML = "";
   }
   renderSuppliersTabList();
   renderSupCombineBar();
+  if(supCombineModeActive) renderSupCombineOrphans();
 });
 document.getElementById('supCombineCancelBtn').addEventListener('click', ()=>{
   supCombineSelected.clear();
   document.getElementById('supCombineNameInput').value = "";
   renderSuppliersTabList();
   renderSupCombineBar();
+  renderSupCombineOrphans();
 });
 document.getElementById('supCombineConfirmBtn').addEventListener('click', async ()=>{
   if(!canEditExistingRecords()) return;
@@ -348,6 +402,7 @@ document.getElementById('supCombineConfirmBtn').addEventListener('click', async 
   supCombineModeActive = false;
   document.getElementById('supCombineBox').classList.remove('open');
   document.getElementById('supCombineNameInput').value = "";
+  document.getElementById('supCombineOrphans').innerHTML = "";
   confirmBtn.disabled = false;
   confirmBtn.textContent = 'Combine';
 

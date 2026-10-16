@@ -823,6 +823,51 @@ Five tab panels, switched by `.tab-bar` buttons (`tabBtnExpenses` /
     never a production bug; fixed in the test by invalidating
     `currentBillsMonthCacheKey` before reloading, not by changing any app
     code.
+    - **Extended the same day, from a real live case**: the owner spotted
+      "Laxmi Departments" and "LAXMI DEPARTMENTAL STORES" as two separate
+      vendors in Vendor Ledger but only the latter in the Suppliers tab. A
+      read-only check of production confirmed why: "Laxmi Departments" had
+      13 real bills (Krishna Veg Nigdi, 2026-10-01 to 2026-10-15) but
+      wasn't in the `suppliers[]` directory at all — removed from it at
+      some point (the "Remove" button's own confirm text already warns
+      "Past bills already logged under this supplier are not affected"),
+      or never added, while still actively being billed. The Suppliers
+      tab's combine tool (above) had nothing to check for a name like
+      that, since it only lists directory entries. **Fixed the live data
+      directly first** (a service-account Firestore script, dry-run logged
+      before any write, confirmed byte-for-byte against the dry run before
+      executing — same live-data caution as the 2026-10-02 incident noted
+      in "Known limitations" below) — the 13 bills also carried a
+      subcategory ("Dry Goods & Grocery") the canonical supplier's own
+      default didn't have yet, so per the owner's explicit choice that
+      default was updated too and applied to all 96 pre-existing bills
+      under that name, not just the 13 being merged in (109 total,
+      verified with a second read-only pass afterward).
+      **Then generalized the tool itself**: `findOrphanSupplierNamesInBills()`
+      (data-store.js) scans every bill across every restaurant/month for
+      supplier names that don't match (via `supplierKey()`) anything in
+      `suppliers[]`, returning `[{name, count}]` sorted by count — run only
+      on demand, when combine mode is entered (a full cross-restaurant
+      scan, same cost class as `buildSupplierUsageIndex()`/
+      `propagateSupplierEditToAllBills()`, never on every tab load).
+      `renderSupCombineOrphans()` (suppliers-tab.js) renders these as extra
+      checkbox rows in a new `#supCombineOrphans` block below the normal
+      list, each labeled with its bill count and "not in supplier list"
+      (reusing `.msr-cat.missing`'s existing warning style) — feeding the
+      exact same `supCombineSelected` Set the directory checkboxes do, so
+      an orphan name merges through the identical confirm-dialog-then-
+      `propagateSupplierEditToAllBills()` path with zero special-casing:
+      the existing cleanup code's `suppliers.filter(s => s !== srcName)` /
+      `delete supplierDefaults[...]` / `delete supplierBankDetails[...]`
+      calls are harmless no-ops for a name that was never in those
+      structures. Verified with a new test
+      (`test_supplier_combine_orphans.js`, 10/10): a seeded orphan name
+      (bills only, never added to `suppliers[]`) is correctly surfaced with
+      its right bill count and excluded from the "not in supplier list"
+      label when it IS a directory entry, checking an orphan alongside a
+      real directory supplier and merging works with no crash, and the
+      orphan section clears after a successful merge. Full existing suite
+      re-run clean.
   - **Supplier *pickers* are scoped per restaurant (added 2026-10-02)** —
     the underlying `suppliers`/`categories`/`supplierDefaults` stay fully
     shared account-wide as above; only the `#supplierSelect` (Add Expenses)

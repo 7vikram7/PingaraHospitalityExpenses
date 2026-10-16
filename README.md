@@ -112,9 +112,12 @@ Firebase Hosting.
   typo or spelling variant by different managers): check 2 or more
   suppliers that are really the same vendor, type the name to use going
   forward, and every past bill logged under the others is updated to match
-  — the duplicate entries are then removed. Central Kitchen can still add
-  new suppliers one at a time but doesn't get the bulk-edit or
-  combine-duplicates options, since both can retroactively change an
+  — the duplicate entries are then removed. It also scans bill history for
+  vendor names that aren't in the supplier list at all (e.g. one that was
+  removed from the list while still being billed) and lets you check and
+  combine those too. Central Kitchen can still add new suppliers one at a
+  time but doesn't get the bulk-edit or combine-duplicates options, since
+  both can retroactively change an
   existing supplier's history — the same boundary it already has on the
   per-supplier Edit button.
 - **Staff Expenses tab** (Owner, or Manager for their own restaurant only;

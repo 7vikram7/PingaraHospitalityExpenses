@@ -424,6 +424,35 @@ async function propagateSupplierEditToAllBills(oldName, newName, newCategory, ne
   return updatedCount;
 }
 
+// Finds every distinct supplier name used in ANY bill, across every
+// restaurant and month, that doesn't match (via supplierKey()) any name
+// currently in the `suppliers` directory -- these are "orphaned" names: a
+// vendor bills were logged against that isn't (or isn't anymore) in the
+// directory, so the Suppliers tab's own list never shows it even though
+// Vendor Ledger (which reads bills directly, not the directory) does.
+// Added 2026-10-19 for the "combine duplicate suppliers" tool, after a real
+// case surfaced live: a supplier removed from the directory (or never
+// added) while still actively being billed. Returns [{name, count}] sorted
+// by count descending. Only called on demand (entering combine mode), not
+// on every tab load, since it's a full cross-restaurant bill scan.
+async function findOrphanSupplierNamesInBills(){
+  const directoryKeys = new Set(suppliers.map(supplierKey));
+  const monthKeys = await listAllRestaurantsBillMonthKeys();
+  const counts = {}; // exact name -> count
+  for(const fullKey of monthKeys){
+    const isCachedCurrentMonth = fullKey === currentBillsMonthCacheKey;
+    const monthObj = isCachedCurrentMonth ? billsMonthCache
+      : (JSON.parse((await safeGet(fullKey)) || "{}") || {});
+    Object.keys(monthObj).forEach(date=>{
+      (monthObj[date] || []).forEach(bill=>{
+        if(!bill.supplier || directoryKeys.has(supplierKey(bill.supplier))) return;
+        counts[bill.supplier] = (counts[bill.supplier] || 0) + 1;
+      });
+    });
+  }
+  return Object.keys(counts).map(name => ({ name, count: counts[name] })).sort((a,b) => b.count - a.count);
+}
+
 // ---- Per-restaurant supplier usage (added 2026-10-02) ----
 // Suppliers are shared account-wide (see above), but which ones are
 // *relevant* to a given restaurant isn't — a manager at Restaurant A
