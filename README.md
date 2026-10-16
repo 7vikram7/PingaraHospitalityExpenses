@@ -87,7 +87,11 @@ Firebase Hosting.
   bank-transfer `.xlsx` (same IDFC FIRST bulk-payment format the Staff tab
   uses) with one row per pending bill — only bills whose supplier has a
   complete account number *and* IFSC on file qualify for the bank-transfer
-  file, same bar as everywhere else this format is used.
+  file, same bar as everywhere else this format is used. A third option,
+  **pending bills by vendor (.xlsx)**, groups those same pending bills
+  under each vendor instead of listing them flat — vendor name, category,
+  and bank details shown once per group, a Subtotal row per vendor, and a
+  Grand Total at the end, closer to a classic sub-ledger than a flat list.
 - **Suppliers tab** (Owner only): every supplier with its category/
   subcategory and, now, an optional account number + IFSC code, shared
   across every restaurant on the account, plus adding new ones. Editing a

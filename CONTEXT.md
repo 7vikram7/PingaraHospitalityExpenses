@@ -562,6 +562,47 @@ Five tab panels, switched by `.tab-bar` buttons (`tabBtnExpenses` /
     now. No extra access gating beyond what Vendor Ledger already has —
     both buttons are owner/Central-Kitchen-only by virtue of the whole tab
     already being gated behind `reportsUnlocked()`/`hasElevatedAccess()`.
+    - **Bug fix, same day the next request landed (2026-10-16)**: the
+      `rows.length === 0` early-return branch inside `renderVendorLedger()`
+      (no bills at all for the current period/restaurant scope) never
+      called `renderVLTable()` — the ONLY place `vlLastRows`/
+      `vlLastShowRestCol` get updated — so switching to an empty
+      period/restaurant scope left every pending-bills download silently
+      reading the *previous* scope's stale rows instead of correctly
+      finding nothing. Existed from the moment `vlLastRows` was first reused
+      for a download (this same day, above) until caught by
+      `test_pending_bills_by_vendor.js`'s own empty-scope check, written for
+      the vendor-wise download below but equally applicable to the other
+      two. Fixed by explicitly resetting both to empty on that branch before
+      the early return.
+  - **"Pending bills by vendor" (.xlsx), added 2026-10-16** — a third
+    format, requested as a follow-up the next day ("download the pending
+    bill ledger vendor wise ie. give vendor wise data in the excel"), read
+    as: group the same pending bills from the CSV above by vendor, as an
+    actual `.xlsx` (not `.csv` — "in the excel" was explicit, same reading
+    as the Suppliers bulk-edit template the day before) rather than
+    replacing either existing button. `downloadPendingBillsByVendor()`
+    needs no re-grouping at all — `vlLastRows` is already vendor-grouped by
+    `computeVendorLedgerData()`, so it just filters each vendor's own
+    `bills` down to unpaid ones. Single flat sheet, sorted by each vendor's
+    pending total descending: vendor name/category/account number/IFSC
+    written only on that group's FIRST bill row (blank on the rest) rather
+    than repeated every line, followed by a `"Subtotal - <vendor>"` row,
+    a blank spacer row, then the next vendor — classic sub-ledger shape,
+    without needing SheetJS's real cell-merge support. Ends with a
+    `GRAND TOTAL` row across every vendor. Amount/Subtotal/Grand Total are
+    real JS numbers (not `.toFixed()` strings) since this is a genuine
+    `.xlsx` built via `aoa_to_sheet()`, not a CSV opened by Excel — the
+    scientific-notation risk `csvForceText()` guards against is CSV-
+    specific and doesn't apply here, same contrast already noted for the
+    bank-transfer downloads. Verified with a new test
+    (`test_pending_bills_by_vendor.js`, 14/14: two vendors' bills correctly
+    grouped with the right subtotals, a paid bill excluded from its
+    vendor's subtotal, a vendor with no bank details on file gets blank
+    bank columns rather than breaking the row, grand total correct, and an
+    empty period/restaurant scope shows the "no pending bills" alert
+    instead of a stale or empty file) plus the full existing suite re-run
+    clean.
 - **"Suppliers"** (`#tabPanelSuppliers`, `app/js/suppliers-tab.js`) —
   owner-only, same tab-visibility toggle as Reports/Vendor Ledger
   (`updateTabVisibilityForProfile()` in auth.js), no separate password

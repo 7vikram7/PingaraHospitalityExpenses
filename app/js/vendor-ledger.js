@@ -268,6 +268,14 @@ async function renderVendorLedger(){
       document.getElementById('vlTableWrap').innerHTML = "";
       totalsBar.style.display = 'none';
       empty.style.display = 'block';
+      // Bug fix (2026-10-16): this early return used to skip renderVLTable(),
+      // which is the ONLY place vlLastRows/vlLastShowRestCol get updated --
+      // so switching to a period/restaurant scope with zero bills left the
+      // pending-bills downloads silently reading the PREVIOUS scope's stale
+      // data instead of correctly finding nothing. Caught by
+      // test_pending_bills_by_vendor.js's empty-scope check.
+      vlLastRows = [];
+      vlLastShowRestCol = vlRestaurantFilter === 'all';
       return;
     }
     empty.style.display = 'none';
@@ -375,6 +383,58 @@ function downloadPendingBillsReport(){
   URL.revokeObjectURL(url);
 }
 document.getElementById('vlDownloadPendingBtn').addEventListener('click', downloadPendingBillsReport);
+
+// Vendor-wise ledger export (added 2026-10-16), a genuine .xlsx (not a CSV
+// like the flat download above) -- the flat download is one row per bill,
+// sorted by date; this groups those same bills under each vendor instead,
+// with a Subtotal row per vendor and a Grand Total at the end, closer to
+// the classic sub-ledger layout an accountant would expect. vlLastRows is
+// already vendor-grouped by computeVendorLedgerData() -- no re-grouping
+// needed, just filter each vendor's own bills down to unpaid ones. Vendor
+// name/category/account number/IFSC are only written on each group's FIRST
+// row (blank on the rest) rather than repeated on every line, so the
+// grouping reads clearly without needing real merged cells.
+function downloadPendingBillsByVendor(){
+  const showRestCol = vlRestaurantFilter === 'all';
+  const groups = vlLastRows
+    .map(r => ({ name: r.name, category: r.category, bills: r.bills.filter(b => b.status !== 'paid') }))
+    .filter(g => g.bills.length > 0)
+    .map(g => ({ ...g, total: g.bills.reduce((s,b)=> s + b.amount, 0) }))
+    .sort((a,b) => b.total - a.total);
+
+  if(groups.length === 0){
+    alert("No pending bills for this period/restaurant scope.");
+    return;
+  }
+
+  const header = ["Vendor", "Category", "Date", "Invoice #"].concat(showRestCol ? ["Restaurant"] : [], ["Amount", "Account Number", "IFSC Code"]);
+  const rows = [header];
+  groups.forEach(g=>{
+    const bank = supplierBankDetails[supplierKey(g.name)] || {};
+    g.bills
+      .sort((a,b)=> a.date < b.date ? -1 : (a.date > b.date ? 1 : 0))
+      .forEach((b, idx)=>{
+        rows.push([
+          idx === 0 ? g.name : "",
+          idx === 0 ? g.category : "",
+          fmtDateLabel(b.date), b.invoice || ""
+        ].concat(
+          showRestCol ? [restaurantLabel(b.restaurantId)] : [],
+          [Number(b.amount.toFixed(2)), idx === 0 ? (bank.accountNumber || "") : "", idx === 0 ? (bank.ifscCode || "") : ""]
+        ));
+      });
+    rows.push([`Subtotal - ${g.name}`, "", "", ""].concat(showRestCol ? [""] : [], [Number(g.total.toFixed(2)), "", ""]));
+    rows.push([]);
+  });
+  const grandTotal = groups.reduce((s,g)=> s + g.total, 0);
+  rows.push(["GRAND TOTAL", "", "", ""].concat(showRestCol ? [""] : [], [Number(grandTotal.toFixed(2)), "", ""]));
+
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+  XLSX.utils.book_append_sheet(wb, ws, "Pending by vendor");
+  XLSX.writeFile(wb, `pending-bills-by-vendor_${vlPeriodFilenameSuffix()}.xlsx`);
+}
+document.getElementById('vlDownloadPendingByVendorBtn').addEventListener('click', downloadPendingBillsByVendor);
 
 async function downloadPendingBillsBankTransfer(){
   // Loaded lazily here (not just on the Staff tab's own showStaffTabPanel())
