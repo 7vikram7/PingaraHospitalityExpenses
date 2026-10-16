@@ -453,9 +453,30 @@ async function downloadPendingBillsBankTransfer(){
     alert('Set your Debit Account Number in the Staff tab (Bank Transfer Settings) before downloading a bank transfer file.');
     return;
   }
-  const groups = vlLastRows
-    .map(r => ({ name: r.name, total: r.bills.filter(b => b.status !== 'paid').reduce((s,b)=> s + b.amount, 0) }))
-    .filter(g => g.total > 0 && supplierHasFullBankDetails(g.name));
+  // Merge by supplierKey() (added 2026-10-17), not the raw name -- bills'
+  // own `supplier` field is free text, independent of the `suppliers`
+  // directory, so the same real vendor billed as e.g. "ABC Traders" on one
+  // bill and "abc traders" (or with stray whitespace) on another produces
+  // TWO separate rows in vlLastRows (computeVendorLedgerData groups by the
+  // exact string). Both would independently pass supplierHasFullBankDetails()
+  // -- it already normalizes via supplierKey() -- so without this merge
+  // step the same vendor got two bank-transfer rows, each with a partial
+  // amount, instead of one with the correct combined total.
+  const mergedByKey = {}; // supplierKey -> {name, total}
+  vlLastRows.forEach(r=>{
+    const total = r.bills.filter(b => b.status !== 'paid').reduce((s,b)=> s + b.amount, 0);
+    if(total <= 0) return;
+    const key = supplierKey(r.name);
+    if(!mergedByKey[key]) mergedByKey[key] = { name: r.name, total: 0 };
+    mergedByKey[key].total += total;
+  });
+  // Prefer the supplier directory's own exact-cased name for display, in
+  // case the bills used a differently-cased/spaced spelling than `suppliers`.
+  Object.keys(mergedByKey).forEach(key=>{
+    const canonical = suppliers.find(s => supplierKey(s) === key);
+    if(canonical) mergedByKey[key].name = canonical;
+  });
+  const groups = Object.values(mergedByKey).filter(g => supplierHasFullBankDetails(g.name));
   if(groups.length === 0){
     alert("No vendors with a complete account number + IFSC on file have pending bills for this period/restaurant scope.");
     return;

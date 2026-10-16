@@ -562,6 +562,32 @@ Five tab panels, switched by `.tab-bar` buttons (`tabBtnExpenses` /
     is now the generic `"Pending bills payment"` (no invoice numbers,
     mirroring Staff's own generic `"OT/Incentive/Tips payout"` remarks) since
     there's no single invoice left to name once several are summed together.
+    - **Fixed 2026-10-17: duplicate rows for the same real vendor.** The
+      report "please just 1 entry for a vendor not multiple" traced back to
+      `computeVendorLedgerData()` grouping vendors by the bill's raw
+      `e.supplier` string (case/whitespace-sensitive), not `supplierKey()` —
+      a real vendor billed as `"ABC Traders"` on one bill and
+      `"abc traders"` (or with stray whitespace) on another produces TWO
+      separate rows in `vlLastRows`, since that free-text field on each bill
+      is independent of the `suppliers` directory. Both raw-name rows
+      independently passed `supplierHasFullBankDetails()` (which already
+      normalizes via `supplierKey()`), so each produced its own
+      bank-transfer row with only its own partial total — the right total
+      split across two "vendors" instead of summed into one correct one.
+      **Deliberately fixed only inside `downloadPendingBillsBankTransfer()`,
+      not in `computeVendorLedgerData()` itself** — changing the vendor
+      grouping there would also change the on-screen Vendor Ledger table's
+      own vendor count/totals for everyone, a much bigger change than this
+      one format needed. The fix re-groups `vlLastRows` by `supplierKey()`
+      into `mergedByKey` before computing totals, summing every raw-name
+      variant's pending total together, then picks the display name from
+      the `suppliers` directory's own exact casing when a match exists
+      (`suppliers.find(s => supplierKey(s) === key)`) rather than whichever
+      bill's spelling happened to be seen. Verified by extending
+      `test_pending_bills_by_vendor.js` to 20/20 — added a bill for the same
+      seeded vendor under a different-cased spelling and confirmed the
+      bank-transfer file still produces exactly one row, with both amounts
+      correctly summed and the canonical directory name used for display.
     `bankDebitAccountNumber` is loaded lazily inside
     `downloadPendingBillsBankTransfer()` itself (`await
     loadBankDebitAccountNumber()`) rather than assuming Staff's tab was
