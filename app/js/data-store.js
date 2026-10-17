@@ -97,6 +97,13 @@ function billsMonthKey(monthKey){ return restPrefix() + "bills:" + monthKey; }
 function salesMonthKey(monthKey){ return restPrefix() + "sales:" + monthKey; }
 function salesMetaKey(monthKey){ return restPrefix() + "salesMeta:" + monthKey; }
 
+// billsMonthCache/currentBillsMonthCacheKey stay a plain READ cache (day
+// navigation within the Add Expenses tab re-fetches only on a month
+// change) -- that part was never the problem. The problem was several
+// WRITE paths below also trusting this same cache instead of re-reading
+// before merging their change in, which is how a browser tab left open
+// since before someone else's edit could silently save a stale full
+// month back over it, wiping that edit out. See withFreshBillsMonth().
 let billsMonthCache = {};
 let currentBillsMonthCacheKey = null;
 async function loadBillsMonth(monthKey){
@@ -111,12 +118,103 @@ async function loadBillsMonth(monthKey){
 async function loadEntries(date){
   const month = await loadBillsMonth(date.slice(0,7));
   entries = month[date] || [];
+  entriesBaseline = JSON.parse(JSON.stringify(entries)); // see saveEntries()
 }
+
+// The one place every bill-document WRITE routes through (added
+// 2026-10-20, after two real incidents -- "Laxmi Departments" reverting
+// 2026-10-16, "Al Taqdeer Foods" reverting for Umami La Delice
+// 2026-10-20 -- both traced to a stale in-memory month object getting
+// saved back over a change made by another session/action in the
+// meantime). ALWAYS fetches the current server copy immediately before
+// `mutate` touches it -- never reuses billsMonthCache for a write, even
+// when it looks like "the same month we already have loaded" -- then
+// writes back and, only if this key is the restaurant+month currently
+// being viewed, resyncs billsMonthCache so this session's own day
+// navigation still sees its own fresh write (otherwise flipping to
+// another day in the same month would show stale data until a reload).
+// Wrapped in showGlobalSaving()/hideGlobalSaving() so the whole app
+// visibly pauses for the ~1 read + 1 write this takes, making it far
+// harder for a second action in the SAME session to start mid-write and
+// race this one too -- the other half of the same class of bug.
+// `mutate` returning `undefined` (no explicit return, or an explicit
+// `return undefined`/bare `return`) means "nothing to write" and skips
+// the safeSet entirely -- preserves the pre-existing behavior of
+// toggleBillStatusByLocation() et al., which never wrote anything back
+// when the target bill id couldn't be found. Any other return value
+// (including `null`) is treated as "write it" and passed through as this
+// function's own return value.
+async function withFreshBillsMonth(key, mutate){
+  showGlobalSaving();
+  try{
+    const monthObj = JSON.parse((await safeGet(key)) || "{}") || {};
+    const result = await mutate(monthObj);
+    if(result === undefined) return undefined;
+    await safeSet(key, JSON.stringify(monthObj));
+    if(key === billsMonthKey(currentDate.slice(0,7))){
+      billsMonthCache = monthObj;
+      currentBillsMonthCacheKey = key;
+    }
+    return result;
+  } finally {
+    hideGlobalSaving();
+  }
+}
+
+// NOTE: withFreshBillsMonth() alone fetches a fresh MONTH DOCUMENT, but that
+// isn't enough here on its own -- `entries` is this session's in-memory
+// view of one DAY within that document, loaded at some earlier point, and
+// a naive `month[currentDate] = entries` would still blindly replace that
+// day with this session's possibly-stale copy, wiping out anything another
+// session/tab wrote to the SAME day since (e.g. a Payments-tab mark-paid
+// elsewhere) -- this is exactly how the Al Taqdeer/Umami incident happened,
+// and a dedicated regression test (test_fresh_fetch_race_fix.js) caught
+// this same gap in the first version of this fix. So instead this does a
+// proper 3-way merge against `entriesBaseline` (the day's shape as last
+// loaded by THIS session): a bill missing from `entries` but present in
+// the baseline was explicitly deleted by this session and is dropped; a
+// bill present in the fresh server day but absent from both this
+// session's `entries` AND its baseline was added by someone else since and
+// is kept; anything else uses this session's own (possibly edited) copy.
 async function saveEntries(){
   const monthKey = currentDate.slice(0,7);
-  const month = await loadBillsMonth(monthKey); // ensures cache is loaded & matches this month before we mutate it
-  month[currentDate] = entries;
-  await safeSet(billsMonthKey(monthKey), JSON.stringify(month));
+  const date = currentDate;
+  const clientEntries = entries;
+  const baselineById = {};
+  entriesBaseline.forEach(b => { baselineById[b.id] = b; });
+  const clientById = {};
+  clientEntries.forEach(e => { clientById[e.id] = e; });
+  const deletedIds = new Set(entriesBaseline.filter(b => !clientById[b.id]).map(b => b.id));
+
+  const merged = await withFreshBillsMonth(billsMonthKey(monthKey), (month)=>{
+    const freshDay = month[date] || [];
+    const result = freshDay
+      .filter(b => !deletedIds.has(b.id))
+      .map(b => {
+        const clientVersion = clientById[b.id];
+        if(!clientVersion) return b; // shouldn't happen (would be in deletedIds above), but keep the fresh copy defensively
+        const baselineVersion = baselineById[b.id];
+        // Only let this session's copy win if it actually differs from what
+        // this session last loaded for that bill -- otherwise it's just an
+        // untouched, possibly-stale carry-along, and the fresh server copy
+        // (which may carry someone else's concurrent change, e.g. a paid
+        // toggle) must win instead.
+        const editedThisSession = !baselineVersion || JSON.stringify(baselineVersion) !== JSON.stringify(clientVersion);
+        return editedThisSession ? clientVersion : b;
+      });
+    clientEntries.forEach(e => {
+      if(!freshDay.some(b => b.id === e.id)) result.push(e); // brand-new bill from this session
+    });
+    month[date] = result;
+    return result;
+  });
+
+  // Adopt the merged result as the new in-memory state and baseline, so a
+  // concurrent addition from elsewhere becomes visible on next render, and
+  // so the next saveEntries() call diffs against what's actually on the
+  // server rather than against this call's pre-merge snapshot.
+  entries = merged;
+  entriesBaseline = JSON.parse(JSON.stringify(merged));
 }
 
 // Moves a single bill from the currently-viewed date to a different date (used by
@@ -125,41 +223,34 @@ async function saveEntries(){
 // may mean a different month document entirely.
 async function moveEntryDate(entry, newDate){
   entries = entries.filter(x => x.id !== entry.id);
-  await saveEntries(); // persists the current month bucket without this entry
+  await saveEntries(); // persists the current month bucket without this entry (fresh-fetch, see above)
 
-  const targetMonthKey = newDate.slice(0,7);
-  const targetKey = billsMonthKey(targetMonthKey);
-  let targetMonthObj;
-  if(targetKey === currentBillsMonthCacheKey){
-    targetMonthObj = billsMonthCache; // same month as the one we just saved above
-  } else {
-    const raw = await safeGet(targetKey);
-    targetMonthObj = raw ? (JSON.parse(raw) || {}) : {};
-  }
-  if(!targetMonthObj[newDate]) targetMonthObj[newDate] = [];
-  targetMonthObj[newDate].push(entry);
-  await safeSet(targetKey, JSON.stringify(targetMonthObj));
+  const targetKey = billsMonthKey(newDate.slice(0,7));
+  await withFreshBillsMonth(targetKey, (targetMonthObj)=>{
+    if(!targetMonthObj[newDate]) targetMonthObj[newDate] = [];
+    targetMonthObj[newDate].push(entry);
+    return true;
+  });
 }
 
 // Toggles paid/unpaid for a bill identified by restaurant+date+id rather than
 // by position in the currently-loaded `entries` array — used by the Vendor
 // Ledger tab, where a bill's restaurant/date may not be the one currently
-// active in the Add Expenses tab. Reuses the current month cache when it
-// happens to be the same restaurant+month (avoiding a redundant read), and
-// keeps the live `entries` array in sync if it's the same day being viewed.
+// active in the Add Expenses tab. Always fetches fresh via
+// withFreshBillsMonth() (added 2026-10-20 -- see its own comment) rather
+// than reusing a possibly-stale cached month, and keeps the live `entries`
+// array in sync if it's the same day being viewed.
 async function toggleBillStatusByLocation(restaurantId, date, billId){
-  const monthKey = date.slice(0,7);
-  const key = "rest:" + restaurantId + ":bills:" + monthKey;
-  const sameCachedMonth = (restaurantId === currentRestaurantId) && (key === currentBillsMonthCacheKey);
-  const monthObj = sameCachedMonth ? billsMonthCache
-    : (JSON.parse((await safeGet(key)) || "{}") || {});
-
-  const dayBills = monthObj[date] || [];
-  const bill = dayBills.find(b => b.id === billId);
+  const key = "rest:" + restaurantId + ":bills:" + date.slice(0,7);
+  const bill = await withFreshBillsMonth(key, (monthObj)=>{
+    const dayBills = monthObj[date] || [];
+    const b = dayBills.find(x => x.id === billId);
+    if(!b) return undefined; // not found -- withFreshBillsMonth skips the write entirely
+    b.status = b.status === 'paid' ? 'unpaid' : 'paid';
+    b.paidAt = b.status === 'paid' ? Date.now() : null;
+    return b;
+  });
   if(!bill) return null;
-  bill.status = bill.status === 'paid' ? 'unpaid' : 'paid';
-  bill.paidAt = bill.status === 'paid' ? Date.now() : null;
-  await safeSet(key, JSON.stringify(monthObj));
 
   if(restaurantId === currentRestaurantId && date === currentDate){
     const localEntry = entries.find(e => e.id === billId);
@@ -192,23 +283,22 @@ async function markBillsPaid(bills){
   let updatedCount = 0;
   for(const key of Object.keys(byDoc)){
     const { restaurantId, items } = byDoc[key];
-    const sameCachedMonth = (restaurantId === currentRestaurantId) && (key === currentBillsMonthCacheKey);
-    const monthObj = sameCachedMonth ? billsMonthCache
-      : (JSON.parse((await safeGet(key)) || "{}") || {});
-    let changed = false;
-    items.forEach(({ date, id })=>{
-      const bill = (monthObj[date] || []).find(b => b.id === id);
-      if(!bill || bill.status === 'paid') return;
-      bill.status = 'paid';
-      bill.paidAt = Date.now();
-      changed = true;
-      updatedCount++;
-      if(restaurantId === currentRestaurantId && date === currentDate){
-        const localEntry = entries.find(e => e.id === id);
-        if(localEntry){ localEntry.status = bill.status; localEntry.paidAt = bill.paidAt; }
-      }
+    await withFreshBillsMonth(key, (monthObj)=>{
+      let changed = false;
+      items.forEach(({ date, id })=>{
+        const bill = (monthObj[date] || []).find(b => b.id === id);
+        if(!bill || bill.status === 'paid') return;
+        bill.status = 'paid';
+        bill.paidAt = Date.now();
+        changed = true;
+        updatedCount++;
+        if(restaurantId === currentRestaurantId && date === currentDate){
+          const localEntry = entries.find(e => e.id === id);
+          if(localEntry){ localEntry.status = bill.status; localEntry.paidAt = bill.paidAt; }
+        }
+      });
+      return changed ? true : undefined; // undefined -- withFreshBillsMonth skips the write when nothing in this doc changed
     });
-    if(changed) await safeSet(key, JSON.stringify(monthObj));
   }
   return updatedCount;
 }
@@ -219,18 +309,16 @@ async function markBillsPaid(bills){
 // in its own key rather than on the sales figure, so every existing reader of
 // the sales bucket is untouched.
 async function toggleBillVerifiedByLocation(restaurantId, date, billId, by){
-  const monthKey = date.slice(0,7);
-  const key = "rest:" + restaurantId + ":bills:" + monthKey;
-  const sameCachedMonth = (restaurantId === currentRestaurantId) && (key === currentBillsMonthCacheKey);
-  const monthObj = sameCachedMonth ? billsMonthCache
-    : (JSON.parse((await safeGet(key)) || "{}") || {});
-
-  const bill = (monthObj[date] || []).find(b => b.id === billId);
+  const key = "rest:" + restaurantId + ":bills:" + date.slice(0,7);
+  const bill = await withFreshBillsMonth(key, (monthObj)=>{
+    const b = (monthObj[date] || []).find(x => x.id === billId);
+    if(!b) return undefined;
+    b.verified = !b.verified;
+    b.verifiedBy = b.verified ? by : null;
+    b.verifiedAt = b.verified ? Date.now() : null;
+    return b;
+  });
   if(!bill) return null;
-  bill.verified = !bill.verified;
-  bill.verifiedBy = bill.verified ? by : null;
-  bill.verifiedAt = bill.verified ? Date.now() : null;
-  await safeSet(key, JSON.stringify(monthObj));
 
   if(restaurantId === currentRestaurantId && date === currentDate){
     const localEntry = entries.find(e => e.id === billId);
@@ -297,22 +385,40 @@ async function loadSales(date){
   updateSalesLockUI();
   renderSalesVerifyControl();
 }
+// Fetches fresh immediately before merging in the one day's value, same
+// reasoning as withFreshBillsMonth() above (added 2026-10-20) -- saveSalesValue()
+// had the identical structural flaw: load the month doc via the cache
+// (which may be stale), set one day, write the WHOLE month back, silently
+// reverting every other day's sales figure if the cache was out of date.
 async function saveSalesValue(){
   const input = document.getElementById('salesInput');
   const val = parseFloat(input.value);
   if(isNaN(val) || val < 0) return false;
   const monthKey = currentDate.slice(0,7);
-  const month = await loadSalesMonth(monthKey);
-  month[currentDate] = val;
-  await safeSet(salesMonthKey(monthKey), JSON.stringify(month));
-  const meta = await loadSalesMeta(monthKey);
-  if(!meta[currentDate]){
-    meta[currentDate] = Date.now();
-    await safeSet(salesMetaKey(monthKey), JSON.stringify(meta));
+  const monthCacheKey = salesMonthKey(monthKey);
+  const metaCacheKey = salesMetaKey(monthKey);
+  showGlobalSaving();
+  try{
+    const month = JSON.parse((await safeGet(monthCacheKey)) || "{}") || {};
+    month[currentDate] = val;
+    await safeSet(monthCacheKey, JSON.stringify(month));
+    salesMonthCache = month;
+    currentSalesMonthCacheKey = monthCacheKey;
+
+    const meta = JSON.parse((await safeGet(metaCacheKey)) || "{}") || {};
+    if(!meta[currentDate]){
+      meta[currentDate] = Date.now();
+      await safeSet(metaCacheKey, JSON.stringify(meta));
+    }
+    salesMetaCache = meta;
+    currentSalesMetaCacheKey = metaCacheKey;
+
+    currentSales = val;
+    currentSalesSavedAt = meta[currentDate];
+    return true;
+  } finally {
+    hideGlobalSaving();
   }
-  currentSales = val;
-  currentSalesSavedAt = meta[currentDate];
-  return true;
 }
 
 // Discovery only — lists which MONTH documents exist (far fewer than day documents
@@ -442,36 +548,34 @@ async function propagateSupplierEditToAllBills(oldName, newName, newCategory, ne
   const key = supplierKey(oldName);
   const monthKeys = await listAllRestaurantsBillMonthKeys();
   let updatedCount = 0;
+  const currentMonthKey = billsMonthKey(currentDate.slice(0,7)); // compared AFTER each write below, not cached up front
   for(const fullKey of monthKeys){
-    const isCachedCurrentMonth = fullKey === currentBillsMonthCacheKey;
-    const monthObj = isCachedCurrentMonth ? billsMonthCache
-      : (JSON.parse((await safeGet(fullKey)) || "{}") || {});
-    let changed = false;
-    Object.keys(monthObj).forEach(date=>{
-      (monthObj[date] || []).forEach(bill=>{
-        if(supplierKey(bill.supplier) !== key) return;
-        let billChanged = false;
-        if(bill.supplier !== newName){
-          bill.supplier = newName;
-          billChanged = true;
-        }
-        if(bill.category !== newCategory || (bill.subcategory||"") !== (newSubcategory||"")){
-          bill.category = newCategory;
-          bill.subcategory = newSubcategory || "";
-          billChanged = true;
-        }
-        if(billChanged){ changed = true; updatedCount++; }
+    const docChanged = await withFreshBillsMonth(fullKey, (monthObj)=>{
+      let changed = false;
+      Object.keys(monthObj).forEach(date=>{
+        (monthObj[date] || []).forEach(bill=>{
+          if(supplierKey(bill.supplier) !== key) return;
+          let billChanged = false;
+          if(bill.supplier !== newName){
+            bill.supplier = newName;
+            billChanged = true;
+          }
+          if(bill.category !== newCategory || (bill.subcategory||"") !== (newSubcategory||"")){
+            bill.category = newCategory;
+            bill.subcategory = newSubcategory || "";
+            billChanged = true;
+          }
+          if(billChanged){ changed = true; updatedCount++; }
+        });
       });
+      return changed ? true : undefined; // undefined -- withFreshBillsMonth skips the write for a month with nothing to change
     });
-    if(changed){
-      await safeSet(fullKey, JSON.stringify(monthObj));
-      // Objects are mutated in place, so `entries` (which shares references
-      // with billsMonthCache when it's the same month) is already correct —
-      // this just makes sure the Add Expenses tab's rendered DOM catches up
-      // if it's showing the month that was just changed underneath it.
-      if(isCachedCurrentMonth){
-        renderTable(); renderTotals(); renderBreakdown();
-      }
+    // withFreshBillsMonth already resynced billsMonthCache if this was the
+    // current restaurant+month -- this just makes sure the Add Expenses
+    // tab's rendered DOM catches up too, if it's showing the month that
+    // was just changed underneath it.
+    if(docChanged && fullKey === currentMonthKey){
+      renderTable(); renderTotals(); renderBreakdown();
     }
   }
   return updatedCount;

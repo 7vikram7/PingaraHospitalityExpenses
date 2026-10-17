@@ -2020,3 +2020,101 @@ which every tab follows.
   survives a reload, and Logout clears it (`setSharedRestaurantStored(null)`).
 - Managers don't get the selector. Their restaurant is fixed by the gate
   and shown as the name in the top bar.
+
+## Stale-write race condition fix + global saving overlay (2026-10-20)
+Two real incidents turned out to be the same bug: **"Laxmi Departments"
+reverting to a duplicate vendor (2026-10-16)**, and **Al Taqdeer Foods bills
+reverting from paid back to unpaid for Umami La Delice (2026-10-20)** — the
+user reported the latter ("few bills for al taqdeer chicken were marked as
+paid can you tell me why it got reverted back as unpaid for umami?"), which
+was diagnosed by reading Firestore directly: Malhaar's Al Taqdeer bills for
+Oct 1–14 all shared one `paidAt` batch timestamp (a mark-paid run that
+worked); Umami's bills for the same dates were all back to `unpaid` with no
+trace of that timestamp (a later save reverted them).
+
+**Root cause**: bills are stored one Firestore document per
+restaurant+month (`rest:<id>:bills:<YYYY-MM>`), and several write paths
+(`toggleBillStatusByLocation`, `markBillsPaid`, `saveEntries`, …) checked
+whether that month was already the one cached in memory
+(`billsMonthCache`/`currentBillsMonthCacheKey`) and, if so, mutated that
+cached copy directly instead of re-reading from Firestore first. A browser
+tab/session that loaded a restaurant+month *before* some other
+action/session changed it would still be holding that older snapshot — and
+the next time *that* tab saved anything for the same month, it wrote its
+whole stale snapshot back over the newer change, silently reverting it.
+Exactly this happened to Umami: a session had Umami's October bills cached
+before the Payments-tab batch mark-paid ran, then later saved something
+else for that restaurant+month and wiped the paid status back out.
+
+**The fix, in `app/js/data-store.js`**:
+- `withFreshBillsMonth(key, mutate)` is now the one path every bill-document
+  write goes through. It *always* does a fresh `safeGet()` + `JSON.parse()`
+  immediately before handing the month object to `mutate`, never reusing
+  `billsMonthCache` for a write — only for day-navigation reads, which were
+  never the problem. After writing, it resyncs `billsMonthCache` only if the
+  key is the month currently being viewed (so same-session day navigation
+  stays fast without reintroducing the staleness risk). `mutate` returning
+  `undefined` means "nothing to write" (preserves the original
+  not-found-skips-the-write behavior of the toggle functions);
+  anything else triggers the `safeSet()`.
+  `toggleBillStatusByLocation`, `markBillsPaid`, `toggleBillVerifiedByLocation`,
+  `moveEntryDate`, and `propagateSupplierEditToAllBills` were all rewritten
+  onto this helper.
+- **`saveEntries()` needed more than a fresh month fetch.** It writes the
+  *whole current day's* bill list from the in-memory `entries` array, and
+  that array itself is what's loaded once and kept across edits — a plain
+  "fetch the month fresh, then set `month[date] = entries`" still blindly
+  replaces the day with this session's possibly-stale copy of *every bill
+  in it*, not just the one the user actually touched. (A dedicated
+  regression test caught exactly this gap in the first version of the fix —
+  see below.) It now does a proper 3-way merge against a new
+  `entriesBaseline` snapshot (taken whenever `loadEntries()` loads a day):
+  for each bill in the freshly-fetched day, this session's copy wins only
+  if it actually differs from the baseline (i.e. was genuinely edited this
+  session); otherwise the fresh server copy wins, so a concurrent change
+  made elsewhere (like a paid toggle) survives. A bill missing from
+  `entries` but present in the baseline was explicitly deleted this session
+  and is dropped; a bill in the fresh day that's absent from both is
+  someone else's addition since, and is kept. `entries`/`entriesBaseline`
+  are then both set to the merged result, so the next `saveEntries()` call
+  diffs against what's actually on the server.
+- `saveSalesValue()` had the identical flaw (reused `loadSalesMonth()`'s
+  cache, overwrote the whole month) — fixed the same way (fetch fresh
+  immediately before merging in the day's value), even though it wasn't
+  what was reported, since it's the same bug class and cheap to close.
+  `toggleSalesVerified()` was checked and was already safe — its loader has
+  no caching layer at all.
+
+**Global saving overlay** (`#globalSavingOverlay` in `index.html`,
+`showGlobalSaving()`/`hideGlobalSaving()` in `core.js`, styles in
+`styles.css`): shown for the duration of every `withFreshBillsMonth()` call
+(and `saveSalesValue()`), per the user's request to "pause any other
+operations" while a save is in flight — this closes the *same-session*
+half of this bug class (a second action starting mid-save and racing it),
+where the cross-session half is closed by the fetch-fresh rewrite above.
+Reference-counted via `globalSavingDepth` (not a boolean) so a bulk
+operation that writes several month-documents in a loop (e.g.
+`markBillsPaid` across restaurants) doesn't flicker the overlay open/closed
+between iterations — it only hides once the outermost call finishes.
+
+**Testing**: `test_fresh_fetch_race_fix.js` simulates the actual incident —
+two independent page sessions (sharing one browser context's storage, so
+only `billsMonthCache` differs between them — the actual stale state) both
+load the same restaurant+day, session A marks a bill paid, then session B
+(still on its pre-change snapshot) saves an unrelated edit for the same
+day; the bill A marked paid must survive. The first version of the
+`saveEntries()` fix failed this test (client's stale copy of the untouched
+bill was winning the merge outright), which is what led to the
+`entriesBaseline`-diff refinement above. Also verifies the overlay opens
+during a (deliberately slowed) save and closes after. The full existing
+suite (payments, vendor ledger, suppliers, verify flags, staff isolation,
+sort/filter, attachments, bank transfer, CSV formatting, shared restaurant,
+supplier scoping, accountant/Central Kitchen profiles) was re-run after the
+`saveEntries()` rewrite and still passes — that function is on the hot path
+for every bill add/edit/delete via Add Expenses.
+
+**Deliberately not done**: the Umami Al Taqdeer bills that were actually
+reverted in production were **not** re-marked as paid as part of this fix —
+the user explicitly scoped this request to the architectural fix only
+("just do point number 2"). If raised again, that's a one-off data
+correction, separate from this.

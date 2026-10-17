@@ -1,3 +1,32 @@
+// ---- Global saving overlay (added 2026-10-20) ----
+// Shown whenever a bill-document write is in flight -- see
+// withFreshBillsMonth() (data-store.js) for why this exists: two real
+// incidents (Laxmi Departments, then Al Taqdeer/Umami) traced back to one
+// session saving a stale in-memory snapshot over a change another
+// session/action had already made. Fetch-fresh-before-write closes the
+// cross-session case; this overlay additionally blocks a second action
+// from starting in the SAME session while one is still in flight, the
+// other half of the same race. Reference-counted (not a plain boolean) so
+// nested or back-to-back calls (e.g. a bulk operation writing several
+// month-documents in a loop) never hide the overlay prematurely between
+// them.
+let globalSavingDepth = 0;
+function showGlobalSaving(label){
+  globalSavingDepth++;
+  const overlay = document.getElementById('globalSavingOverlay');
+  if(!overlay) return;
+  const labelEl = document.getElementById('globalSavingLabel');
+  if(labelEl) labelEl.textContent = label || 'Saving…';
+  overlay.classList.add('open');
+}
+function hideGlobalSaving(){
+  globalSavingDepth = Math.max(0, globalSavingDepth - 1);
+  if(globalSavingDepth === 0){
+    const overlay = document.getElementById('globalSavingOverlay');
+    if(overlay) overlay.classList.remove('open');
+  }
+}
+
 const DEFAULT_CATEGORIES = {
   "Food & Beverage": ["Produce","Meat & Poultry","Seafood","Dairy & Eggs","Bakery","Beverages (Non-Alc)","Alcohol","Dry Goods & Grocery"],
   "Operations": ["Cleaning Supplies","Paper & Disposables","Kitchen Equipment","Repairs & Maintenance","Linen & Laundry"],
@@ -78,6 +107,13 @@ let supplierBankDetails = {}; // supplierKey(name) -> {accountNumber, ifscCode}
 // current via recordSupplierUsage() rather than re-derived per render.
 let supplierUsageIndex = {};
 let entries = [];
+// Snapshot of `entries` taken at the moment it was last loaded from the
+// server for the current day -- lets saveEntries() tell "this session
+// deleted a bill" (present in the baseline, missing from `entries`) apart
+// from "another session added a bill after we loaded" (present in a fresh
+// server read, missing from both the baseline and `entries`). See
+// saveEntries() in data-store.js.
+let entriesBaseline = [];
 let currentDate = todayStr();
 
 // One Excel file-link per restaurant, remembered for this browser session

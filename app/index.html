@@ -62,6 +62,19 @@ window.__firebaseSdkReady = (async ()=>{
 </head>
 <body>
 
+<!-- Global saving overlay (added 2026-10-20) -- shown whenever a bill-
+     document write (status/verified toggle, mark-paid, a new/edited bill,
+     a supplier rename's retroactive bill update) is in flight, so another
+     action can't start, race it, and silently overwrite it with a stale
+     snapshot. See showGlobalSaving()/hideGlobalSaving() in core.js and
+     withFreshBillsMonth() in data-store.js. -->
+<div id="globalSavingOverlay">
+  <div class="global-saving-box">
+    <div class="global-saving-spinner"></div>
+    <div class="global-saving-label" id="globalSavingLabel">Saving…</div>
+  </div>
+</div>
+
 <header class="brand-header">
   <div class="brand-block">
     <img alt="" class="brand-logo" id="brandLogo" style="display:none;">

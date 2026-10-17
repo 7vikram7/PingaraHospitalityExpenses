@@ -67,6 +67,12 @@ Firebase Hosting.
   the moment the bill is first created.
 - **Daily sales tracking** alongside purchases, with the same 1-hour-then-
   password rule once a day's figure has been saved
+- **Brief "Saving…" overlay** on every bill/sales write (added 2026-10-20) —
+  blocks other actions until the save completes. Not just UI polish: it
+  closes a real stale-data race (two sessions/tabs saving the same
+  restaurant+day close together could silently revert each other's
+  change) alongside a fetch-fresh-before-write fix underneath. See
+  `CONTEXT.md`.
 - **Reports tab** (Owner only): a spend dashboard (by restaurant, by
   category, Day/Month/Date-range toggle) plus Excel/CSV export — including
   a live-linked `.xlsx` file (Chrome/Edge desktop only) and a full
