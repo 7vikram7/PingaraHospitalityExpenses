@@ -37,7 +37,7 @@ fi
 case "$TENANT" in
   pingara)              PROJECT="vendor-bills" ;;
   rk-twelve21)          PROJECT="rk-twelve21" ;;
-  shree-krishna-palace) PROJECT="shree-krishna-palace" ;;
+  shree-krishna-palace) PROJECT="expenses-d85ec" ;;
   *)
     echo "No Firebase project mapping for tenant '$TENANT' -- add one to the case statement in deploy.sh"
     exit 1

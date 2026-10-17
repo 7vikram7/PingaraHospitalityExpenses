@@ -2,14 +2,12 @@
 // This file is the source of truth; app/tenant.js (loaded by index.html) is a
 // copy of whichever tenant is currently active. See deploy.sh.
 //
-// SCAFFOLDED 2026-10-18, not yet live. TENANT_FIREBASE_CONFIG below is still
-// "TODO" -- deploy.sh refuses to deploy any tenant file containing that
-// literal string, so this can't go out by accident. Needs a real Firebase
-// project (its own, separate from vendor-bills/rk-twelve21) with Firestore +
-// Storage enabled, a Web App registered in it for the config block below, and
-// a service account key with "Editor" + "Firebase Admin" IAM roles granted
-// up front (see CONTEXT.md / project memory for why both roles, found the
-// hard way on RK Twelve21's Storage setup).
+// SCAFFOLDED 2026-10-18, not yet live. Real Firebase project config (below)
+// landed 2026-10-18 -- project "expenses-d85ec". Still needs, before an
+// actual deploy: Firestore + Storage enabled in that project, and a service
+// account key with "Editor" + "Firebase Admin" IAM roles granted up front
+// (see CONTEXT.md / project memory for why both roles, found the hard way on
+// RK Twelve21's Storage setup).
 const TENANT_BRAND_NAME = "Shree Krishna Palace";
 const TENANT_EYEBROW = "Daily Purchase Register";
 const TENANT_LOGO = null; // no logo yet -- clean text-only header for now, same as RK Twelve21; set once a logo file is provided
@@ -20,16 +18,13 @@ const TENANT_RESTAURANTS = [
   { id: "shree-krishna-palace", label: "Shree Krishna Palace" }
 ];
 
-// TODO: replace with the real Firebase project's Web App config
-// (Console -> Project Settings -> General -> Your apps -> SDK setup and
-// configuration), once that project exists.
 const TENANT_FIREBASE_CONFIG = {
-  apiKey: "TODO",
-  authDomain: "TODO",
-  projectId: "TODO",
-  storageBucket: "TODO",
-  messagingSenderId: "TODO",
-  appId: "TODO"
+  apiKey: "AIzaSyDE0JwpKtTR4V19h03cVJHBkYWxFZnKznw",
+  authDomain: "expenses-d85ec.firebaseapp.com",
+  projectId: "expenses-d85ec",
+  storageBucket: "expenses-d85ec.firebasestorage.app",
+  messagingSenderId: "938956221494",
+  appId: "1:938956221494:web:49f43ff635f1815e3d7c97"
 };
 
 // Placeholder password, per owner's explicit choice ("placeholder for now") --
