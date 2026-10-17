@@ -22,17 +22,27 @@ function showSuppliersTabPanel(){
   document.getElementById('supCombineWrap').style.display = canEditExistingRecords() ? '' : 'none';
 }
 
+// Sort/bank-account filter added 2026-10-20, same request applied "where
+// possible" across Vendor Ledger/Payments/Suppliers -- no "amount pending"
+// option here, since a plain supplier directory entry has no amount at
+// all (that only exists on bills), so only the sort/filter axes that
+// actually apply to this list are offered.
+let supSortBy = 'name_asc'; // 'name_asc' | 'name_desc'
+let supBankFilter = 'all'; // 'all' | 'with' | 'without'
 function renderSuppliersTabList(filterText){
   const listEl = document.getElementById('supTabList');
   const search = (filterText !== undefined ? filterText : document.getElementById('supTabSearch').value).trim().toLowerCase();
   listEl.innerHTML = "";
-  const sorted = [...suppliers].sort((a,b)=>a.localeCompare(b));
-  const filtered = search ? sorted.filter(s=>s.toLowerCase().includes(search)) : sorted;
+  const sorted = [...suppliers].sort((a,b)=> supSortBy === 'name_desc' ? b.localeCompare(a) : a.localeCompare(b));
+  let filtered = search ? sorted.filter(s=>s.toLowerCase().includes(search)) : sorted;
+  if(supBankFilter !== 'all'){
+    filtered = filtered.filter(s => supBankFilter === 'with' ? supplierHasBankAccount(s) : !supplierHasBankAccount(s));
+  }
   document.getElementById('supTabCount').textContent = "(" + suppliers.length + ")";
   if(filtered.length === 0){
     const empty = document.createElement('div');
     empty.className = 'manage-empty';
-    empty.textContent = suppliers.length === 0 ? "No suppliers yet — add one below." : "No suppliers match your search.";
+    empty.textContent = suppliers.length === 0 ? "No suppliers yet — add one below." : "No suppliers match your search/filter.";
     listEl.appendChild(empty);
     return;
   }
@@ -40,6 +50,14 @@ function renderSuppliersTabList(filterText){
 }
 document.getElementById('supTabSearch').addEventListener('input', (ev)=>{
   renderSuppliersTabList(ev.target.value);
+});
+document.getElementById('supSortSelect').addEventListener('change', (ev)=>{
+  supSortBy = ev.target.value;
+  renderSuppliersTabList();
+});
+document.getElementById('supBankFilterSelect').addEventListener('change', (ev)=>{
+  supBankFilter = ev.target.value;
+  renderSuppliersTabList();
 });
 
 /* ---------- Add a new supplier ---------- */

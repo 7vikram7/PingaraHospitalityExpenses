@@ -85,7 +85,10 @@ Firebase Hosting.
   range. A **search box** narrows the table to vendors matching what you
   type (case-insensitive) — the totals above it and every download below
   update to match, so searching for one vendor and downloading pending
-  bills gets you just that vendor's. Click a vendor to expand its individual bills (date, invoice #,
+  bills gets you just that vendor's. **Sort** by name (A-Z/Z-A) or pending
+  amount (high-low/low-high), and **filter** to vendors with or without a
+  bank account on file — same "whatever's on screen" rule, so these also
+  narrow the downloads. Click a vendor to expand its individual bills (date, invoice #,
   amount, paid/unpaid) and flip paid status right there, with the paid
   date recorded alongside it. A **download pending bills** option covers
   whatever period/restaurant scope is currently selected: a plain CSV of
@@ -121,10 +124,13 @@ Firebase Hosting.
   vendor's paid bills for the period, no searching needed. A vendor with
   nothing left pending at all won't have a row to put that link on, so
   searching the vendor box down to exactly one match reveals the same
-  download as a fallback for that case.
+  download as a fallback for that case. Same **sort** (name or pending
+  amount, both directions) and **bank-account filter** as Vendor Ledger.
 - **Suppliers tab** (Owner only): every supplier with its category/
   subcategory and, now, an optional account number + IFSC code, shared
-  across every restaurant on the account, plus adding new ones. Editing a
+  across every restaurant on the account, plus adding new ones. **Sort**
+  the list A-Z or Z-A and **filter** to suppliers with or without a bank
+  account on file. Editing a
   supplier's name, category, or subcategory here retroactively updates
   every past bill logged under that supplier too, not just new ones — a
   rename included, so correcting a name fixes it everywhere it was ever

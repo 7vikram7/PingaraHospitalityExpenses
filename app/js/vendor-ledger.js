@@ -6,6 +6,8 @@ let vlSelectedDate, vlSelectedMonth;
 let vlRangeFrom, vlRangeTo;
 let vlRestaurantFilter = 'all'; // 'all' or a restaurant id, set from the shared top-bar selector
 let vlVendorSearch = ''; // free-text, case-insensitive substring match on vendor name (added 2026-10-18)
+let vlSortBy = 'amount_desc'; // 'amount_desc' | 'name_asc' | 'name_desc' | 'pending_desc' | 'pending_asc' (added 2026-10-20)
+let vlBankFilter = 'all'; // 'all' | 'with' | 'without' -- supplierHasBankAccount() (added 2026-10-20)
 
 // Inclusive list of "YYYY-MM" month keys spanned by a date range — a range can
 // cross month-bucket document boundaries, so every covered month needs its own fetch.
@@ -293,17 +295,36 @@ async function renderVendorLedger(){
 // no separate concept to keep in sync. Totals are recomputed from the
 // filtered set rather than reusing vlLastAllTotals, so the hero cards match
 // what's actually filtered.
+// Sort/bank-account filter added 2026-10-20 -- same request applied "where
+// possible" across Vendor Ledger/Payments/Suppliers. Applied here, after
+// search, before rendering -- a filtered-out vendor never reaches the
+// table, the totals, or vlLastRows (so the downloads stay consistent with
+// what's on screen, same principle search already established).
+function sortVLRows(rows){
+  const sorted = [...rows];
+  if(vlSortBy === 'name_asc') sorted.sort((a,b)=> a.name.localeCompare(b.name));
+  else if(vlSortBy === 'name_desc') sorted.sort((a,b)=> b.name.localeCompare(a.name));
+  else if(vlSortBy === 'pending_desc') sorted.sort((a,b)=> b.unpaid - a.unpaid);
+  else if(vlSortBy === 'pending_asc') sorted.sort((a,b)=> a.unpaid - b.unpaid);
+  else sorted.sort((a,b)=> b.amount - a.amount); // 'amount_desc', the original default order
+  return sorted;
+}
 function applyVLSearchAndRender(){
   const allRows = vlLastAllRows;
   const search = vlVendorSearch.trim().toLowerCase();
-  const rows = search ? allRows.filter(r => r.name.toLowerCase().includes(search)) : allRows;
+  let rows = search ? allRows.filter(r => r.name.toLowerCase().includes(search)) : allRows;
+  if(vlBankFilter !== 'all'){
+    rows = rows.filter(r => vlBankFilter === 'with' ? supplierHasBankAccount(r.name) : !supplierHasBankAccount(r.name));
+  }
+  rows = sortVLRows(rows);
+  const filtersActive = !!search || vlBankFilter !== 'all';
 
   const totalsBar = document.getElementById('vlTotalsBar');
   const empty = document.getElementById('vlEmpty');
   if(allRows.length === 0 || rows.length === 0){
     document.getElementById('vlTableWrap').innerHTML = "";
     totalsBar.style.display = 'none';
-    empty.textContent = allRows.length === 0 ? "No bills logged for this period yet." : "No vendors match your search.";
+    empty.textContent = allRows.length === 0 ? "No bills logged for this period yet." : "No vendors match your search/filter.";
     empty.style.display = 'block';
     // Bug fix (2026-10-16): this early return used to skip renderVLTable(),
     // which is the ONLY place vlLastRows/vlLastShowRestCol get updated --
@@ -317,7 +338,7 @@ function applyVLSearchAndRender(){
   }
   empty.style.display = 'none';
   totalsBar.style.display = 'flex';
-  const totals = search ? rows.reduce((acc,r)=>({
+  const totals = filtersActive ? rows.reduce((acc,r)=>({
     amount: acc.amount + r.amount, paid: acc.paid + r.paid, unpaid: acc.unpaid + r.unpaid
   }), { amount: 0, paid: 0, unpaid: 0 }) : vlLastAllTotals;
   document.getElementById('vlTotalVendors').textContent = rows.length;
@@ -327,6 +348,15 @@ function applyVLSearchAndRender(){
 
   renderVLTable(rows, vlRestaurantFilter === 'all');
 }
+document.getElementById('vlSortSelect').addEventListener('change', (ev)=>{
+  vlSortBy = ev.target.value;
+  applyVLSearchAndRender();
+});
+document.getElementById('vlBankFilterSelect').addEventListener('change', (ev)=>{
+  vlBankFilter = ev.target.value;
+  vlExpandedVendor = null;
+  applyVLSearchAndRender();
+});
 document.getElementById('vlVendorSearch').addEventListener('input', (ev)=>{
   vlVendorSearch = ev.target.value;
   vlExpandedVendor = null;

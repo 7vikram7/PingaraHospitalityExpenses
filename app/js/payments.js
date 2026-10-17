@@ -44,6 +44,8 @@ let paySelectedDate, paySelectedMonth;
 let payRangeFrom, payRangeTo;
 let payRestaurantFilter = 'all'; // 'all' or a restaurant id, set from the shared top-bar selector
 let payVendorSearch = '';
+let paySortBy = 'pending_desc'; // 'pending_desc' | 'pending_asc' | 'name_asc' | 'name_desc' (added 2026-10-20)
+let payBankFilter = 'all'; // 'all' | 'with' | 'without' -- supplierHasBankAccount() (added 2026-10-20)
 let payExpandedVendors = new Set(); // vendor names currently expanded
 let payExcludedBillIds = new Set(); // bill ids unchecked for the next mark-paid action
 let payRowRefs = []; // [{ row, markBtn, captionEl }] -- live refs for updatePayLiveTotals(), rebuilt every renderPayTable()
@@ -110,12 +112,30 @@ async function renderPayments(){
   }
 }
 
+// Sort/bank-account filter added 2026-10-20 -- same as Vendor Ledger's
+// own addition the same day. Pending here is unambiguous (every row IS
+// the pending list already), so "amount pending" sort just sorts the
+// existing Pending column -- no separate "total spend" concept to choose
+// between like Vendor Ledger has.
+function sortPayRows(rows){
+  const sorted = [...rows];
+  const pendingAmount = (r)=> r.bills.reduce((s,b)=> s + b.amount, 0);
+  if(paySortBy === 'name_asc') sorted.sort((a,b)=> a.name.localeCompare(b.name));
+  else if(paySortBy === 'name_desc') sorted.sort((a,b)=> b.name.localeCompare(a.name));
+  else if(paySortBy === 'pending_asc') sorted.sort((a,b)=> pendingAmount(a) - pendingAmount(b));
+  else sorted.sort((a,b)=> pendingAmount(b) - pendingAmount(a)); // 'pending_desc', the default
+  return sorted;
+}
 function applyPaySearchAndRender(){
   const search = payVendorSearch.trim().toLowerCase();
   const pendingRows = payLastAllRows
     .map(r => ({ name: r.name, category: r.category, bills: r.bills.filter(b => b.status !== 'paid') }))
     .filter(r => r.bills.length > 0);
-  const rows = search ? pendingRows.filter(r => r.name.toLowerCase().includes(search)) : pendingRows;
+  let rows = search ? pendingRows.filter(r => r.name.toLowerCase().includes(search)) : pendingRows;
+  if(payBankFilter !== 'all'){
+    rows = rows.filter(r => payBankFilter === 'with' ? supplierHasBankAccount(r.name) : !supplierHasBankAccount(r.name));
+  }
+  rows = sortPayRows(rows);
   payLastFilteredRows = rows;
   // Independent of the pending-only list above -- a vendor can be searched
   // here specifically BECAUSE everything of theirs is already paid (nothing
@@ -132,7 +152,7 @@ function applyPaySearchAndRender(){
     markAllWrap.style.display = 'none';
     empty.textContent = pendingRows.length === 0
       ? "Nothing pending for this period/restaurant scope."
-      : "No vendors match your search.";
+      : "No vendors match your search/filter.";
     empty.style.display = 'block';
     return;
   }
@@ -151,6 +171,14 @@ function applyPaySearchAndRender(){
 }
 document.getElementById('payVendorSearch').addEventListener('input', (ev)=>{
   payVendorSearch = ev.target.value;
+  applyPaySearchAndRender();
+});
+document.getElementById('paySortSelect').addEventListener('change', (ev)=>{
+  paySortBy = ev.target.value;
+  applyPaySearchAndRender();
+});
+document.getElementById('payBankFilterSelect').addEventListener('change', (ev)=>{
+  payBankFilter = ev.target.value;
   applyPaySearchAndRender();
 });
 

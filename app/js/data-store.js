@@ -79,6 +79,14 @@ function supplierHasFullBankDetails(name){
   const d = supplierBankDetails[supplierKey(name)];
   return !!(d && d.accountNumber && d.accountNumber.trim() && d.ifscCode && d.ifscCode.trim());
 }
+// Looser bar -- an account number on file, IFSC not required -- added
+// 2026-10-20 for the "with/without bank account" list filters (Vendor
+// Ledger, Payments, Suppliers tabs). Mirrors staffEmployeeHasBankAccount()'s
+// own looser bar vs. staffEmployeeHasFullBankDetails(), same split.
+function supplierHasBankAccount(name){
+  const d = supplierBankDetails[supplierKey(name)];
+  return !!(d && d.accountNumber && d.accountNumber.trim());
+}
 
 // ---- Month-bucketed bills & sales ----
 // One document per restaurant per month (not per day) — e.g. "rest:savali:bills:2026-07"

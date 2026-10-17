@@ -517,6 +517,18 @@ window.__firebaseSdkReady = (async ()=>{
           <span class="toolbar-label" id="vlRangeToLabel" style="display:none;">To</span>
           <input type="date" id="vlRangeToPicker" class="dash-date-input" style="display:none;">
           <input type="text" id="vlVendorSearch" class="manage-search" placeholder="Search vendor…">
+          <select id="vlSortSelect" class="dash-date-input" aria-label="Sort vendors">
+            <option value="amount_desc">Total spend: High to Low</option>
+            <option value="name_asc">Name: A to Z</option>
+            <option value="name_desc">Name: Z to A</option>
+            <option value="pending_desc">Pending: High to Low</option>
+            <option value="pending_asc">Pending: Low to High</option>
+          </select>
+          <select id="vlBankFilterSelect" class="dash-date-input" aria-label="Filter by bank account">
+            <option value="all">All vendors</option>
+            <option value="with">With bank account</option>
+            <option value="without">Without bank account</option>
+          </select>
         </div>
 
         <div class="dash-hero-row" id="vlTotalsBar" style="display:none;">
@@ -581,6 +593,17 @@ window.__firebaseSdkReady = (async ()=>{
           <span class="toolbar-label" id="payRangeToLabel" style="display:none;">To</span>
           <input type="date" id="payRangeToPicker" class="dash-date-input" style="display:none;">
           <input type="text" id="payVendorSearch" class="manage-search" placeholder="Search vendor…">
+          <select id="paySortSelect" class="dash-date-input" aria-label="Sort vendors">
+            <option value="pending_desc">Pending: High to Low</option>
+            <option value="pending_asc">Pending: Low to High</option>
+            <option value="name_asc">Name: A to Z</option>
+            <option value="name_desc">Name: Z to A</option>
+          </select>
+          <select id="payBankFilterSelect" class="dash-date-input" aria-label="Filter by bank account">
+            <option value="all">All vendors</option>
+            <option value="with">With bank account</option>
+            <option value="without">Without bank account</option>
+          </select>
         </div>
 
         <div class="staff-report-downloads" id="payVendorDownloadWrap" style="display:none;">
@@ -627,7 +650,18 @@ window.__firebaseSdkReady = (async ()=>{
       <section class="manage-section">
         <div class="manage-section-head">
           <h3>Suppliers <span class="count-hint" id="supTabCount"></span></h3>
-          <input type="text" id="supTabSearch" class="manage-search" placeholder="Search suppliers…">
+          <div class="manage-section-controls">
+            <input type="text" id="supTabSearch" class="manage-search" placeholder="Search suppliers…">
+            <select id="supSortSelect" class="dash-date-input" aria-label="Sort suppliers">
+              <option value="name_asc">Name: A to Z</option>
+              <option value="name_desc">Name: Z to A</option>
+            </select>
+            <select id="supBankFilterSelect" class="dash-date-input" aria-label="Filter by bank account">
+              <option value="all">All suppliers</option>
+              <option value="with">With bank account</option>
+              <option value="without">Without bank account</option>
+            </select>
+          </div>
         </div>
         <p class="sup-tab-note">Shared across every restaurant on this account — the same supplier
           list and categories apply everywhere. Changing a supplier's category or subcategory here

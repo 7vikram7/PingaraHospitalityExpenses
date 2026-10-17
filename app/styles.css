@@ -335,6 +335,10 @@ h1{
   margin-bottom:12px;
 }
 .manage-section-head h3{margin:0;}
+/* Groups the search box with the sort/filter selects (added 2026-10-20) as
+   one flex item, so .manage-section-head's own space-between still puts
+   the heading on the left and this whole control cluster on the right. */
+.manage-section-controls{display:flex; align-items:center; gap:8px; flex-wrap:wrap;}
 .manage-search{
   font-family:'IBM Plex Mono',monospace;
   font-size:13px;

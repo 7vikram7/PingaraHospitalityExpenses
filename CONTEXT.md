@@ -634,6 +634,41 @@ Five tab panels, switched by `.tab-bar` buttons (`tabBtnExpenses` /
     leaving `vlLastRows` stale, clearing the box restores every vendor, and
     a pending-bills download taken while a search is active correctly only
     includes the searched-for vendor.
+  - **Sort + bank-account filter, added 2026-10-20** — "for all where
+    possible," applied identically across Vendor Ledger, Payments, and the
+    Suppliers tab (NOT the Manage Suppliers modal, deliberately — that's a
+    fast quick-pick surface available to every profile including Manager
+    during bill entry, where bank-account filtering has no relevance and
+    extra controls would just add friction to a frequently-used lookup).
+    `vlSortSelect` (`vlSortBy` — `amount_desc` default/unchanged, plus
+    `name_asc`/`name_desc`/`pending_desc`/`pending_asc`) and
+    `vlBankFilterSelect` (`vlBankFilter` — `all`/`with`/`without`, via the
+    new `supplierHasBankAccount(name)` in data-store.js) both apply inside
+    `applyVLSearchAndRender()`, after search and before the table/totals/
+    `vlLastRows` are built — same "whatever's on screen" invariant the
+    search feature already established, so a bank-account filter also
+    narrows the downloads below, not just the table. `supplierHasBankAccount()`
+    is deliberately the LOOSER bar (account number present, IFSC not
+    required) — matching the existing "with/without bank details" CSV
+    split's own bar, not the stricter `supplierHasFullBankDetails()` the
+    bank-transfer downloads require, since this filter is about "do I have
+    anything on file for them" not "are they bank-transfer-ready."
+    Payments (`payments.js`) gets the same two controls (`paySortBy`,
+    `payBankFilter`) inside `applyPaySearchAndRender()`, with one
+    difference: no `amount_desc`/total-spend option, since every row
+    there IS the pending list already — "amount pending" sort just sorts
+    the existing Pending column directly (no ambiguity about which
+    amount to use, unlike Vendor Ledger which also shows a Total spend
+    column). Suppliers tab (`suppliers-tab.js`) gets `supSortSelect`/
+    `supBankFilterSelect` inside `renderSuppliersTabList()`, with only
+    `name_asc`/`name_desc` offered — no amount-pending option at all,
+    since a plain directory entry has no amount concept (that only
+    exists on bills), correctly excluded per "where possible" rather than
+    forced in. Verified with a new test (`test_sort_filter_controls.js`,
+    12/12, across all three tabs): each sort order produces the exact
+    expected row order (not just "changed somehow"), the bank filter
+    correctly includes/excludes vendors by their actual
+    `supplierBankDetails` state in each of the three views.
   - **Pending bills download, added 2026-10-15** — two buttons
     (`vlDownloadPendingBtn`, plain CSV; `vlDownloadPendingBankBtn`, bank
     transfer `.xlsx`) reusing whatever period/restaurant scope the table
