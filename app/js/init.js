@@ -14,15 +14,26 @@ function applyTenantBranding(){
     logo.style.display = '';
     document.getElementById('brandDivider').style.display = '';
   }
-  // Optional per-tenant accent color override (TENANT_ACCENT/_DEEP/_LIGHT in
-  // app/tenants/<tenant>.js) -- replaces the shared --brass/--brass-deep/
-  // --brass-light CSS variables site-wide for this tenant only. Undefined
-  // for Pingara/RK Twelve21, so they keep styles.css's default palette.
-  if(typeof TENANT_ACCENT !== 'undefined' && typeof TENANT_ACCENT_DEEP !== 'undefined' && typeof TENANT_ACCENT_LIGHT !== 'undefined'){
+  // Optional full per-tenant color theme (TENANT_THEME in
+  // app/tenants/<tenant>.js) -- overrides styles.css's shared :root CSS
+  // variables site-wide for this tenant only (text/background/border colors
+  // plus the accent trio), whichever keys it defines. Undefined for Pingara/
+  // RK Twelve21, so they keep styles.css's default palette untouched.
+  // Deliberately does NOT cover --green/--green-bg/--red/--red-bg/
+  // --margin-red/--led-green/--led-red -- those are functional paid/unpaid
+  // status signal colors, not brand chrome, and changing them per-tenant
+  // would undermine their universal meaning.
+  if(typeof TENANT_THEME !== 'undefined'){
     const root = document.documentElement.style;
-    root.setProperty('--brass', TENANT_ACCENT);
-    root.setProperty('--brass-deep', TENANT_ACCENT_DEEP);
-    root.setProperty('--brass-light', TENANT_ACCENT_LIGHT);
+    const cssVarByThemeKey = {
+      ink: '--ink', inkSoft: '--ink-soft',
+      paper: '--paper', paperDark: '--paper-dark', paperLine: '--paper-line',
+      accent: '--brass', accentDeep: '--brass-deep', accentLight: '--brass-light',
+      ledBg: '--led-bg', ledDim: '--led-dim', ledAmber: '--led-amber'
+    };
+    Object.keys(cssVarByThemeKey).forEach(key => {
+      if(TENANT_THEME[key]) root.setProperty(cssVarByThemeKey[key], TENANT_THEME[key]);
+    });
   }
 }
 

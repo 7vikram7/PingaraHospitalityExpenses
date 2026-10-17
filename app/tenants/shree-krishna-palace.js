@@ -8,15 +8,30 @@ const TENANT_EYEBROW = "Daily Purchase Register";
 const TENANT_LOGO = "logo.png"; // app/tenants/shree-krishna-palace-logo.png, swapped in by deploy.sh
 const TENANT_TITLE = "Vendor Bill Ledger";
 
-// Brand accent colors, sampled directly from the restaurant's letterhead PDF
-// (triangle emblem fill / gold feather lines). Optional per-tenant override
-// of the app's shared --brass/--brass-deep/--brass-light CSS variables (see
-// applyTenantBranding() in init.js) -- Pingara/RK Twelve21 don't define
-// these, so they keep the app's default brass/gold palette untouched; only
-// a tenant that explicitly sets all three gets its own accent color.
-const TENANT_ACCENT = "#166B5E";       // brand teal (triangle fill) -- replaces --brass
-const TENANT_ACCENT_DEEP = "#0F4940";  // darker teal, computed (~68% brightness) -- replaces --brass-deep
-const TENANT_ACCENT_LIGHT = "#F7C57F"; // brand gold (feather lines/peacock) -- replaces --brass-light
+// Full brand theme (2026-10-18, extended from an earlier accent-only
+// version), derived from the two colors actually sampled off the
+// restaurant's letterhead PDF -- teal #166B5E (triangle emblem fill) and
+// gold #F7C57F (feather lines/peacock) -- everything else below is computed
+// from those two (darken/lighten/desaturate), not independently chosen, to
+// stay a coherent single palette. Optional per-tenant override of the app's
+// shared styles.css :root variables (see applyTenantBranding() in init.js);
+// Pingara/RK Twelve21 don't define TENANT_THEME, so they keep the app's
+// default palette untouched. Deliberately leaves out --green/--red/
+// --margin-red/--led-green/--led-red -- those are functional paid/unpaid
+// status colors, not brand chrome.
+const TENANT_THEME = {
+  ink: "#115349",        // primary text/borders -- darker teal (78% brightness)
+  inkSoft: "#4F7D75",     // secondary/muted text -- lighter, desaturated teal
+  paper: "#FBF6EC",       // card/panel background -- near-white warm cream
+  paperDark: "#F0EBE1",   // body background -- one step down from paper
+  paperLine: "#DDBD91",   // dividers/borders -- muted gold-tan
+  accent: "#166B5E",      // primary buttons/links -- brand teal
+  accentDeep: "#0F4940",  // button hover/pressed -- darker teal
+  accentLight: "#F7C57F", // selection highlight -- brand gold
+  ledBg: "#082521",       // dark stat-bar panel -- deep teal-black
+  ledDim: "#5C8982",      // dim/inactive stat-bar text -- muted teal
+  ledAmber: "#F7C57F"     // stat-bar highlight figures -- brand gold (was amber)
+};
 
 // Single location, per owner's choice -- one restaurant entry covers it.
 // "accountant" (added 2026-10-18) is the same elevated-non-owner-profile
