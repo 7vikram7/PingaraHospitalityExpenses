@@ -35,8 +35,9 @@ fi
 # to match (e.g. "pingara" the tenant is project "vendor-bills", picked before
 # this was multi-tenant) -- add a line here for every new tenant.
 case "$TENANT" in
-  pingara)     PROJECT="vendor-bills" ;;
-  rk-twelve21) PROJECT="rk-twelve21" ;;
+  pingara)              PROJECT="vendor-bills" ;;
+  rk-twelve21)          PROJECT="rk-twelve21" ;;
+  shree-krishna-palace) PROJECT="shree-krishna-palace" ;;
   *)
     echo "No Firebase project mapping for tenant '$TENANT' -- add one to the case statement in deploy.sh"
     exit 1
