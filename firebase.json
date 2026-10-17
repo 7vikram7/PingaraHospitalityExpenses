@@ -5,24 +5,69 @@
   "storage": {
     "rules": "storage.rules"
   },
-  "hosting": {
-    "public": "public",
-    "ignore": [
-      "firebase.json",
-      "**/.*"
-    ],
-    "predeploy": [
-      "rm -rf public",
-      "cp -R app public",
-      "rm -rf public/tenants"
-    ],
-    "headers": [
-      {
-        "source": "**",
-        "headers": [
-          { "key": "Cache-Control", "value": "no-cache, max-age=0, must-revalidate" }
-        ]
-      }
-    ]
-  }
+  "hosting": [
+    {
+      "target": "pingara",
+      "public": "public",
+      "ignore": [
+        "firebase.json",
+        "**/.*"
+      ],
+      "predeploy": [
+        "rm -rf public",
+        "cp -R app public",
+        "rm -rf public/tenants"
+      ],
+      "headers": [
+        {
+          "source": "**",
+          "headers": [
+            { "key": "Cache-Control", "value": "no-cache, max-age=0, must-revalidate" }
+          ]
+        }
+      ]
+    },
+    {
+      "target": "rktwelve21",
+      "public": "public",
+      "ignore": [
+        "firebase.json",
+        "**/.*"
+      ],
+      "predeploy": [
+        "rm -rf public",
+        "cp -R app public",
+        "rm -rf public/tenants"
+      ],
+      "headers": [
+        {
+          "source": "**",
+          "headers": [
+            { "key": "Cache-Control", "value": "no-cache, max-age=0, must-revalidate" }
+          ]
+        }
+      ]
+    },
+    {
+      "target": "skp",
+      "public": "public",
+      "ignore": [
+        "firebase.json",
+        "**/.*"
+      ],
+      "predeploy": [
+        "rm -rf public",
+        "cp -R app public",
+        "rm -rf public/tenants"
+      ],
+      "headers": [
+        {
+          "source": "**",
+          "headers": [
+            { "key": "Cache-Control", "value": "no-cache, max-age=0, must-revalidate" }
+          ]
+        }
+      ]
+    }
+  ]
 }

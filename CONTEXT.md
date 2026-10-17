@@ -2118,3 +2118,41 @@ reverted in production were **not** re-marked as paid as part of this fix —
 the user explicitly scoped this request to the architectural fix only
 ("just do point number 2"). If raised again, that's a one-off data
 correction, separate from this.
+
+## Third tenant (Shree Krishna Palace) + custom Hosting site/target (2026-10-18)
+Added as a third tenant under the existing multi-tenant architecture (see
+"Multi-tenant architecture" above) — own Firebase project (`expenses-d85ec`,
+a different Google account than Pingara's), own `app/tenants/
+shree-krishna-palace.js`, own full brand theme and real Owner/Manager/
+Accountant logins. Nothing here changes how a tenant's *app* config works;
+what's new is **how its hosting URL is chosen**.
+
+Firebase project ids are immutable once created and give a default Hosting
+site at `<project-id>.web.app`. The owner didn't want `expenses-d85ec.web.app`
+as the live URL. Firebase Hosting supports multiple *sites* per project, so
+a second site was created in that same project — `firebase hosting:sites:
+create skpexpenses --project expenses-d85ec` — giving `skpexpenses.web.app`.
+Pointing a deploy at a non-default site needs a **hosting target**, applied
+once per project:
+```
+firebase target:apply hosting <target-name> <site-id> --project <project>
+```
+which records the target->site mapping in `.firebaserc` (now has a
+`targets` section with one entry per tenant's project). This required
+converting `firebase.json`'s `hosting` key from a single object into an
+**array**, one entry per tenant, each carrying its own `"target"` — a
+target-based entry can't coexist with a bare project-level deploy, so
+*every* tenant needed a target applied, not just the new one: `pingara`
+and `rktwelve21` simply point at their own existing default site (no URL
+change for them), `skp` points at the new `skpexpenses` site. `deploy.sh`
+changed from `firebase deploy --only hosting --project $PROJECT` to
+`firebase deploy --only "hosting:$TARGET" --project $PROJECT`, with
+`$TARGET` added alongside `$PROJECT` in its tenant case statement.
+
+Verified all three tenants' live URLs after this restructuring — including
+a real redeploy of Pingara's production site specifically to confirm zero
+collateral impact on it, not just a local/staging check. Also: RK
+Twelve21's hosting deploy, which had failed on every prior attempt with a
+project-access error unrelated to this change, succeeded cleanly during
+this same verification pass with no fix applied here — cause unconfirmed,
+noted in project memory rather than assumed fixed for good.

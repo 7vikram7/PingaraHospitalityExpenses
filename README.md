@@ -262,7 +262,7 @@ cd app && python3 -m http.server 8000
 ## Deploying
 
 ```
-firebase deploy --only hosting --project vendor-bills
+bash deploy.sh <tenant>   # pingara | rk-twelve21 | shree-krishna-palace
 ```
 
 The `predeploy` step in `firebase.json` mirrors the whole `app/` folder into
@@ -271,6 +271,20 @@ The `predeploy` step in `firebase.json` mirrors the whole `app/` folder into
 design: nothing else in this repo, or anywhere else on the machine this is
 deployed from, can end up on the live site by accident. Adding a new file to
 `app/` gets it deployed automatically — no changes to `firebase.json` needed.
+
+`firebase.json`'s `hosting` is an array, one entry per tenant, each pinned to
+a **hosting target** (`"target": "pingara"` etc.) rather than a bare project
+deploy — this is what lets a tenant's live URL differ from its Firebase
+project id. Shree Krishna Palace's project is `expenses-d85ec`, but it
+deploys to a second site created in that same project, `skpexpenses`, so the
+live URL is `skpexpenses.web.app` instead of `expenses-d85ec.web.app`. A
+target only has to be set up once per tenant:
+```
+firebase target:apply hosting <target-name> <site-id> --project <project>
+```
+which records the mapping in `.firebaserc`. `deploy.sh` already knows each
+existing tenant's target; adding a new tenant means adding both a case to
+its project/target mapping and running `target:apply` once.
 
 `firestore.rules` and `storage.rules` are **not** part of `deploy.sh`'s
 routine hosting deploy — they rarely change, so they're deployed as their
@@ -310,7 +324,7 @@ app/
 firebase.json               Hosting config + the predeploy sync step
 firestore.rules              Firestore security rules (deliberately open, see below)
 storage.rules                 Storage security rules (same tradeoff, see below)
-.firebaserc                 Firebase project id (vendor-bills)
+.firebaserc                 default project id + hosting target->site mappings (see "Deploying")
 CONTEXT.md                  architecture notes, data model, design decisions, known limitations
 ```
 

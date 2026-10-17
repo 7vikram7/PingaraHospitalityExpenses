@@ -31,13 +31,22 @@ if grep -q '"TODO"' "$TENANT_FILE"; then
   exit 1
 fi
 
-# Tenant name -> actual Firebase project ID. These deliberately do not have
-# to match (e.g. "pingara" the tenant is project "vendor-bills", picked before
-# this was multi-tenant) -- add a line here for every new tenant.
+# Tenant name -> (Firebase project ID, hosting target). Project IDs
+# deliberately don't have to match the tenant name (e.g. "pingara" the
+# tenant is project "vendor-bills", picked before this was multi-tenant).
+# TARGET is a hosting target applied once per project via `firebase
+# target:apply hosting <target> <site-id> --project <project>` (recorded in
+# .firebaserc, matched against a "target" key in firebase.json's hosting
+# array) -- this indirection exists so a tenant's site id can differ from
+# its project id (shree-krishna-palace's project is "expenses-d85ec" but its
+# site/URL is "skpexpenses", a nicer name the owner asked for). A tenant
+# whose site id already equals its project id (pingara, rk-twelve21) still
+# needs a target applied, just pointing at that same default site -- add a
+# line here AND run target:apply for every new tenant.
 case "$TENANT" in
-  pingara)              PROJECT="vendor-bills" ;;
-  rk-twelve21)          PROJECT="rk-twelve21" ;;
-  shree-krishna-palace) PROJECT="expenses-d85ec" ;;
+  pingara)              PROJECT="vendor-bills";   TARGET="pingara" ;;
+  rk-twelve21)          PROJECT="rk-twelve21";    TARGET="rktwelve21" ;;
+  shree-krishna-palace) PROJECT="expenses-d85ec"; TARGET="skp" ;;
   *)
     echo "No Firebase project mapping for tenant '$TENANT' -- add one to the case statement in deploy.sh"
     exit 1
@@ -56,5 +65,5 @@ if [ -f "app/tenants/${TENANT}-logo.png" ]; then
   cp "app/tenants/${TENANT}-logo.png" app/logo.png
 fi
 
-echo "Deploying to Firebase project: $PROJECT"
-firebase deploy --only hosting --project "$PROJECT"
+echo "Deploying to Firebase project: $PROJECT (hosting target: $TARGET)"
+firebase deploy --only "hosting:$TARGET" --project "$PROJECT"

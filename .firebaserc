@@ -1,5 +1,29 @@
 {
   "projects": {
     "default": "vendor-bills"
-  }
+  },
+  "targets": {
+    "vendor-bills": {
+      "hosting": {
+        "pingara": [
+          "vendor-bills"
+        ]
+      }
+    },
+    "rk-twelve21": {
+      "hosting": {
+        "rktwelve21": [
+          "rk-twelve21"
+        ]
+      }
+    },
+    "expenses-d85ec": {
+      "hosting": {
+        "skp": [
+          "skpexpenses"
+        ]
+      }
+    }
+  },
+  "etags": {}
 }
