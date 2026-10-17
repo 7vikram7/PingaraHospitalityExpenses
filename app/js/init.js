@@ -14,6 +14,16 @@ function applyTenantBranding(){
     logo.style.display = '';
     document.getElementById('brandDivider').style.display = '';
   }
+  // Optional per-tenant accent color override (TENANT_ACCENT/_DEEP/_LIGHT in
+  // app/tenants/<tenant>.js) -- replaces the shared --brass/--brass-deep/
+  // --brass-light CSS variables site-wide for this tenant only. Undefined
+  // for Pingara/RK Twelve21, so they keep styles.css's default palette.
+  if(typeof TENANT_ACCENT !== 'undefined' && typeof TENANT_ACCENT_DEEP !== 'undefined' && typeof TENANT_ACCENT_LIGHT !== 'undefined'){
+    const root = document.documentElement.style;
+    root.setProperty('--brass', TENANT_ACCENT);
+    root.setProperty('--brass-deep', TENANT_ACCENT_DEEP);
+    root.setProperty('--brass-light', TENANT_ACCENT_LIGHT);
+  }
 }
 
 (async function init(){

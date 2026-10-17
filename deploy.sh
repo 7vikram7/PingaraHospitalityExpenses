@@ -49,6 +49,12 @@ cp "$TENANT_FILE" app/tenant.js
 cp "app/tenants/${TENANT}-manifest.json" app/manifest.json
 cp "app/tenants/${TENANT}-icon-192.png" app/icon-192.png
 cp "app/tenants/${TENANT}-icon-512.png" app/icon-512.png
+# Logo is optional (TENANT_LOGO can be null, e.g. RK Twelve21) -- only swap
+# app/logo.png if this tenant actually has one, so a tenant without a logo
+# file doesn't break the deploy and doesn't touch whatever's already there.
+if [ -f "app/tenants/${TENANT}-logo.png" ]; then
+  cp "app/tenants/${TENANT}-logo.png" app/logo.png
+fi
 
 echo "Deploying to Firebase project: $PROJECT"
 firebase deploy --only hosting --project "$PROJECT"

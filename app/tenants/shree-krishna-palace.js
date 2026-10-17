@@ -2,16 +2,21 @@
 // This file is the source of truth; app/tenant.js (loaded by index.html) is a
 // copy of whichever tenant is currently active. See deploy.sh.
 //
-// SCAFFOLDED 2026-10-18, not yet live. Real Firebase project config (below)
-// landed 2026-10-18 -- project "expenses-d85ec". Still needs, before an
-// actual deploy: Firestore + Storage enabled in that project, and a service
-// account key with "Editor" + "Firebase Admin" IAM roles granted up front
-// (see CONTEXT.md / project memory for why both roles, found the hard way on
-// RK Twelve21's Storage setup).
+// LIVE since 2026-10-18 at https://expenses-d85ec.web.app.
 const TENANT_BRAND_NAME = "Shree Krishna Palace";
 const TENANT_EYEBROW = "Daily Purchase Register";
-const TENANT_LOGO = null; // no logo yet -- clean text-only header for now, same as RK Twelve21; set once a logo file is provided
+const TENANT_LOGO = "logo.png"; // app/tenants/shree-krishna-palace-logo.png, swapped in by deploy.sh
 const TENANT_TITLE = "Vendor Bill Ledger";
+
+// Brand accent colors, sampled directly from the restaurant's letterhead PDF
+// (triangle emblem fill / gold feather lines). Optional per-tenant override
+// of the app's shared --brass/--brass-deep/--brass-light CSS variables (see
+// applyTenantBranding() in init.js) -- Pingara/RK Twelve21 don't define
+// these, so they keep the app's default brass/gold palette untouched; only
+// a tenant that explicitly sets all three gets its own accent color.
+const TENANT_ACCENT = "#166B5E";       // brand teal (triangle fill) -- replaces --brass
+const TENANT_ACCENT_DEEP = "#0F4940";  // darker teal, computed (~68% brightness) -- replaces --brass-deep
+const TENANT_ACCENT_LIGHT = "#F7C57F"; // brand gold (feather lines/peacock) -- replaces --brass-light
 
 // Single location, per owner's choice -- one restaurant entry covers it.
 const TENANT_RESTAURANTS = [
