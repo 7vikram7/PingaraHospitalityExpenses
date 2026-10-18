@@ -2296,3 +2296,50 @@ doesn't see the restriction note; Pingara's own Manager is unaffected,
 re-confirmed as a regression check on the `canAddNewSuppliers()`
 refactor). Plus the full existing supplier/permission suite again,
 zero failures.
+
+## Which restaurant orders from a supplier, shown wherever a supplier is listed (same day, follow-up)
+No new data needed — `supplierUsageIndex` (built by `buildSupplierUsageIndex()`,
+already existed to scope the Add Expenses supplier dropdown per
+restaurant, 2026-10-02) already maps every supplier name to the set of
+restaurant ids that have actually billed it. `supplierRestaurantLabel(name)`
+(data-store.js) just reads that same index and turns it into a small
+display string (restaurant labels joined, or "Not billed yet" for a
+supplier with no usage anywhere) — works for an orphaned name too, not
+just directory suppliers, since `buildSupplierUsageIndex()` indexes every
+bill's supplier field regardless of whether it's in the directory.
+
+Wired in everywhere a supplier row is actually rendered: the shared
+`buildManageSupplierRow()` (suppliers-ui.js, covers both the Manage
+Suppliers modal and the Suppliers tab list in one place), the Suggested
+Similar Vendors pills, and the combine-duplicates orphan rows. New
+`.msr-restaurants` CSS class — small (10.5px), muted, deliberately not
+competing with the name/category for attention, per the explicit "ok even
+if small font" ask. Left out of the Add Expenses supplier `<select>`
+dropdown itself (a native `<option>` can't carry secondary styled text)
+and Vendor Ledger/Payments (which already show their own per-restaurant
+breakdown in "All restaurants" mode, a different, pre-existing mechanism).
+
+On the Suggested Similar Vendors pills specifically, this label is more
+than decoration — it's actual evidence for the judgment call the section
+exists to support: two spellings billed by *different* restaurants
+supports "same vendor, two managers, two spellings"; both billed by the
+*same* restaurant looks more like a stray typo than a cross-restaurant
+naming drift.
+
+**Background-load correctness fix, surfaced by this change**:
+`loadSupplierUsageIndex()` (init.js) has always run non-blocking after the
+initial render (a full cross-restaurant bill scan, deliberately not
+delaying app load) and previously only triggered a dropdown re-render on
+completion. Now that the index also drives DISPLAYED text instead of just
+a dropdown filter, a view opened in that brief window (Suppliers tab,
+Manage Suppliers modal) could have shown a misleading "Not billed yet" for
+a supplier that's actually billed plenty, just not indexed yet.
+Closed by also re-rendering both those lists when the index load
+resolves — harmless no-op if neither happens to be open.
+
+Verified via a dedicated 6-check Playwright test (two restaurants billing
+the same supplier shows both labels, an unbilled supplier shows "Not
+billed yet", both the modal and the Suppliers tab list agree, a
+suggestion pill carries the label too) plus the existing supplier/
+permission regression suite again (108 checks across 8 files), zero
+failures.

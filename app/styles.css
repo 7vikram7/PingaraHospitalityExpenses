@@ -431,6 +431,20 @@ h1{
   min-width:0;
 }
 .msr-cat.missing{color:var(--red);}
+/* Which restaurant(s) order from this supplier (added 2026-10-18) --
+   deliberately small/muted, not meant to compete with the name/category. */
+.msr-restaurants{
+  font-family:'IBM Plex Mono',monospace;
+  font-size:10.5px;
+  color:var(--ink-soft);
+  opacity:0.8;
+  flex:1 1 200px;
+  min-width:0;
+}
+.sup-similar-pill .msr-restaurants{
+  font-size:10px;
+  opacity:0.75;
+}
 .msr-edit-btn, .msr-delete-btn{
   background:transparent;
   border:1px solid var(--paper-line);

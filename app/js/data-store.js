@@ -845,6 +845,20 @@ function supplierVisibleForRestaurant(name, restaurantId){
   const usage = supplierUsageIndex[supplierKey(name)];
   return !usage || usage.size === 0 || usage.has(restaurantId);
 }
+// Small-text "which restaurant(s) order from this supplier" label (added
+// 2026-10-18) -- reads the same supplierUsageIndex the picker-scoping
+// above already builds, just rendered instead of used as a filter.
+// Deliberately covers ANY name supplierUsageIndex has an entry for, not
+// just ones in the `suppliers` directory -- buildSupplierUsageIndex()
+// indexes every bill's supplier field regardless, so an orphaned name
+// (used in bills, not yet in the directory) still gets a real answer here
+// too, same as in the Suggested Similar Vendors / combine-duplicates
+// orphan rows that show this.
+function supplierRestaurantLabel(name){
+  const usage = supplierUsageIndex[supplierKey(name)];
+  if(!usage || usage.size === 0) return "Not billed yet";
+  return TENANT_RESTAURANTS.filter(r => usage.has(r.id)).map(r => r.label).join(', ');
+}
 
 // ---- Staff directory (added 2026-10-01) ----
 // One flat document per restaurant — `rest:<id>:staff` — holding the whole

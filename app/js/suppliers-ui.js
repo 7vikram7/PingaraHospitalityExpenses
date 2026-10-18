@@ -149,8 +149,13 @@ function buildManageSupplierRow(name, onChange, combineMode){
     catEl.textContent = 'No category set';
   }
 
+  const restEl = document.createElement('span');
+  restEl.className = 'msr-restaurants';
+  restEl.textContent = supplierRestaurantLabel(name);
+
   view.appendChild(nameEl);
   view.appendChild(catEl);
+  view.appendChild(restEl);
 
   // Central Kitchen (core.js's canEditExistingRecords()) can add new
   // suppliers but can't edit an existing one's category/subcategory --

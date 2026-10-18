@@ -60,6 +60,14 @@ async function renderSupSimilarSection(){
       const pill = document.createElement('span');
       pill.className = 'sup-similar-pill';
       pill.textContent = name + (def && categories[def.category] ? ` (${def.category}${def.subcategory ? ' → ' + def.subcategory : ''})` : '');
+      // Which restaurant(s) actually order under THIS exact spelling --
+      // genuinely useful evidence here specifically: different restaurants
+      // using different spellings supports "same vendor, two managers";
+      // the same restaurant using both is more likely just a stray typo.
+      const restEl = document.createElement('span');
+      restEl.className = 'msr-restaurants';
+      restEl.textContent = ' — ' + supplierRestaurantLabel(name);
+      pill.appendChild(restEl);
       namesEl.appendChild(pill);
       if(i < group.names.length - 1){
         const sep = document.createElement('span');
@@ -425,9 +433,13 @@ async function renderSupCombineOrphans(){
     const hintEl = document.createElement('span');
     hintEl.className = 'msr-cat missing';
     hintEl.textContent = `${count} bill${count === 1 ? '' : 's'} — not in supplier list`;
+    const restEl = document.createElement('span');
+    restEl.className = 'msr-restaurants';
+    restEl.textContent = supplierRestaurantLabel(name);
     view.appendChild(checkbox);
     view.appendChild(nameEl);
     view.appendChild(hintEl);
+    view.appendChild(restEl);
     row.appendChild(view);
     wrap.appendChild(row);
   });

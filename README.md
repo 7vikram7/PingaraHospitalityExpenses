@@ -174,6 +174,10 @@ Firebase Hosting.
   pairing. Persisted (survives a rescan and a new login), and only
   suppresses that one pairing — either name can still turn up in a
   different suggestion if it genuinely matches something else.
+- **Which restaurant orders from a supplier** shows in small text next to
+  the name everywhere a supplier is listed — the Manage Suppliers modal,
+  the Suppliers tab, and the Suggested Similar Vendors cards — or "Not
+  billed yet" for one that's never been used.
 - **Staff Expenses tab** (Owner, or Manager for their own restaurant only;
   named "Staff OT & Salary" until 2026-10-02): a staff directory per
   restaurant — name, employee ID/code, designation, department, gender,

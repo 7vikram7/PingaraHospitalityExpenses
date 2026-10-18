@@ -57,5 +57,16 @@ function applyTenantBranding(){
   // (supplierVisibleForRestaurant() treats an empty index as unrestricted),
   // so this only narrows the dropdown down shortly after load — it's never
   // the reason something that should show doesn't, even mid-load.
-  loadSupplierUsageIndex().then(()=>{ renderSupplierSelect(); });
+  // Also re-renders the Suppliers tab / Manage Suppliers modal lists if
+  // either happens to already be open (added 2026-10-18, alongside
+  // supplierRestaurantLabel() starting to read this same index for
+  // display) -- otherwise a view opened in this brief window could show a
+  // misleading "Not billed yet" for a supplier that's actually billed
+  // plenty, just not indexed yet. Harmless no-op into empty/hidden DOM if
+  // neither is open.
+  loadSupplierUsageIndex().then(()=>{
+    renderSupplierSelect();
+    renderSuppliersTabList();
+    renderManageSupplierList();
+  });
 })();
