@@ -68,13 +68,30 @@ async function renderSupSimilarSection(){
         namesEl.appendChild(sep);
       }
     });
+    const actions = document.createElement('div');
+    actions.className = 'sup-similar-actions';
     const actionBtn = document.createElement('button');
     actionBtn.type = 'button';
     actionBtn.className = 'history-btn';
     actionBtn.textContent = 'Combine these';
     actionBtn.addEventListener('click', ()=> startCombineFromSuggestion(group.names));
+    // "Deny"/dismiss (added 2026-10-18) -- these aren't actually the same
+    // vendor, so stop suggesting this specific pairing. Persisted
+    // (dismissSimilarVendorGroup(), data-store.js), not just hidden for
+    // this session -- it would otherwise reappear on every rescan.
+    const dismissBtn = document.createElement('button');
+    dismissBtn.type = 'button';
+    dismissBtn.className = 'msr-delete-btn';
+    dismissBtn.textContent = 'Not the same vendor';
+    dismissBtn.addEventListener('click', async ()=>{
+      dismissBtn.disabled = true;
+      await dismissSimilarVendorGroup(group.names);
+      renderSupSimilarSection();
+    });
+    actions.appendChild(actionBtn);
+    actions.appendChild(dismissBtn);
     card.appendChild(namesEl);
-    card.appendChild(actionBtn);
+    card.appendChild(actions);
     listEl.appendChild(card);
   });
 }

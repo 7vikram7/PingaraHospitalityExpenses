@@ -913,12 +913,13 @@ document.getElementById('saveSupplierBtn').addEventListener('click', async ()=>{
   // Adding a genuinely NEW supplier is paused for plain Managers (added
   // 2026-10-18, explicit owner request) -- Owner and every elevated
   // non-owner profile (Central Kitchen, Accountant) still can, same
-  // hasElevatedAccess() gate used everywhere else that distinguishes them
-  // from a plain Manager. A Manager can still set/fix the category on an
-  // EXISTING supplier through this same form (e.g. the "set now" link next
-  // to an uncategorized supplier) -- that's not "adding a new supplier",
-  // and isn't restricted.
-  if(!alreadyExisted && !hasElevatedAccess()){
+  // canAddNewSuppliers() gate used everywhere else that distinguishes them
+  // from a plain Manager (a tenant can opt out entirely via
+  // TENANT_ALLOW_ALL_SUPPLIER_CREATION -- see core.js). A Manager can
+  // still set/fix the category on an EXISTING supplier through this same
+  // form (e.g. the "set now" link next to an uncategorized supplier) --
+  // that's not "adding a new supplier", and isn't restricted.
+  if(!alreadyExisted && !canAddNewSuppliers()){
     alert(`"${name}" isn't in the supplier list yet. Adding a brand-new supplier needs Central Kitchen or the Owner — ask them to add it, then it'll be available here.`);
     return;
   }

@@ -522,6 +522,11 @@ h1{
   color:var(--ink-soft);
   font-size:12px;
 }
+.sup-similar-actions{
+  display:flex;
+  gap:8px;
+  flex-shrink:0;
+}
 
 .modal-box{
   background:#fff;

@@ -73,6 +73,13 @@ async function loadSupplierBankDetails(){
   supplierBankDetails = {};
 }
 async function saveSupplierBankDetails(){ await safeSet(supBankDetailsKey(), JSON.stringify(supplierBankDetails)); }
+
+async function loadDismissedSimilarVendorPairs(){
+  const raw = await safeGet(dismissedSimilarVendorPairsKey());
+  if(raw){ try{ dismissedSimilarVendorPairs = JSON.parse(raw) || []; return; }catch(e){} }
+  dismissedSimilarVendorPairs = [];
+}
+async function saveDismissedSimilarVendorPairs(){ await safeSet(dismissedSimilarVendorPairsKey(), JSON.stringify(dismissedSimilarVendorPairs)); }
 // NEFT needs both an account number and an IFSC code -- same bar
 // staffEmployeeHasFullBankDetails() applies to staff.
 function supplierHasFullBankDetails(name){
@@ -717,9 +724,18 @@ function svNameSimilarity(a, b){
 // Candidate pool is the supplier directory plus orphaned bill-only names
 // (findOrphanSupplierNamesInBills()) so a name that was never added to the
 // directory at all can still surface as a likely duplicate of one that is.
+// Order-independent canonical key for a pair of names, used by the
+// "not the same vendor" dismiss option below -- svNormalize() rather than
+// the raw name, so a later rename/spelling tweak of either name doesn't
+// silently un-dismiss a pair the owner already reviewed.
+function dismissSimilarVendorPairKey(a, b){
+  const na = svNormalize(a), nb = svNormalize(b);
+  return na < nb ? na + '|||' + nb : nb + '|||' + na;
+}
 async function findSimilarSupplierGroups(){
   const orphans = await findOrphanSupplierNamesInBills();
   const names = [...new Set([...suppliers, ...orphans.map(o => o.name)])];
+  const dismissed = new Set(dismissedSimilarVendorPairs);
 
   const parent = {};
   names.forEach(n => { parent[n] = n; });
@@ -729,6 +745,7 @@ async function findSimilarSupplierGroups(){
   const bestScoreForPair = {};
   for(let i = 0; i < names.length; i++){
     for(let j = i + 1; j < names.length; j++){
+      if(dismissed.has(dismissSimilarVendorPairKey(names[i], names[j]))) continue;
       const score = svNameSimilarity(names[i], names[j]);
       if(score >= SIMILAR_VENDOR_THRESHOLD){
         union(names[i], names[j]);
@@ -748,6 +765,20 @@ async function findSimilarSupplierGroups(){
     .filter(root => groups[root].length >= 2)
     .map(root => ({ names: groups[root].sort((a,b)=>a.localeCompare(b)), score: bestScoreForPair[root] || 0 }))
     .sort((a,b) => b.score - a.score);
+}
+// Marks every pairwise combination within a suggested group as "not the
+// same vendor" (added 2026-10-18, the "deny" option) -- a 3+-member group
+// dismisses as one unit via its own card, rather than needing one click per
+// pair; a name that later turns out to match some OTHER name strongly can
+// still surface normally, only this specific pairing is suppressed.
+async function dismissSimilarVendorGroup(names){
+  for(let i = 0; i < names.length; i++){
+    for(let j = i + 1; j < names.length; j++){
+      const key = dismissSimilarVendorPairKey(names[i], names[j]);
+      if(!dismissedSimilarVendorPairs.includes(key)) dismissedSimilarVendorPairs.push(key);
+    }
+  }
+  await saveDismissedSimilarVendorPairs();
 }
 
 // ---- Per-restaurant supplier usage (added 2026-10-02) ----

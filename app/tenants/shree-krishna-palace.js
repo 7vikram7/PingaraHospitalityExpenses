@@ -62,3 +62,10 @@ const TENANT_RESTAURANT_PASSWORD_HASH = {
   "shree-krishna-palace": "c3f73c5e2fc2761c4d3151088f4421357003859d9fae682cedd6f86d728414f4", // Manager: skp@9090
   "accountant":           "9f91ab721aaf19ea195afe1d3e0166226145a4df20fd51931580a8ae7a3fad53"  // Accountant: pancharatna@9090
 };
+
+// Opts OUT of the app-wide "only Owner/Central Kitchen/Accountant can add a
+// new supplier" restriction (added 2026-10-18 for Pingara) -- explicit
+// owner request the same day: "give everyone rights to add suppliers" for
+// this tenant specifically. See canAddNewSuppliers() in core.js. Pingara/RK
+// Twelve21 don't define this, so they keep the restriction.
+const TENANT_ALLOW_ALL_SUPPLIER_CREATION = true;

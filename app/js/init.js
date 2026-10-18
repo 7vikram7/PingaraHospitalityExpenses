@@ -46,6 +46,7 @@ function applyTenantBranding(){
   await loadSuppliers();
   await loadSupplierDefaults();
   await loadSupplierBankDetails();
+  await loadDismissedSimilarVendorPairs();
   await loadStaffBankDefaults();
   await loadEntries(currentDate);
   await loadSales(currentDate);

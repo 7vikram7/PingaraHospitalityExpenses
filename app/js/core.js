@@ -96,11 +96,17 @@ function supDefaultsKey(){ return "supplierDefaults"; }
 // not merged into it, so the two stay independent exactly like staff's own
 // name/role fields vs. bankName/accountNumber/ifscCode split.
 function supBankDetailsKey(){ return "supplierBankDetails"; }
+// Added 2026-10-18, alongside the "deny"/dismiss option on Suggested
+// Similar Vendors -- pairs the owner has confirmed are NOT the same
+// vendor, so findSimilarSupplierGroups() stops re-suggesting them on every
+// future scan. Shared account-wide like every other supplier key above.
+function dismissedSimilarVendorPairsKey(){ return "dismissedSimilarVendorPairs"; }
 
 let categories = {};
 let suppliers = [];
 let supplierDefaults = {};
 let supplierBankDetails = {}; // supplierKey(name) -> {accountNumber, ifscCode}
+let dismissedSimilarVendorPairs = []; // array of dismissSimilarVendorPairKey(a,b) strings
 // supplierKey() -> Set of restaurant ids that have actually billed that
 // supplier (see data-store.js's buildSupplierUsageIndex()) — drives which
 // suppliers a given restaurant's picker shows. Built once at init, kept
@@ -323,6 +329,17 @@ function hasElevatedAccess(){
 // default (which retroactively re-tags every past bill under that
 // supplier). One flag covers both since they're the same restriction.
 function canEditExistingRecords(){ return !isElevatedNonOwnerProfile(); }
+// Who can add a genuinely NEW supplier (added 2026-10-18, restricting it
+// away from plain Managers) -- hasElevatedAccess() by default (Owner,
+// Central Kitchen, Accountant), OR every profile including plain Manager
+// if this tenant opts out via TENANT_ALLOW_ALL_SUPPLIER_CREATION in its
+// own app/tenants/<tenant>.js (Shree Krishna Palace's explicit request,
+// per-tenant exactly because the restriction itself was never meant to be
+// universal -- see CONTEXT.md). Undefined for Pingara/RK Twelve21, so they
+// keep the restriction.
+function canAddNewSuppliers(){
+  return hasElevatedAccess() || (typeof TENANT_ALLOW_ALL_SUPPLIER_CREATION !== 'undefined' && TENANT_ALLOW_ALL_SUPPLIER_CREATION);
+}
 
 // ---- Cross-verification (added 2026-10-06) ----
 // Owner and every elevated non-owner profile can mark bills and staff

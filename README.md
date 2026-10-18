@@ -166,7 +166,14 @@ Firebase Hosting.
   (changed 2026-10-18) — a Manager can still set a category on an existing
   supplier that doesn't have one yet, just not create one that's never
   existed before. Previously any Manager could add one from the "Manage
-  Suppliers" button in Add Expenses.
+  Suppliers" button in Add Expenses. **Shree Krishna Palace opts out of this
+  restriction** (every profile there can still add a new supplier, per that
+  owner's explicit request) — a per-tenant setting, not a global one.
+- **Suggestion dismissal** — a "Not the same vendor" option on each
+  Suggested Similar Vendors card tells it to stop suggesting that specific
+  pairing. Persisted (survives a rescan and a new login), and only
+  suppresses that one pairing — either name can still turn up in a
+  different suggestion if it genuinely matches something else.
 - **Staff Expenses tab** (Owner, or Manager for their own restaurant only;
   named "Staff OT & Salary" until 2026-10-02): a staff directory per
   restaurant — name, employee ID/code, designation, department, gender,

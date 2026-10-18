@@ -2253,3 +2253,46 @@ confirmed Manager is blocked while still able to categorize an existing
 supplier, confirmed Central Kitchen is both excluded from suggestions and
 still able to add new suppliers) plus the full existing supplier/
 permission regression suite (189 checks across 10 files, zero failures).
+
+## Dismiss suggestions + Shree Krishna Palace supplier-creation exemption (same day, follow-up)
+Two more asks on the feature above. **"Not the same vendor"** dismiss
+button on each suggestion card: `dismissSimilarVendorGroup()` (data-store.js)
+marks every pairwise combination within that group's names as dismissed
+(a 3+-member group dismisses as one unit via its own card, not one click
+per pair), keyed by `dismissSimilarVendorPairKey()` -- an order-independent
+key built from `svNormalize()`, not the raw name, so a later rename of
+either name doesn't silently un-dismiss a pair already reviewed.
+Persisted (`dismissedSimilarVendorPairs`, a new shared account-wide key,
+loaded at init alongside the other supplier state) so it survives a
+rescan AND a fresh session, not just hidden client-side for the current
+page load. `findSimilarSupplierGroups()` checks a `Set` of dismissed keys
+before ever unioning a pair, so a dismissed pairing simply never
+re-qualifies on a future scan; it doesn't block either name from
+independently matching some OTHER name strongly enough to surface its own
+suggestion.
+
+**Shree Krishna Palace supplier-creation exemption**: the new-supplier
+restriction two sections up was explicitly requested as a Pingara
+change, but it's shared `app/js` code, so it silently applied to every
+tenant -- flagged to the user after shipping, and they asked for it back
+specifically for Shree Krishna Palace ("give everyone rights to add
+suppliers"). Rather than a one-off special case, generalized the gate
+itself into `canAddNewSuppliers()` (core.js): `hasElevatedAccess()` OR an
+optional per-tenant `TENANT_ALLOW_ALL_SUPPLIER_CREATION` flag, the same
+"undefined for Pingara/RK Twelve21, explicitly set where it diverges"
+pattern `TENANT_THEME`/`TENANT_ACCENT` already established for branding.
+Set `true` in `app/tenants/shree-krishna-palace.js`; Pingara/RK Twelve21
+don't define it, so they keep the restriction. Both the actual gate
+(reports-dashboard.js's `saveSupplierBtn` handler) and the proactive
+"ask Central Kitchen/Owner" note (suppliers-ui.js) now go through this
+one helper instead of checking `hasElevatedAccess()` directly, so they
+can never drift out of sync with each other per tenant.
+
+Verified via two dedicated test files: dismiss (seed a pair, confirm it
+suggests, dismiss it, confirm it's gone immediately AND after an explicit
+rescan AND in a brand-new session -- real persistence, not an in-memory
+hide) and the SKP exemption (Manager there can add a new supplier and
+doesn't see the restriction note; Pingara's own Manager is unaffected,
+re-confirmed as a regression check on the `canAddNewSuppliers()`
+refactor). Plus the full existing supplier/permission suite again,
+zero failures.
