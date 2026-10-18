@@ -610,6 +610,146 @@ async function findOrphanSupplierNamesInBills(){
   return Object.keys(counts).map(name => ({ name, count: counts[name] })).sort((a,b) => b.count - a.count);
 }
 
+// ---- Suggested similar vendors (added 2026-10-18) ----
+// Fuzzy-matches supplier names to catch the same real vendor entered under
+// different spellings (a staff typo, a shortened name, a casing
+// difference) that supplierKey()'s exact-after-normalize matching doesn't
+// catch -- the whole reason the "combine duplicate suppliers" tool above
+// needs a human to already suspect two specific names are the same. This
+// proactively surfaces candidates instead.
+//
+// Threshold and the two down-weighted word lists below were tuned against
+// Pingara's real 275-supplier list (not invented numbers) via a throwaway
+// scratch script, through two rounds of real false positives:
+//   1. Generic Indian business-type suffixes ("Enterprises", "Traders",
+//      "Electricals", "Hardware", ...) are shared by dozens of unrelated
+//      vendors -- "N R ENTERPRISES" vs "S D Enterprises" scored a perfect
+//      1.0 on raw token overlap despite being obviously different vendors.
+//   2. Common devotional/auspicious name-prefixes ("Laxmi", "Shri",
+//      "Shree", "Sai", "Ganesh", ...) are just as widely shared --
+//      "Laxmi Electrical" vs "Laxmi Departmental Stores" also scored a
+//      false 1.0 sharing only "laxmi".
+// Both lists exist so a pair only counts as a candidate when it shares (or
+// near-matches) something genuinely DISTINCTIVE, not just a common
+// suffix/prefix -- see distinctiveRemainder()/tokenSimilarity() below.
+// 0.80 is where the real data's good matches cluster; below roughly 0.75
+// it's dominated by coincidentally-similar-shaped short Hindi names
+// ("Shriram"/"Shivam"/"Shivaay"/"Sairam") that aren't actually related.
+const SIMILAR_VENDOR_THRESHOLD = 0.80;
+const SIMILAR_VENDOR_GENERIC_WORDS = new Set([
+  'enterprise','enterprises','trader','traders','hardware','electrical','electricals',
+  'marketing','service','services','store','stores','agency','agencies','company','co',
+  'pvt','ltd','foods','food','dairy','mart','supplier','suppliers','distributor',
+  'distributors','sales','industry','industries','corporation','corp','kirana',
+  'departmental','department','general','wholesale','retail','and','the','of',
+  'shri','shree','sri','laxmi','lakshmi','sai','ganesh','ganpati','balaji','om','jai',
+  'shiv','shiva','krishna','ram','rama','hanuman','durga','maa','mauli','new','shubh','swami'
+]);
+function svNormalize(name){
+  return (name || '').toLowerCase().replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
+}
+function svTokenize(name){
+  return svNormalize(name).split(' ').filter(Boolean);
+}
+function svDistinctiveRemainder(name){
+  return svTokenize(name).filter(t => !SIMILAR_VENDOR_GENERIC_WORDS.has(t)).join(' ');
+}
+function svLevenshtein(a, b){
+  const m = a.length, n = b.length;
+  if(m === 0) return n;
+  if(n === 0) return m;
+  let prev = Array.from({length: n+1}, (_,i)=>i);
+  for(let i = 1; i <= m; i++){
+    const cur = [i];
+    for(let j = 1; j <= n; j++){
+      cur[j] = a[i-1] === b[j-1] ? prev[j-1] : 1 + Math.min(prev[j-1], prev[j], cur[j-1]);
+    }
+    prev = cur;
+  }
+  return prev[n];
+}
+function svLevenshteinRatio(a, b){
+  const maxLen = Math.max(a.length, b.length);
+  return maxLen === 0 ? 1 : 1 - svLevenshtein(a, b) / maxLen;
+}
+// Jaccard-ish token overlap, generic words included but requiring at least
+// one genuinely distinctive shared-or-stemmed token before it counts --
+// see hasDistinctiveMatch below, the gate that keeps shared-suffix-only
+// pairs from ever qualifying.
+function svTokenSimilarity(a, b){
+  const ta = svTokenize(a), tb = svTokenize(b);
+  const sa = new Set(ta), sb = new Set(tb);
+  if(sa.size === 0 || sb.size === 0) return { score: 0, hasDistinctiveMatch: false };
+  let shared = 0, hasDistinctiveMatch = false;
+  sa.forEach(t => {
+    if(sb.has(t)){
+      shared++;
+      if(!SIMILAR_VENDOR_GENERIC_WORDS.has(t)) hasDistinctiveMatch = true;
+    }
+  });
+  let stemShared = 0;
+  sa.forEach(ta_t => {
+    if(sb.has(ta_t) || SIMILAR_VENDOR_GENERIC_WORDS.has(ta_t)) return;
+    sb.forEach(tb_t => {
+      if(sa.has(tb_t) || SIMILAR_VENDOR_GENERIC_WORDS.has(tb_t)) return;
+      if(ta_t.length >= 4 && tb_t.length >= 4){
+        const pfx = Math.min(5, ta_t.length, tb_t.length);
+        if(ta_t.slice(0, pfx) === tb_t.slice(0, pfx)){ stemShared += 0.7; hasDistinctiveMatch = true; }
+      }
+    });
+  });
+  const union = sa.size + sb.size - shared;
+  return { score: union === 0 ? 0 : (shared + stemShared) / union, hasDistinctiveMatch };
+}
+function svNameSimilarity(a, b){
+  const na = svNormalize(a), nb = svNormalize(b);
+  if(na === nb) return 1;
+  const ra = svDistinctiveRemainder(a), rb = svDistinctiveRemainder(b);
+  if(ra.length < 2 || rb.length < 2) return 0; // nothing distinctive left to compare
+  const lev = svLevenshteinRatio(ra, rb);
+  const { score: tok, hasDistinctiveMatch } = svTokenSimilarity(a, b);
+  return hasDistinctiveMatch ? Math.max(tok, lev) : lev;
+}
+// Returns [{ names: [...], score }], sorted most-confident first. `names`
+// always includes at least 2 entries (union-find over every qualifying
+// pair, so a 3+-way match like "SHIVAM TRADER"/"Shivam Traders"/"SHIVAM
+// TRADERS" lands in one group, not three separate pairwise suggestions).
+// Candidate pool is the supplier directory plus orphaned bill-only names
+// (findOrphanSupplierNamesInBills()) so a name that was never added to the
+// directory at all can still surface as a likely duplicate of one that is.
+async function findSimilarSupplierGroups(){
+  const orphans = await findOrphanSupplierNamesInBills();
+  const names = [...new Set([...suppliers, ...orphans.map(o => o.name)])];
+
+  const parent = {};
+  names.forEach(n => { parent[n] = n; });
+  function find(n){ while(parent[n] !== n){ n = parent[n]; } return n; }
+  function union(a, b){ const ra = find(a), rb = find(b); if(ra !== rb) parent[ra] = rb; }
+
+  const bestScoreForPair = {};
+  for(let i = 0; i < names.length; i++){
+    for(let j = i + 1; j < names.length; j++){
+      const score = svNameSimilarity(names[i], names[j]);
+      if(score >= SIMILAR_VENDOR_THRESHOLD){
+        union(names[i], names[j]);
+        const root = find(names[i]);
+        bestScoreForPair[root] = Math.max(bestScoreForPair[root] || 0, score);
+      }
+    }
+  }
+
+  const groups = {};
+  names.forEach(n => {
+    const root = find(n);
+    if(!groups[root]) groups[root] = [];
+    groups[root].push(n);
+  });
+  return Object.keys(groups)
+    .filter(root => groups[root].length >= 2)
+    .map(root => ({ names: groups[root].sort((a,b)=>a.localeCompare(b)), score: bestScoreForPair[root] || 0 }))
+    .sort((a,b) => b.score - a.score);
+}
+
 // ---- Per-restaurant supplier usage (added 2026-10-02) ----
 // Suppliers are shared account-wide (see above), but which ones are
 // *relevant* to a given restaurant isn't — a manager at Restaurant A

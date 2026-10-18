@@ -2156,3 +2156,100 @@ Twelve21's hosting deploy, which had failed on every prior attempt with a
 project-access error unrelated to this change, succeeded cleanly during
 this same verification pass with no fix applied here — cause unconfirmed,
 noted in project memory rather than assumed fixed for good.
+
+## Suggested similar vendors + supplier-creation permission gate (2026-10-18)
+Two related requests from the same message: (1) proactively suggest likely
+duplicate supplier names (staff had been entering the same real vendor
+under different spellings) with a category/subcategory CHOICE when
+combining them, in a visually separate area; (2) stop plain Managers from
+adding brand-new suppliers at all, restricted to Owner/Central
+Kitchen/Accountant going forward.
+
+**Fuzzy matching (`findSimilarSupplierGroups()`, data-store.js)**: tuned
+empirically against Pingara's real 275-supplier list via a throwaway
+scratch script (not invented thresholds) — two rounds of real false
+positives shaped the final design:
+1. Generic Indian business-type suffixes ("Enterprises", "Traders",
+   "Electricals", "Hardware", "Marketing", ...) are shared by dozens of
+   unrelated vendors. Raw token overlap scored "N R ENTERPRISES" vs
+   "S D Enterprises" a perfect 1.0 despite being obviously different.
+2. Common devotional/auspicious name-prefixes ("Laxmi", "Shri", "Shree",
+   "Sai", "Ganesh", ...) are just as widely shared — "Laxmi Electrical" vs
+   "Laxmi Departmental Stores" also false-positived at 1.0 on "laxmi" alone.
+
+Both word lists are down-weighted (`SIMILAR_VENDOR_GENERIC_WORDS`) so a
+pair only counts as a candidate when it shares something genuinely
+distinctive — either an exact non-generic token, a 5-char-prefix stem
+match between two non-generic tokens, or a high Levenshtein ratio computed
+on each name's "distinctive remainder" (the name with every generic/common
+word stripped out — stops a long shared generic suffix from inflating
+character-level similarity for two otherwise-unrelated short prefixes).
+Threshold 0.80 is where the real data's good matches cluster; below
+roughly 0.75 it's dominated by coincidentally-similar-shaped short Hindi
+names ("Shriram"/"Shivam"/"Shivaay"/"Sairam") that aren't actually related.
+Validated end to end against real data (not just the scoring function) —
+the union-find grouping correctly clustered multi-way matches like
+"Incentive"/"INCENTIVE"/"insentive"/"Insentive" into one group, 28 of 29
+groups were genuine matches, one borderline false positive remained
+("Disha Marketing" vs "isha electricals") — acceptable since this is a
+human-reviewed suggestion, not an auto-merge.
+
+**UI**: a new "Suggested Similar Vendors" section (`#supSimilarSection`,
+suppliers-tab.js) at the top of the Suppliers tab — not a new top-level app
+tab, since this is thematically a proactive front-end to the EXISTING
+combine-duplicates tool, not a separate workflow; made deliberately
+prominent (not nested behind a "+" expand link like bulk-edit/combine
+themselves) to read as a clearly separate area, per the explicit ask.
+Scan-on-demand (tab open, or "rescan" link), same pattern as
+`findOrphanSupplierNamesInBills()`'s own on-demand scan it reuses as part
+of the candidate pool. Each suggested group's "Combine these" button
+pre-selects those names into `supCombineSelected` and opens the existing
+combine tool rather than duplicating its merge logic.
+
+**Category/subcategory now a real choice, not an auto-pick** (the second
+half of the same request): the combine bar gained a category select +
+subcategory input (`#supCombineCatSelect`/`#supCombineSubInput`),
+pre-filled with the same "exact name match wins, else first checked" rule
+the tool always used internally (`deriveCombineCategoryDefault()`) as a
+sensible starting point, but now editable — `supCombineConfirmBtn`'s
+handler reads the final values from these fields instead of silently
+deriving them. A `supCombineCatInitialized` flag (mirrors the existing
+name-input pattern) makes sure the default only sets once per combine
+session, so re-rendering after a checkbox toggle doesn't clobber a choice
+the user already made.
+
+Gated behind `canEditExistingRecords()`, same boundary the combine tool
+itself already has — Central Kitchen/Accountant can't act on a suggestion
+any more than they can use the combine tool directly, so the whole section
+is hidden for them too rather than showing suggestions with no action
+available.
+
+**New-supplier permission gate**: the ONE place a plain Manager could
+previously add a brand-new supplier was the "Manage Suppliers" modal
+reachable from the Add Expenses toolbar (`saveSupplierBtn`,
+reports-dashboard.js) — the Suppliers tab's own add form and the combine
+tool's own supplier creation were already elevated-only, since the whole
+Suppliers tab is hidden from plain Managers (`tabBtnSuppliers` visibility
+in auth.js). That one path is now gated behind `hasElevatedAccess()`, with
+a clear alert naming Central Kitchen/Owner when a Manager tries to add a
+name that doesn't already exist, plus a proactive note in the modal itself
+so a Manager isn't surprised only after filling the form. **Deliberately
+narrow**: a Manager can still set/fix the category on an EXISTING
+uncategorized supplier through the exact same form (the `alreadyExisted`
+branch is untouched) — that's completing data for a supplier that already
+exists, not adding a new one, and wasn't part of what was asked to be
+restricted.
+
+This is shared `app/js` code, so it applies to every tenant uniformly, not
+just Pingara — RK Twelve21 (no Central Kitchen/Accountant at all) and
+Shree Krishna Palace (Accountant only, no Central Kitchen) both lose
+Manager-level supplier creation too, leaving only their Owner (and SKP's
+Accountant) able to add a brand-new supplier going forward.
+
+Verified via a dedicated 17-check Playwright test (seeded near-duplicate
+suppliers, confirmed grouping/exclusion, confirmed the combine bar's
+chosen category — not the auto-derived one — is what actually gets saved,
+confirmed Manager is blocked while still able to categorize an existing
+supplier, confirmed Central Kitchen is both excluded from suggestions and
+still able to add new suppliers) plus the full existing supplier/
+permission regression suite (189 checks across 10 files, zero failures).

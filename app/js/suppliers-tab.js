@@ -13,6 +13,7 @@
 function showSuppliersTabPanel(){
   renderSupTabNewCatSelect();
   renderSuppliersTabList();
+  renderSupSimilarSection();
   // Bulk edit and combine-duplicates can both retroactively change an
   // EXISTING supplier's category/name (same propagate-to-past-bills effect
   // as the manual Edit form) -- Central Kitchen gets the same "no
@@ -20,6 +21,80 @@ function showSuppliersTabPanel(){
   // Edit button (canEditExistingRecords(), core.js).
   document.getElementById('supBulkEditWrap').style.display = canEditExistingRecords() ? '' : 'none';
   document.getElementById('supCombineWrap').style.display = canEditExistingRecords() ? '' : 'none';
+}
+
+/* ---------- Suggested similar vendors (added 2026-10-18) ----------
+   findSimilarSupplierGroups() (data-store.js) does the actual fuzzy
+   matching; this just renders its output and wires each group's "Combine
+   these" button into the existing combine-duplicates tool below (opens
+   combine mode if it isn't already, pre-checks that group's names). A full
+   cross-restaurant bill scan (via findOrphanSupplierNamesInBills()) runs
+   underneath, so this is scan-on-demand (tab open, or "rescan" after
+   adding/editing suppliers) rather than re-run on every keystroke. */
+async function renderSupSimilarSection(){
+  if(!canEditExistingRecords()){
+    document.getElementById('supSimilarSection').style.display = 'none';
+    return;
+  }
+  document.getElementById('supSimilarSection').style.display = '';
+  const listEl = document.getElementById('supSimilarList');
+  const countEl = document.getElementById('supSimilarCount');
+  listEl.innerHTML = "";
+  countEl.textContent = "(scanning…)";
+  const groups = await findSimilarSupplierGroups();
+  countEl.textContent = groups.length ? `(${groups.length})` : "";
+  if(groups.length === 0){
+    const empty = document.createElement('div');
+    empty.className = 'manage-empty';
+    empty.textContent = "No likely duplicates found.";
+    listEl.appendChild(empty);
+    return;
+  }
+  groups.forEach(group=>{
+    const card = document.createElement('div');
+    card.className = 'sup-similar-card';
+    const namesEl = document.createElement('div');
+    namesEl.className = 'sup-similar-names';
+    group.names.forEach((name, i)=>{
+      const def = supplierDefaults[supplierKey(name)];
+      const pill = document.createElement('span');
+      pill.className = 'sup-similar-pill';
+      pill.textContent = name + (def && categories[def.category] ? ` (${def.category}${def.subcategory ? ' → ' + def.subcategory : ''})` : '');
+      namesEl.appendChild(pill);
+      if(i < group.names.length - 1){
+        const sep = document.createElement('span');
+        sep.className = 'sup-similar-sep';
+        sep.textContent = '≈';
+        namesEl.appendChild(sep);
+      }
+    });
+    const actionBtn = document.createElement('button');
+    actionBtn.type = 'button';
+    actionBtn.className = 'history-btn';
+    actionBtn.textContent = 'Combine these';
+    actionBtn.addEventListener('click', ()=> startCombineFromSuggestion(group.names));
+    card.appendChild(namesEl);
+    card.appendChild(actionBtn);
+    listEl.appendChild(card);
+  });
+}
+document.getElementById('supSimilarRescanLink').addEventListener('click', renderSupSimilarSection);
+
+// Pre-checks a suggested group's names into the existing combine-duplicates
+// tool and scrolls it into view, rather than duplicating that tool's own
+// merge logic here.
+function startCombineFromSuggestion(names){
+  if(!supCombineModeActive){
+    supCombineModeActive = true;
+    document.getElementById('supCombineBox').classList.add('open');
+    renderSupCombineOrphans();
+  }
+  supCombineSelected = new Set(names);
+  supCombineCatInitialized = false;
+  document.getElementById('supCombineNameInput').value = "";
+  renderSuppliersTabList();
+  renderSupCombineBar();
+  document.getElementById('supCombineBox').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 // Sort/bank-account filter added 2026-10-20, same request applied "where
@@ -292,6 +367,12 @@ document.getElementById('supUploadBtn').addEventListener('click', async ()=>{
    Set so they merge through identical logic. */
 let supCombineModeActive = false;
 let supCombineSelected = new Set(); // exact supplier names currently checked
+// Tracks whether the category/subcategory fields have been defaulted yet
+// for the CURRENT selection -- reset whenever combine mode (re)opens or a
+// suggestion pre-fills the selection, so the auto-suggested category still
+// shows up front, but re-rendering after a checkbox toggle doesn't blow
+// away a choice the user already made (same pattern the name input uses).
+let supCombineCatInitialized = false;
 async function renderSupCombineOrphans(){
   const wrap = document.getElementById('supCombineOrphans');
   wrap.innerHTML = "";
@@ -334,6 +415,38 @@ async function renderSupCombineOrphans(){
     wrap.appendChild(row);
   });
 }
+// Same "exact match wins, else first checked" rule the combine tool always
+// used to pick category/subcategory automatically -- now just the DEFAULT
+// shown in the editable select/input below, not the final word.
+function deriveCombineCategoryDefault(selected, finalName){
+  const exactMatchName = selected.find(n => supplierKey(n) === supplierKey(finalName));
+  const sourceName = exactMatchName || selected[0];
+  return supplierDefaults[supplierKey(sourceName)] || {};
+}
+function renderSupCombineCatSelect(){
+  const sel = document.getElementById('supCombineCatSelect');
+  const prev = sel.value;
+  sel.innerHTML = "";
+  Object.keys(categories).forEach(c=>{
+    const opt = document.createElement('option');
+    opt.value = c; opt.textContent = c;
+    sel.appendChild(opt);
+  });
+  if(prev && categories[prev]) sel.value = prev;
+  renderSupCombineSubList();
+}
+function renderSupCombineSubList(){
+  const cat = document.getElementById('supCombineCatSelect').value;
+  const dl = document.getElementById('supCombineSubList');
+  dl.innerHTML = "";
+  (categories[cat] || []).forEach(s=>{
+    const opt = document.createElement('option');
+    opt.value = s;
+    dl.appendChild(opt);
+  });
+}
+document.getElementById('supCombineCatSelect').addEventListener('change', renderSupCombineSubList);
+
 function renderSupCombineBar(){
   const bar = document.getElementById('supCombineBar');
   const n = supCombineSelected.size;
@@ -350,12 +463,24 @@ function renderSupCombineBar(){
   });
   const nameInput = document.getElementById('supCombineNameInput');
   if(!nameInput.value) nameInput.value = names[0]; // default: first checked, still editable
+
+  renderSupCombineCatSelect();
+  if(!supCombineCatInitialized){
+    const def = deriveCombineCategoryDefault(names, nameInput.value);
+    if(def.category && categories[def.category]){
+      document.getElementById('supCombineCatSelect').value = def.category;
+      renderSupCombineSubList();
+    }
+    document.getElementById('supCombineSubInput').value = def.subcategory || "";
+    supCombineCatInitialized = true;
+  }
 }
 document.getElementById('supCombineLink').addEventListener('click', ()=>{
   supCombineModeActive = !supCombineModeActive;
   document.getElementById('supCombineBox').classList.toggle('open', supCombineModeActive);
   if(!supCombineModeActive){
     supCombineSelected.clear();
+    supCombineCatInitialized = false;
     document.getElementById('supCombineNameInput').value = "";
     document.getElementById('supCombineOrphans').innerHTML = "";
   }
@@ -365,6 +490,7 @@ document.getElementById('supCombineLink').addEventListener('click', ()=>{
 });
 document.getElementById('supCombineCancelBtn').addEventListener('click', ()=>{
   supCombineSelected.clear();
+  supCombineCatInitialized = false;
   document.getElementById('supCombineNameInput').value = "";
   renderSuppliersTabList();
   renderSupCombineBar();
@@ -382,12 +508,21 @@ document.getElementById('supCombineConfirmBtn').addEventListener('click', async 
 
   const exactMatchName = selected.find(n => supplierKey(n) === supplierKey(finalName));
   const sourceName = exactMatchName || selected[0];
-  const keptDef = supplierDefaults[supplierKey(sourceName)] || {};
   const keptBank = supplierBankDetails[supplierKey(sourceName)] || {};
-  const keptCategory = keptDef.category || "";
-  const keptSubcategory = keptDef.subcategory || "";
+  // Category/subcategory now come from the combine bar's own editable
+  // select/input (added 2026-10-18, user's explicit ask) instead of being
+  // silently auto-picked from one of the merged suppliers -- the fields
+  // are still pre-filled with that same auto-pick as a starting point (see
+  // deriveCombineCategoryDefault()/renderSupCombineBar()), just no longer
+  // the final word.
+  const keptCategory = document.getElementById('supCombineCatSelect').value;
+  const keptSubcategory = document.getElementById('supCombineSubInput').value.trim();
   const keptAccountNumber = keptBank.accountNumber || "";
   const keptIfscCode = keptBank.ifscCode || "";
+  if(!keptCategory){
+    alert("Please pick a category for the combined supplier.");
+    return;
+  }
 
   const confirmBtn = document.getElementById('supCombineConfirmBtn');
   if(!confirm(`Combine ${selected.length} suppliers into "${finalName}"?\n\nEvery past bill logged under the other name${selected.length === 2 ? '' : 's'} will be updated to "${finalName}", across every restaurant. The now-duplicate supplier entries will be removed. This cannot be undone.`)) return;
@@ -417,9 +552,11 @@ document.getElementById('supCombineConfirmBtn').addEventListener('click', async 
   await loadSupplierUsageIndex();
 
   supCombineSelected.clear();
+  supCombineCatInitialized = false;
   supCombineModeActive = false;
   document.getElementById('supCombineBox').classList.remove('open');
   document.getElementById('supCombineNameInput').value = "";
+  document.getElementById('supCombineSubInput').value = "";
   document.getElementById('supCombineOrphans').innerHTML = "";
   confirmBtn.disabled = false;
   confirmBtn.textContent = 'Combine';
@@ -427,6 +564,7 @@ document.getElementById('supCombineConfirmBtn').addEventListener('click', async 
   renderSupplierSelect();
   renderSuppliersTabList();
   renderSupCombineBar();
+  renderSupSimilarSection(); // the merged names should drop out of the suggestions list
 
   alert(`Combined ${selected.length} suppliers into "${finalName}". Updated ${billsUpdated} past bill${billsUpdated === 1 ? '' : 's'} across every restaurant.`);
 });

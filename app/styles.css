@@ -490,6 +490,39 @@ h1{
   color:var(--ink-soft);
 }
 
+/* ---------- Suggested similar vendors (added 2026-10-18) ---------- */
+.sup-similar-card{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  flex-wrap:wrap;
+  padding:10px 14px;
+  border:1.5px solid var(--paper-line);
+  border-radius:6px;
+  background:#fff;
+  margin-bottom:8px;
+}
+.sup-similar-names{
+  display:flex;
+  align-items:center;
+  flex-wrap:wrap;
+  gap:6px;
+  flex:1 1 320px;
+}
+.sup-similar-pill{
+  font-family:'IBM Plex Mono',monospace;
+  font-size:12px;
+  background:var(--paper);
+  border:1px solid var(--paper-line);
+  border-radius:4px;
+  padding:3px 8px;
+}
+.sup-similar-sep{
+  color:var(--ink-soft);
+  font-size:12px;
+}
+
 .modal-box{
   background:#fff;
   border-radius:8px;

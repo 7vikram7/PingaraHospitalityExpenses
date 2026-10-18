@@ -262,6 +262,9 @@ window.__firebaseSdkReady = (async ()=>{
 
       <section class="manage-section manage-section-add">
         <h3>Add a new supplier</h3>
+        <p class="sup-tab-note" id="newSupplierManagerNote" style="display:none;">You can set a
+          category for an existing supplier here, but adding a brand-new one needs Central Kitchen
+          or the Owner.</p>
         <div class="new-supplier-box open" id="newSupplierBox">
           <input type="text" id="newSupplierName" placeholder="Supplier name">
           <div class="row">
@@ -660,6 +663,17 @@ window.__firebaseSdkReady = (async ()=>{
 <div id="tabPanelSuppliers" class="tab-panel">
   <main>
     <div class="viz-root dash-panel">
+      <section class="manage-section" id="supSimilarSection">
+        <div class="manage-section-head">
+          <h3>Suggested Similar Vendors <span class="count-hint" id="supSimilarCount"></span></h3>
+          <span class="addlink" id="supSimilarRescanLink">rescan</span>
+        </div>
+        <p class="sup-tab-note">Vendor names that might be the same supplier entered differently over
+          time (a typo, a shortened name, a different spelling). Review each group below — these are
+          suggestions, nothing is combined until you confirm.</p>
+        <div id="supSimilarList"></div>
+      </section>
+
       <section class="manage-section">
         <div class="manage-section-head">
           <h3>Suppliers <span class="count-hint" id="supTabCount"></span></h3>
@@ -700,6 +714,9 @@ window.__firebaseSdkReady = (async ()=>{
               <span class="count-hint" id="supCombineCount"></span>
               <input type="text" id="supCombineNameInput" list="supCombineNameList" placeholder="Name to use henceforth">
               <datalist id="supCombineNameList"></datalist>
+              <select id="supCombineCatSelect" aria-label="Category for combined supplier"></select>
+              <input type="text" id="supCombineSubInput" list="supCombineSubList" placeholder="Subcategory (optional)">
+              <datalist id="supCombineSubList"></datalist>
               <button type="button" id="supCombineConfirmBtn">Combine</button>
               <button type="button" id="supCombineCancelBtn">Cancel</button>
             </div>

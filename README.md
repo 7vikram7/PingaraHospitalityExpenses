@@ -152,11 +152,21 @@ Firebase Hosting.
   — the duplicate entries are then removed. It also scans bill history for
   vendor names that aren't in the supplier list at all (e.g. one that was
   removed from the list while still being billed) and lets you check and
-  combine those too. Central Kitchen and Accountant can still add new
-  suppliers one at a time but don't get the bulk-edit or combine-duplicates
-  options, since both can retroactively change an
-  existing supplier's history — the same boundary they already have on the
-  per-supplier Edit button.
+  combine those too, with a category and subcategory you pick for the
+  combined supplier (pre-filled with a sensible default, not locked to it).
+  A **Suggested Similar Vendors** section above the list proactively finds
+  likely duplicates (a typo, a shortened name, a different spelling) and
+  one-clicks you into the combine tool with that group already checked.
+  Central Kitchen and Accountant can still add new
+  suppliers one at a time but don't get the bulk-edit, combine-duplicates,
+  or suggested-similar-vendors options, since all three can retroactively
+  change an existing supplier's history — the same boundary they already
+  have on the per-supplier Edit button.
+- **Adding a brand-new supplier is Owner/Central Kitchen/Accountant only**
+  (changed 2026-10-18) — a Manager can still set a category on an existing
+  supplier that doesn't have one yet, just not create one that's never
+  existed before. Previously any Manager could add one from the "Manage
+  Suppliers" button in Add Expenses.
 - **Staff Expenses tab** (Owner, or Manager for their own restaurant only;
   named "Staff OT & Salary" until 2026-10-02): a staff directory per
   restaurant — name, employee ID/code, designation, department, gender,

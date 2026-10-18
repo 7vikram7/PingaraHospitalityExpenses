@@ -65,6 +65,7 @@ function renderSupplierCatHint(){
 }
 function openNewSupplierBox(prefillSupplier){
   document.getElementById('manageSuppliersModal').classList.add('open');
+  document.getElementById('newSupplierManagerNote').style.display = hasElevatedAccess() ? 'none' : '';
   document.getElementById('newSupplierName').value = prefillSupplier || "";
   const def = prefillSupplier ? supplierDefaults[supplierKey(prefillSupplier)] : null;
   renderNewSupplierCatSelect();
@@ -83,6 +84,7 @@ function openNewSupplierBox(prefillSupplier){
 function openManageSuppliersModal(){
   document.getElementById('manageSuppliersModal').classList.add('open');
   document.getElementById('manageSupplierSearch').value = "";
+  document.getElementById('newSupplierManagerNote').style.display = hasElevatedAccess() ? 'none' : '';
   renderManageSupplierList();
 }
 function closeManageSuppliersModal(){
