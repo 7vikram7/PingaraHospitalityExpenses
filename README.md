@@ -184,6 +184,17 @@ Firebase Hosting.
   this day" field; this is a per-tenant setting
   (`TENANT_SALES_BREAKDOWN`), not a global change, same as the
   supplier-creation exemption above.
+- **No non-Owner profile sees backdated sales, anywhere** (added
+  2026-10-19, all tenants) — Manager, Central Kitchen, and Accountant can
+  all see *today's* sales as normal, but a past date's sales figure (and
+  anything derived from it — profit, profit %, the sales-vs-expense chart)
+  is hidden outright, both in Add Expenses and the Reports dashboard
+  (Month/Date-range/Compare-months are always "backdated" by nature, so
+  those stay restricted regardless of which dates fall inside them).
+  Expense/bill data is untouched by this — only sales. The FY-register
+  Excel export and live-linked spreadsheet sync are hidden too for
+  non-Owner (both carry a year of sales); "Download CSV" stays available
+  to everyone, since it's bills only.
 - **Staff Expenses tab** (Owner, or Manager for their own restaurant only;
   named "Staff OT & Salary" until 2026-10-02): a staff directory per
   restaurant — name, employee ID/code, designation, department, gender,

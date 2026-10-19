@@ -356,6 +356,22 @@ function hasSalesBreakdown(){
   return typeof TENANT_SALES_BREAKDOWN !== 'undefined' && Array.isArray(TENANT_SALES_BREAKDOWN) && TENANT_SALES_BREAKDOWN.length > 0;
 }
 
+// ---- Backdated sales visibility (added 2026-10-19) ----
+// No non-Owner profile -- plain Manager, Central Kitchen, or Accountant --
+// sees a sales figure for any date other than today, anywhere in the app
+// (Add Expenses' day view, the Reports dashboard in every period mode).
+// Explicit owner request, applies account-wide, all tenants. `dateStr` is
+// the single date being viewed (Add Expenses' currentDate, or Reports'
+// Day-mode selected date); pass null/undefined for a period that isn't
+// pinned to one exact date at all (Month/Date-range/Compare-months) --
+// those can never be "today only" by their nature, so they're always
+// restricted for non-Owner profiles. Doesn't touch expense/bill
+// visibility at all, only sales and anything derived from it (profit,
+// profit %, the sales-vs-expense chart, the "% of sales" column).
+function canSeeSales(dateStr){
+  return isOwnerProfile() || dateStr === todayStr();
+}
+
 // ---- Cross-verification (added 2026-10-06) ----
 // Owner and every elevated non-owner profile can mark bills and staff
 // entries verified (a toggle), sales days included. Everyone else sees a

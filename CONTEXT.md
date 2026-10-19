@@ -2400,3 +2400,65 @@ not an app bug: Reports' Day view defaults to **yesterday**, not today,
 pre-existing and intentional), and the 1-hour lock specifically for the
 breakdown inputs. Plus the broader existing regression suite against
 Pingara again, zero failures.
+
+## No non-Owner profile sees backdated sales, anywhere, any tenant (2026-10-19)
+Explicit request, clarified up front before building anything (the scope
+was genuinely ambiguous and consequential enough to be worth asking):
+applies to **every** non-Owner profile — plain Manager, Central Kitchen,
+*and* Accountant, who both otherwise have full Owner-level Reports access
+— **everywhere** sales appears, not just Add Expenses, across all 3
+tenants. Expense/bill data is explicitly NOT part of this — only sales and
+anything derived from it (profit, profit %, the sales-vs-expense chart,
+the "% of sales" column).
+
+**Core rule** (`canSeeSales(dateStr)`, core.js): `isOwnerProfile() ||
+dateStr === todayStr()`. A period that isn't pinned to one exact date at
+all (Reports' Month/Date-range/Compare-months modes) is never "today
+only" by its nature, so those are always restricted for non-Owner —
+passed `null` deliberately so the same function covers that case without
+a second rule.
+
+**Add Expenses** (`loadSales()`, data-store.js): the whole
+`#salesInlineSection` (single input or the breakdown boxes, whichever this
+tenant uses) and the `#ledSalesCell` stat-bar cell are hidden outright —
+not blanked — for any date other than today, for non-Owner. Re-evaluated
+on every call, since day-nav/profile changes both route back through it.
+**Caught and fixed a real gap while building this**:
+`updateTabVisibilityForProfile()` (auth.js) unconditionally force-showed
+both elements on every login/profile-confirm, which would have silently
+re-exposed a previously-hidden backdated day's sales the moment anyone
+logged in fresh — fixed by applying the same `canSeeSales()` check there
+too, instead of hardcoding visible.
+
+**Reports dashboard** (`renderDashboard()`/`buildDashCompareCol()`,
+reports-dashboard.js): the Sales/Profit/Profit% hero stats and the
+sales-vs-expense chart are hidden outright for a restricted period/date,
+replaced with an explanatory message ("Sales figures for past dates are
+only visible to the Owner"); Total Expenses and the category-spend table
+stay visible regardless (not sales-gated — `buildCategoryTable()`/
+`buildSubcategoryTable()` gained a `showPct` parameter that omits the "%
+of sales" column header and cells entirely, rather than showing a
+misleading 0.0%, while expense amounts are untouched). Compare-months
+(its own render path, `buildDashCompareCol()`) always counts as
+restricted for non-Owner, same as Month/Range.
+
+**Exports**: `collectFYSalesRows()` feeds both "Download Excel (FY
+register)" and the live-linked spreadsheet sync ("Link Excel file"/"Save
+to Excel File") with a whole financial year of sales — both entry points
+hidden outright for non-Owner (`showReportsPanel()`). "Download CSV" was
+checked and left untouched: `buildCsv()` is bills only, no sales column
+at all, so it was never in scope.
+
+Verified via three dedicated test files (Add Expenses: Owner sees
+everything, Manager sees today but not yesterday; Reports/Central
+Kitchen: Day/Month/Range/Compare all correctly gated, category table
+keeps amounts but drops the % column, expenses stay visible, exports
+hidden, CSV still available; Shree Krishna Palace's breakdown UI
+specifically, confirming the restriction wraps the breakdown boxes too
+via the same shared `#salesInlineSection`) plus the broader existing
+regression suite again, zero failures. One real test-authoring mistake
+caught along the way (not an app bug): seeding data via one Playwright
+page/session and then calling `localStorage.clear()` in a second
+session sharing the same browser context wipes what the first had just
+written, since `clear()` resets the whole origin's storage, not just
+login state — fixed by seeding after the clear, in the same session.

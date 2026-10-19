@@ -22,6 +22,15 @@ function showReportsPanel(){
   const unlocked = reportsUnlocked();
   document.getElementById('reportsLock').style.display = unlocked ? 'none' : 'block';
   document.getElementById('reportsContent').style.display = unlocked ? 'block' : 'none';
+  // The FY-register Excel export and the live-linked spreadsheet sync both
+  // carry a whole year's historical sales figures (collectFYSalesRows()) --
+  // hidden for every non-Owner profile, same backdated-sales rule as the
+  // dashboard itself (added 2026-10-19). "Download CSV" stays for everyone:
+  // it's bills only (buildCsv()), no sales column at all.
+  const salesExportsVisible = isOwnerProfile();
+  document.getElementById('syncBtn').style.display = salesExportsVisible ? '' : 'none';
+  document.getElementById('downloadExcelBtn').style.display = salesExportsVisible ? '' : 'none';
+  document.getElementById('saveSpreadsheetBar').style.display = salesExportsVisible ? '' : 'none';
   if(unlocked){
     renderDashboard();
   }
@@ -539,22 +548,30 @@ function aggregateCategorySpend(byCategoryAll, bySubcategoryAll, totalSales){
   }).sort((a,b)=>b.amount-a.amount);
 }
 
-function buildSubcategoryTable(subcategories){
+// `showPct` (added 2026-10-19) -- omits the "% of sales" column entirely
+// when false, rather than showing a misleading "0.0%"/blank, since that
+// column is derived from sales and non-Owner profiles don't see backdated
+// sales at all (see canSeeSales(), core.js). Expense amounts themselves
+// are unaffected -- this only ever touches the sales-derived column.
+function buildSubcategoryTable(subcategories, showPct){
   const scroll = document.createElement('div');
   scroll.className = 'vl-detail-scroll';
   const table = document.createElement('table');
   table.className = 'vl-detail-table';
   const thead = document.createElement('thead');
   const headRow = document.createElement('tr');
-  headRow.innerHTML = '<th>Subcategory</th><th class="num">Amount</th><th class="num">% of sales</th>';
+  headRow.innerHTML = '<th>Subcategory</th><th class="num">Amount</th>' + (showPct ? '<th class="num">% of sales</th>' : '');
   thead.appendChild(headRow);
   const tbody = document.createElement('tbody');
   subcategories.forEach(s=>{
     const tr = document.createElement('tr');
     const tdSub = document.createElement('td'); tdSub.textContent = s.subcategory; tdSub.className = 'subcat';
     const tdAmt = document.createElement('td'); tdAmt.className = 'amount'; tdAmt.textContent = fmtMoney(s.amount);
-    const tdPct = document.createElement('td'); tdPct.className = 'num'; tdPct.textContent = s.pct.toFixed(1) + '%';
-    tr.appendChild(tdSub); tr.appendChild(tdAmt); tr.appendChild(tdPct);
+    tr.appendChild(tdSub); tr.appendChild(tdAmt);
+    if(showPct){
+      const tdPct = document.createElement('td'); tdPct.className = 'num'; tdPct.textContent = s.pct.toFixed(1) + '%';
+      tr.appendChild(tdPct);
+    }
     tbody.appendChild(tr);
   });
   table.appendChild(thead); table.appendChild(tbody);
@@ -566,7 +583,7 @@ function buildSubcategoryTable(subcategories){
 // Ledger's vlExpandedVendor pattern — except the expand state lives in this
 // closure rather than a module-level variable, since Compare-months renders
 // two of these tables side by side and each should expand independently.
-function buildCategoryTable(rows){
+function buildCategoryTable(rows, showPct){
   if(rows.length === 0){
     const empty = document.createElement('div');
     empty.className = 'manage-empty';
@@ -581,7 +598,7 @@ function buildCategoryTable(rows){
     const table = document.createElement('table');
     const thead = document.createElement('thead');
     const headRow = document.createElement('tr');
-    headRow.innerHTML = '<th>Category</th><th class="num">Amount</th><th class="num">% of sales</th>';
+    headRow.innerHTML = '<th>Category</th><th class="num">Amount</th>' + (showPct ? '<th class="num">% of sales</th>' : '');
     thead.appendChild(headRow);
     const tbody = document.createElement('tbody');
     rows.forEach(r=>{
@@ -593,8 +610,11 @@ function buildCategoryTable(rows){
       tdCat.className = 'supplier';
       tdCat.innerHTML = `<span class="vl-expand-caret">${expanded ? '▾' : '▸'}</span>${escapeHtml(r.category)}`;
       const tdAmt = document.createElement('td'); tdAmt.className = 'amount'; tdAmt.textContent = fmtMoney(r.amount);
-      const tdPct = document.createElement('td'); tdPct.className = 'num'; tdPct.textContent = r.pct.toFixed(1) + '%';
-      tr.appendChild(tdCat); tr.appendChild(tdAmt); tr.appendChild(tdPct);
+      tr.appendChild(tdCat); tr.appendChild(tdAmt);
+      if(showPct){
+        const tdPct = document.createElement('td'); tdPct.className = 'num'; tdPct.textContent = r.pct.toFixed(1) + '%';
+        tr.appendChild(tdPct);
+      }
 
       const toggleExpand = ()=>{
         expandedCategory = (expandedCategory === r.category) ? null : r.category;
@@ -610,9 +630,9 @@ function buildCategoryTable(rows){
         const detailTr = document.createElement('tr');
         detailTr.className = 'vl-detail-row';
         const detailTd = document.createElement('td');
-        detailTd.colSpan = 3;
+        detailTd.colSpan = showPct ? 3 : 2;
         if(r.subcategories.length > 0){
-          detailTd.appendChild(buildSubcategoryTable(r.subcategories));
+          detailTd.appendChild(buildSubcategoryTable(r.subcategories, showPct));
         } else {
           detailTd.textContent = 'No subcategory set for these bills.';
           detailTd.style.padding = '14px 16px 18px 40px';
@@ -666,12 +686,19 @@ function buildDashCompareCol(month, data){
     cell.appendChild(lbl); cell.appendChild(val);
     return cell;
   };
-  stats.appendChild(mkStat('Sales', fmtMoney(data.totalSales)));
+  // Compare-months is two whole months, never "today only" -- always
+  // restricted for non-Owner, same rule as Month/Date-range mode above.
+  const salesVisible = canSeeSales(null);
+  if(salesVisible){
+    stats.appendChild(mkStat('Sales', fmtMoney(data.totalSales)));
+  }
   stats.appendChild(mkStat('Expenses', fmtMoney(data.totalExpenses)));
-  stats.appendChild(mkStat('Profit', fmtMoney(data.totalProfit), data.totalProfit < 0 ? 'negative' : data.totalProfit > 0 ? 'positive' : ''));
-  const profitPctText = data.totalSales > 0 ? (data.totalProfit / data.totalSales * 100).toFixed(1) + '%' : '—';
-  const profitPctCls = data.totalSales > 0 ? (data.totalProfit < 0 ? 'negative' : 'positive') : '';
-  stats.appendChild(mkStat('Profit %', profitPctText, profitPctCls));
+  if(salesVisible){
+    stats.appendChild(mkStat('Profit', fmtMoney(data.totalProfit), data.totalProfit < 0 ? 'negative' : data.totalProfit > 0 ? 'positive' : ''));
+    const profitPctText = data.totalSales > 0 ? (data.totalProfit / data.totalSales * 100).toFixed(1) + '%' : '—';
+    const profitPctCls = data.totalSales > 0 ? (data.totalProfit < 0 ? 'negative' : 'positive') : '';
+    stats.appendChild(mkStat('Profit %', profitPctText, profitPctCls));
+  }
   col.appendChild(stats);
 
   // The category table is shown regardless of whether any restaurant logged
@@ -680,7 +707,7 @@ function buildDashCompareCol(month, data){
   // shows its own "no expenses" message when there's genuinely nothing).
   const tableWrap = document.createElement('div');
   tableWrap.className = 'plain-table-wrap';
-  tableWrap.appendChild(buildCategoryTable(aggregateCategorySpend(data.byCategoryAll, data.bySubcategoryAll, data.totalSales)));
+  tableWrap.appendChild(buildCategoryTable(aggregateCategorySpend(data.byCategoryAll, data.bySubcategoryAll, data.totalSales), salesVisible));
   col.appendChild(tableWrap);
   return col;
 }
@@ -707,10 +734,17 @@ async function renderDashboard(){
   document.getElementById('dashCompareMonthA').value = dashCompareMonthA;
   document.getElementById('dashCompareMonthB').value = dashCompareMonthB;
 
-  document.getElementById('dashHeroSales').style.display = '';
-  document.getElementById('dashHeroProfit').style.display = '';
-  document.getElementById('dashHeroProfitPct').style.display = '';
-  document.getElementById('dashChartTypeGroup').style.display = '';
+  // No non-Owner profile sees backdated sales/profit anywhere (added
+  // 2026-10-19) -- Day mode only counts as "visible" when the selected
+  // date is literally today; Month/Date-range can never be pinned to one
+  // exact date, so they're always restricted for non-Owner. Compare-months
+  // has its own identical check inside buildDashCompareCol() below, since
+  // it renders through a completely separate code path.
+  const salesVisible = dashPeriodType === 'day' ? canSeeSales(dashSelectedDate) : canSeeSales(null);
+  document.getElementById('dashHeroSales').style.display = salesVisible ? '' : 'none';
+  document.getElementById('dashHeroProfit').style.display = salesVisible ? '' : 'none';
+  document.getElementById('dashHeroProfitPct').style.display = salesVisible ? '' : 'none';
+  document.getElementById('dashChartTypeGroup').style.display = salesVisible ? '' : 'none';
 
   const panel = document.getElementById('reportsDashboard');
   panel.classList.add('dash-loading');
@@ -724,32 +758,45 @@ async function renderDashboard(){
       : { month: dashSelectedMonth };
     const data = await computeSalesExpenseData(dashPeriodType, params, dashRestaurantFilter);
 
-    document.getElementById('dashTotalSales').textContent = fmtMoney(data.totalSales);
-    document.getElementById('dashTotalExpenses').textContent = fmtMoney(data.totalExpenses);
-    const profitEl = document.getElementById('dashTotalProfit');
-    profitEl.textContent = fmtMoney(data.totalProfit);
-    profitEl.classList.toggle('negative', data.totalProfit < 0);
-    profitEl.classList.toggle('positive', data.totalProfit > 0);
-    setProfitPctText(document.getElementById('dashTotalProfitPct'), data.totalProfit, data.totalSales);
+    document.getElementById('dashTotalExpenses').textContent = fmtMoney(data.totalExpenses); // expenses are never sales-gated
+    if(salesVisible){
+      document.getElementById('dashTotalSales').textContent = fmtMoney(data.totalSales);
+      const profitEl = document.getElementById('dashTotalProfit');
+      profitEl.textContent = fmtMoney(data.totalProfit);
+      profitEl.classList.toggle('negative', data.totalProfit < 0);
+      profitEl.classList.toggle('positive', data.totalProfit > 0);
+      setProfitPctText(document.getElementById('dashTotalProfitPct'), data.totalProfit, data.totalSales);
+    }
 
     const hasData = data.restaurants.length > 0;
     const hasCategoryData = Object.keys(data.byCategoryAll).length > 0;
-    document.getElementById('dashEmpty').style.display = hasData ? 'none' : 'block';
-    document.getElementById('dashChartCard').style.display = hasData ? 'block' : 'none';
+    const dashEmptyEl = document.getElementById('dashEmpty');
+    if(!salesVisible){
+      // The sales-vs-expense chart is inherently sales data (each bar pairs
+      // a restaurant with its own sales figure) -- hidden outright here,
+      // not just emptied, same as the hero stats above. The category
+      // breakdown below is NOT sales-gated (see its own comment) and stays.
+      dashEmptyEl.style.display = 'block';
+      dashEmptyEl.textContent = 'Sales figures for past dates are only visible to the Owner.';
+      document.getElementById('dashChartCard').style.display = 'none';
+    } else {
+      dashEmptyEl.style.display = hasData ? 'none' : 'block';
+      dashEmptyEl.textContent = 'No sales recorded for this period yet — charts populate once at least one restaurant logs its sales for the selected day/month.';
+      document.getElementById('dashChartCard').style.display = hasData ? 'block' : 'none';
+      if(dashChartType === 'bar') renderBarView(data.restaurants);
+      else renderPieView(data.restaurants);
+      renderDashLegend(data.restaurants);
+      renderDashTable(data.restaurants);
+    }
     // Category card has its own data source (byCategoryAll isn't gated by
-    // whether a restaurant logged sales), so it can stay visible even when
-    // the sales-driven chart above has nothing to show (or is hidden
-    // entirely for Central Kitchen).
+    // whether a restaurant logged sales), so it stays visible regardless of
+    // sales visibility -- expense/category data was never part of the
+    // backdated-sales restriction, only sales and anything derived from it.
     document.getElementById('dashCategoryCard').style.display = (hasData || hasCategoryData) ? 'block' : 'none';
-
-    if(dashChartType === 'bar') renderBarView(data.restaurants);
-    else renderPieView(data.restaurants);
-    renderDashLegend(data.restaurants);
-    renderDashTable(data.restaurants);
 
     const catWrap = document.getElementById('dashCategoryTableWrap');
     catWrap.innerHTML = "";
-    catWrap.appendChild(buildCategoryTable(aggregateCategorySpend(data.byCategoryAll, data.bySubcategoryAll, data.totalSales)));
+    catWrap.appendChild(buildCategoryTable(aggregateCategorySpend(data.byCategoryAll, data.bySubcategoryAll, data.totalSales), salesVisible));
   }catch(e){
     console.error('dashboard render failed', e);
   }finally{

@@ -75,8 +75,16 @@ function updateTabVisibilityForProfile(){
   // elevated-only gate as the shared restaurant selector above.
   document.getElementById('staffReportAllRestaurantsWrap').style.display = elevated ? '' : 'none';
   if(elevated) renderSharedRestaurantBar();
-  document.getElementById('salesInlineSection').style.display = '';
-  document.getElementById('ledSalesCell').style.display = '';
+  // No non-Owner profile sees a backdated day's sales at all (added
+  // 2026-10-19) -- loadSales() already applies this on every day-nav call,
+  // but a profile switch without a day change (e.g. logging in fresh) only
+  // runs through here, not loadSales() again, so it needs the same check
+  // re-applied -- otherwise this used to unconditionally force the sales
+  // section visible on every login, which would have silently overridden
+  // the restriction for whichever day was already loaded.
+  const salesVisible = canSeeSales(currentDate);
+  document.getElementById('salesInlineSection').style.display = salesVisible ? '' : 'none';
+  document.getElementById('ledSalesCell').style.display = salesVisible ? '' : 'none';
   if(!owner){
     const activePanel = document.querySelector('.tab-panel.active');
     const allowedPanelIds = elevated

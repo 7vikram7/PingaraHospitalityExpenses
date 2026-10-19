@@ -401,6 +401,19 @@ async function loadSales(date){
   currentSales = (val !== undefined && val !== null && val !== "") ? val : null; // keeps whichever shape this tenant stores
   const meta = await loadSalesMeta(date.slice(0,7));
   currentSalesSavedAt = meta[date] || null;
+
+  // No non-Owner profile sees a backdated day's sales figure at all (added
+  // 2026-10-19) -- the whole input area and the stat-bar cell are hidden
+  // outright, not just blanked, for any date other than today. Re-evaluated
+  // on every call (day nav, profile/restaurant changes all route back
+  // through here), so it can't go stale.
+  const visible = canSeeSales(date);
+  const sectionEl = document.getElementById('salesInlineSection');
+  const statCellEl = document.getElementById('ledSalesCell');
+  if(sectionEl) sectionEl.style.display = visible ? '' : 'none';
+  if(statCellEl) statCellEl.style.display = visible ? '' : 'none';
+  if(!visible) return;
+
   if(hasSalesBreakdown()){
     renderSalesBreakdownInputs(); // idempotent -- (re)builds the input boxes for this tenant's parts
     TENANT_SALES_BREAKDOWN.forEach(part=>{
