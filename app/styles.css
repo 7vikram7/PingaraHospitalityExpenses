@@ -194,6 +194,7 @@ h1{
   display:flex;
   align-items:center;
   gap:8px;
+  flex-wrap:wrap; /* breakdown tenants (2026-10-19) can need more width than fits one line on a phone */
 }
 .sales-inline label{
   font-family:'IBM Plex Mono',monospace;
@@ -233,6 +234,29 @@ h1{
   letter-spacing:0.05em;
 }
 .sales-inline button:hover{background:var(--brass-deep);}
+/* ---------- Sales breakdown (added 2026-10-19, Shree Krishna Palace --
+   restaurant/banquet/online instead of one figure) ---------- */
+#salesSingleWrap{display:flex; align-items:center; gap:8px;}
+#salesBreakdownWrap{display:flex; align-items:flex-end; gap:14px; flex-wrap:wrap;}
+#salesBreakdownInputs{display:flex; align-items:flex-end; gap:10px; flex-wrap:wrap;}
+.sales-breakdown-field{display:flex; flex-direction:column; gap:3px;}
+.sales-breakdown-field label{
+  font-family:'IBM Plex Mono',monospace;
+  font-size:10px;
+  text-transform:uppercase;
+  letter-spacing:0.05em;
+  color:var(--ink-soft);
+  white-space:nowrap;
+}
+.sales-breakdown-field input{width:92px;}
+.sales-breakdown-total{
+  font-family:'IBM Plex Mono',monospace;
+  font-size:12px;
+  color:var(--ink-soft);
+  white-space:nowrap;
+  padding-bottom:7px;
+}
+.sales-breakdown-total span{color:var(--ink); font-weight:600;}
 .sales-saved-hint{
   font-family:'IBM Plex Mono',monospace;
   font-size:12px;

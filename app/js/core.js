@@ -341,6 +341,21 @@ function canAddNewSuppliers(){
   return hasElevatedAccess() || (typeof TENANT_ALLOW_ALL_SUPPLIER_CREATION !== 'undefined' && TENANT_ALLOW_ALL_SUPPLIER_CREATION);
 }
 
+// ---- Sales breakdown (added 2026-10-19, Shree Krishna Palace) ----
+// A day's sales figure is a plain number for every tenant by default. A
+// tenant can instead define TENANT_SALES_BREAKDOWN -- an array of
+// {key, label} (Shree Krishna Palace: restaurant/banquet/online, since
+// unlike Pingara's pure quick-service restaurants it also runs a banquet
+// hall and online ordering) -- in which case that one number becomes a
+// stored breakdown object (e.g. {restaurant: 12000, banquet: 8000, online:
+// 1500}) instead, with the total always DERIVED (salesValueTotal() in
+// data-store.js), never separately stored, so it can't drift from its own
+// parts. Undefined for Pingara/RK Twelve21, so they keep today's single
+// sales field untouched.
+function hasSalesBreakdown(){
+  return typeof TENANT_SALES_BREAKDOWN !== 'undefined' && Array.isArray(TENANT_SALES_BREAKDOWN) && TENANT_SALES_BREAKDOWN.length > 0;
+}
+
 // ---- Cross-verification (added 2026-10-06) ----
 // Owner and every elevated non-owner profile can mark bills and staff
 // entries verified (a toggle), sales days included. Everyone else sees a

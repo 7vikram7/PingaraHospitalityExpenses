@@ -69,3 +69,17 @@ const TENANT_RESTAURANT_PASSWORD_HASH = {
 // this tenant specifically. See canAddNewSuppliers() in core.js. Pingara/RK
 // Twelve21 don't define this, so they keep the restriction.
 const TENANT_ALLOW_ALL_SUPPLIER_CREATION = true;
+
+// Sales split into three parts instead of one figure (added 2026-10-19,
+// explicit owner request) -- unlike Pingara's pure quick-service
+// restaurants, this venue also runs banquet functions and online
+// ordering. See hasSalesBreakdown()/salesValueTotal() in core.js/
+// data-store.js: the total is always derived from these three, never
+// separately stored. `key` becomes part of the stored field name
+// (salesBreakdown_<key> input id, and the object key the day's sales
+// value is saved under) -- keep it stable once real data exists under it.
+const TENANT_SALES_BREAKDOWN = [
+  { key: "restaurant", label: "Restaurant Sales" },
+  { key: "banquet",    label: "Banquet Sales" },
+  { key: "online",     label: "Online Ordering" }
+];

@@ -377,18 +377,41 @@ async function loadSalesMeta(monthKey){
   }
   return salesMetaCache;
 }
-let currentSales = null; // number or null for "not recorded"
+let currentSales = null; // number (default) or breakdown object (hasSalesBreakdown() tenants), null for "not recorded"
 let currentSalesSavedAt = null; // timestamp sales was first saved for this date, or null if legacy/unknown
 let salesTempUnlocked = false; // password-unlocked for the currently-viewed date; reset whenever the date changes
+// Normalizes a stored sales value into a single total -- the one thing
+// every consumer (ledger stat bar, Reports aggregation, Excel FY export)
+// actually needs, so none of them have to know or care whether this
+// tenant stores a plain number or a breakdown object (see
+// hasSalesBreakdown(), core.js). A breakdown's total is always derived
+// here, never separately stored, so it can't drift from its own parts.
+function salesValueTotal(val){
+  if(val === undefined || val === null || val === "") return 0;
+  if(typeof val === 'object'){
+    return Object.values(val).reduce((s,v)=> s + (Number(v) || 0), 0);
+  }
+  const n = Number(val);
+  return isNaN(n) ? 0 : n;
+}
 async function loadSales(date){
   salesTempUnlocked = false;
   const month = await loadSalesMonth(date.slice(0,7));
   const val = month[date];
-  currentSales = (val !== undefined && val !== null && val !== "") ? Number(val) : null;
+  currentSales = (val !== undefined && val !== null && val !== "") ? val : null; // keeps whichever shape this tenant stores
   const meta = await loadSalesMeta(date.slice(0,7));
   currentSalesSavedAt = meta[date] || null;
-  const input = document.getElementById('salesInput');
-  if(input) input.value = (currentSales !== null && !isNaN(currentSales)) ? currentSales : "";
+  if(hasSalesBreakdown()){
+    renderSalesBreakdownInputs(); // idempotent -- (re)builds the input boxes for this tenant's parts
+    TENANT_SALES_BREAKDOWN.forEach(part=>{
+      const partInput = document.getElementById('salesBreakdown_' + part.key);
+      if(partInput) partInput.value = (currentSales && currentSales[part.key] !== undefined) ? currentSales[part.key] : "";
+    });
+    updateSalesBreakdownTotal();
+  } else {
+    const input = document.getElementById('salesInput');
+    if(input) input.value = (currentSales !== null) ? currentSales : "";
+  }
   updateSalesLockUI();
   renderSalesVerifyControl();
 }
@@ -398,9 +421,31 @@ async function loadSales(date){
 // (which may be stale), set one day, write the WHOLE month back, silently
 // reverting every other day's sales figure if the cache was out of date.
 async function saveSalesValue(){
-  const input = document.getElementById('salesInput');
-  const val = parseFloat(input.value);
-  if(isNaN(val) || val < 0) return false;
+  let val;
+  if(hasSalesBreakdown()){
+    // Each part is independently optional -- a day can genuinely have zero
+    // banquet bookings, say, and a blank field stays blank next time this
+    // day is loaded (rather than every tenant seeing a forced "0" for
+    // whichever parts they didn't fill), same spirit as the single-number
+    // flow treating "not recorded" as blank, not 0. At least one part is
+    // required, same floor the single-number flow already has.
+    const parts = {};
+    for(const part of TENANT_SALES_BREAKDOWN){
+      const partInput = document.getElementById('salesBreakdown_' + part.key);
+      const raw = partInput ? partInput.value.trim() : "";
+      if(raw === "") continue;
+      const n = parseFloat(raw);
+      if(isNaN(n) || n < 0) return false;
+      parts[part.key] = n;
+    }
+    if(Object.keys(parts).length === 0) return false;
+    val = parts;
+  } else {
+    const input = document.getElementById('salesInput');
+    const n = parseFloat(input.value);
+    if(isNaN(n) || n < 0) return false;
+    val = n;
+  }
   const monthKey = currentDate.slice(0,7);
   const monthCacheKey = salesMonthKey(monthKey);
   const metaCacheKey = salesMetaKey(monthKey);
@@ -482,8 +527,8 @@ async function collectFYSalesRows(fyStartYear){
     const mk = `${year}-${String(month).padStart(2,'0')}`;
     const monthData = await fetchMonthObject(salesMonthKey(mk));
     Object.keys(monthData).forEach(date=>{
-      const amt = Number(monthData[date]);
-      if(!isNaN(amt)) rows.push({ date, amount: amt });
+      if(monthData[date] === undefined || monthData[date] === null || monthData[date] === "") return;
+      rows.push({ date, amount: salesValueTotal(monthData[date]) });
     });
   }
   return rows;

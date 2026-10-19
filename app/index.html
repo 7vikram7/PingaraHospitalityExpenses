@@ -325,8 +325,19 @@ window.__firebaseSdkReady = (async ()=>{
     <div class="quick-add-head">
       <p class="quick-add-title">Add a bill <span class="count-hint">— pick a supplier, its category fills in automatically</span></p>
       <div class="sales-inline" id="salesInlineSection">
-        <label for="salesInput">Sales for this day (₹)</label>
-        <input type="number" id="salesInput" step="0.01" min="0" placeholder="0.00">
+        <div id="salesSingleWrap">
+          <label for="salesInput">Sales for this day (₹)</label>
+          <input type="number" id="salesInput" step="0.01" min="0" placeholder="0.00">
+        </div>
+        <!-- Tenant-specific sales breakdown (added 2026-10-19, Shree Krishna
+             Palace: restaurant/banquet/online) -- hidden and empty unless
+             hasSalesBreakdown() is true, filled in by
+             renderSalesBreakdownInputs() (ledger-ui.js). Pingara/RK
+             Twelve21 never populate or show this. -->
+        <div id="salesBreakdownWrap" style="display:none;">
+          <div id="salesBreakdownInputs"></div>
+          <div class="sales-breakdown-total">Total: <span id="salesBreakdownTotal">₹0.00</span></div>
+        </div>
         <button type="button" id="saveSalesBtn">Save</button>
         <span class="sales-saved-hint" id="salesSavedHint" style="display:none;">Saved ✓</span>
         <span id="salesVerifyControl"></span>

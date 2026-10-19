@@ -35,6 +35,14 @@ function applyTenantBranding(){
       if(TENANT_THEME[key]) root.setProperty(cssVarByThemeKey[key], TENANT_THEME[key]);
     });
   }
+  // Optional per-tenant sales breakdown (TENANT_SALES_BREAKDOWN -- see
+  // hasSalesBreakdown(), core.js) -- swaps the single "Sales for this day"
+  // input for N labeled boxes + a derived total. The boxes themselves are
+  // (re)built by loadSales()/renderSalesBreakdownInputs() per day, since
+  // they need that day's actual values; this just decides which wrapper is
+  // visible for this tenant, once.
+  document.getElementById('salesSingleWrap').style.display = hasSalesBreakdown() ? 'none' : '';
+  document.getElementById('salesBreakdownWrap').style.display = hasSalesBreakdown() ? '' : 'none';
 }
 
 (async function init(){

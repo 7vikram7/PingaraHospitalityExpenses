@@ -178,6 +178,12 @@ Firebase Hosting.
   the name everywhere a supplier is listed — the Manage Suppliers modal,
   the Suppliers tab, and the Suggested Similar Vendors cards — or "Not
   billed yet" for one that's never been used.
+- **Sales split into parts, Shree Krishna Palace only** (added
+  2026-10-19) — Restaurant/Banquet/Online Ordering, each its own box, with
+  a live total as you type. Every other tenant keeps the single "Sales for
+  this day" field; this is a per-tenant setting
+  (`TENANT_SALES_BREAKDOWN`), not a global change, same as the
+  supplier-creation exemption above.
 - **Staff Expenses tab** (Owner, or Manager for their own restaurant only;
   named "Staff OT & Salary" until 2026-10-02): a staff directory per
   restaurant — name, employee ID/code, designation, department, gender,

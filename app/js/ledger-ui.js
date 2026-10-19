@@ -67,7 +67,7 @@ function renderTotals(){
   document.getElementById('ledTotal').textContent = fmtMoney(total);
   document.getElementById('ledPaid').textContent = fmtMoney(paid);
   document.getElementById('ledUnpaid').textContent = fmtMoney(unpaid);
-  document.getElementById('ledSales').textContent = (currentSales !== null && !isNaN(currentSales)) ? fmtMoney(currentSales) : "—";
+  document.getElementById('ledSales').textContent = currentSales !== null ? fmtMoney(salesValueTotal(currentSales)) : "—";
 }
 // Sales for a day are freely editable while new (currentSales === null) or within
 // MODIFY_WINDOW_MS of when they were first saved — same 1hr-then-password rule as
@@ -76,11 +76,53 @@ function renderTotals(){
 function salesWithinModifyWindow(){
   return isOwnerProfile() || currentSales === null || (!!currentSalesSavedAt && (Date.now() - currentSalesSavedAt) < MODIFY_WINDOW_MS);
 }
+// Builds the N labeled sales-breakdown input boxes for this tenant (added
+// 2026-10-19) -- idempotent, safe to call on every loadSales() rather than
+// only once, since values themselves are set separately right after this
+// runs. Rebuilding instead of caching keeps it trivially correct if
+// TENANT_SALES_BREAKDOWN ever changes composition, at negligible cost (at
+// most a handful of fields).
+function renderSalesBreakdownInputs(){
+  const wrap = document.getElementById('salesBreakdownInputs');
+  wrap.innerHTML = "";
+  TENANT_SALES_BREAKDOWN.forEach(part=>{
+    const field = document.createElement('div');
+    field.className = 'sales-breakdown-field';
+    const label = document.createElement('label');
+    label.setAttribute('for', 'salesBreakdown_' + part.key);
+    label.textContent = part.label;
+    const input = document.createElement('input');
+    input.type = 'number';
+    input.step = '0.01';
+    input.min = '0';
+    input.id = 'salesBreakdown_' + part.key;
+    input.placeholder = '0.00';
+    input.addEventListener('input', updateSalesBreakdownTotal);
+    field.appendChild(label);
+    field.appendChild(input);
+    wrap.appendChild(field);
+  });
+}
+function updateSalesBreakdownTotal(){
+  let total = 0;
+  TENANT_SALES_BREAKDOWN.forEach(part=>{
+    const input = document.getElementById('salesBreakdown_' + part.key);
+    const n = input ? parseFloat(input.value) : NaN;
+    if(!isNaN(n)) total += n;
+  });
+  document.getElementById('salesBreakdownTotal').textContent = fmtMoney(total);
+}
 function updateSalesLockUI(){
-  const input = document.getElementById('salesInput');
   const btn = document.getElementById('saveSalesBtn');
   const locked = !salesWithinModifyWindow() && !salesTempUnlocked;
-  input.disabled = locked;
+  if(hasSalesBreakdown()){
+    TENANT_SALES_BREAKDOWN.forEach(part=>{
+      const partInput = document.getElementById('salesBreakdown_' + part.key);
+      if(partInput) partInput.disabled = locked;
+    });
+  } else {
+    document.getElementById('salesInput').disabled = locked;
+  }
   btn.textContent = locked ? '🔒 Unlock' : 'Save';
   btn.title = locked ? "Sales entered more than an hour ago — click to unlock with the admin password" : "";
 }
@@ -291,11 +333,14 @@ function showConfirmedRestaurant(){
   document.getElementById('appTabsWrap').style.display = 'block';
 }
 document.getElementById('saveSalesBtn').addEventListener('click', async ()=>{
-  if(document.getElementById('salesInput').disabled){
+  const firstSalesInput = hasSalesBreakdown()
+    ? document.getElementById('salesBreakdown_' + TENANT_SALES_BREAKDOWN[0].key)
+    : document.getElementById('salesInput');
+  if(firstSalesInput && firstSalesInput.disabled){
     openModifyAuthModal(()=>{
       salesTempUnlocked = true;
       updateSalesLockUI();
-      document.getElementById('salesInput').focus();
+      firstSalesInput.focus();
     });
     return;
   }

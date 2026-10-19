@@ -2343,3 +2343,60 @@ billed yet", both the modal and the Suppliers tab list agree, a
 suggestion pill carries the label too) plus the existing supplier/
 permission regression suite again (108 checks across 8 files), zero
 failures.
+
+## Sales split into three parts, Shree Krishna Palace only (2026-10-19)
+Unlike Pingara's pure quick-service restaurants, Shree Krishna Palace also
+runs banquet functions and online ordering, so one "Sales for this day"
+figure wasn't enough. Built as a general per-tenant mechanism, not a
+one-off for this venue specifically — the third time this pattern shows
+up (`TENANT_THEME`, `TENANT_ALLOW_ALL_SUPPLIER_CREATION`, now
+`TENANT_SALES_BREAKDOWN`): an optional array of `{key, label}` in a
+tenant's config, undefined for Pingara/RK Twelve21 so they keep today's
+single field untouched.
+
+**Data model**: a day's stored sales value is either a plain number
+(every tenant by default) or, for a tenant defining
+`TENANT_SALES_BREAKDOWN`, an object keyed by each part's `key` (e.g.
+`{restaurant: 12000, banquet: 8000, online: 1500}`). The total is **always
+derived**, never separately stored — `salesValueTotal(val)`
+(data-store.js) reads either shape and returns a plain number, so it
+can't drift from its own parts. A part left blank when saving is simply
+omitted from the stored object (stays blank next time that day loads,
+not forced to 0) — mirrors how "not recorded" already meant blank, not 0,
+for the single-number flow; at least one part filled in is still required
+to save at all, same floor the original flow had.
+
+**Every existing consumer of a sales value was individually audited and
+fixed to read through `salesValueTotal()` instead of assuming a raw
+number** (a direct `Number(rawValue)`/`isNaN()` check on a breakdown
+object silently produces `NaN`, which previously would have broken each
+of these outright for this tenant): the Reports dashboard's
+`computeSalesExpenseData()` (covers Day/Month/Date-range/Compare-months,
+since they all route through this one function), the Add Expenses stat
+bar (`ledger-ui.js`'s `renderTotals()`), and `collectFYSalesRows()` (the
+Excel FY-register export's sales source — downstream `excel-export.js`
+itself needed no changes, since by the time rows reach it they're already
+plain `{date, amount}` numbers).
+
+**UI**: `index.html`'s single `#salesInput` is now one of two sibling
+wrappers (`#salesSingleWrap` / `#salesBreakdownWrap`) inside the same
+`.sales-inline` toolbar, toggled once per tenant in
+`applyTenantBranding()` (init.js). The breakdown wrapper's actual input
+boxes are built dynamically by `renderSalesBreakdownInputs()`
+(ledger-ui.js) from `TENANT_SALES_BREAKDOWN` — not hardcoded to 3 fields
+— with a live-updating derived total (`updateSalesBreakdownTotal()`) as
+you type, before saving. The existing 1-hour-then-owner-password lock
+(`updateSalesLockUI()`) and the Save button's unlock flow were both
+extended to operate on whichever set of inputs is actually showing,
+rather than just the single `#salesInput`.
+
+Verified via three dedicated test files: Pingara regression (confirms
+`hasSalesBreakdown()` is false, the single input still works exactly as
+before, zero behavior change), the SKP breakdown itself (three labeled
+boxes, live total, partial entry leaves a field blank on reload not
+zeroed, all-blank correctly rejected, the Reports dashboard's Total Sales
+reflects the full derived sum — caught a test-only mistake along the way,
+not an app bug: Reports' Day view defaults to **yesterday**, not today,
+pre-existing and intentional), and the 1-hour lock specifically for the
+breakdown inputs. Plus the broader existing regression suite against
+Pingara again, zero failures.

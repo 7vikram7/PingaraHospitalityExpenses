@@ -221,7 +221,7 @@ async function computeSalesExpenseData(periodType, params, restaurantFilter){
     if(restaurantFilter && restaurantFilter !== 'all' && restaurantFilter !== r.id) return;
     const salesData = salesAll[r.id] || {};
     const salesDays = Object.keys(salesData).filter(dateFilter);
-    const sales = salesDays.reduce((s,d)=> s + (Number(salesData[d]) || 0), 0);
+    const sales = salesDays.reduce((s,d)=> s + salesValueTotal(salesData[d]), 0);
 
     const billsData = billsAll[r.id] || {};
     let expenses = 0;
