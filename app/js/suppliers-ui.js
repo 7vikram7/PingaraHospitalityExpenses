@@ -242,6 +242,16 @@ function buildManageSupplierEditForm(name, onChange){
   ifscInput.placeholder = 'IFSC code (optional)';
   ifscInput.value = (bank && bank.ifscCode) || '';
 
+  // Added 2026-10-20 -- the name on the actual bank account can differ from
+  // the common/display name a supplier is known by (e.g. billed as "Laxmi
+  // Departmental Stores" but the account is in a proprietor's or a
+  // different registered name). Left blank, bank-transfer downloads fall
+  // back to the supplier's own name (supplierBankAccountName(), data-store.js).
+  const accountNameInput = document.createElement('input');
+  accountNameInput.type = 'text';
+  accountNameInput.placeholder = 'Bank account name (optional -- defaults to supplier name)';
+  accountNameInput.value = (bank && bank.accountName) || '';
+
   const saveBtn = document.createElement('button');
   saveBtn.type = 'button';
   saveBtn.className = 'msr-save-btn';
@@ -266,6 +276,7 @@ function buildManageSupplierEditForm(name, onChange){
     }
     const accountNumber = accountInput.value.trim();
     const ifscCode = ifscInput.value.trim().toUpperCase();
+    const accountName = accountNameInput.value.trim();
     if(newName !== name){
       const idx = suppliers.indexOf(name);
       if(idx !== -1) suppliers[idx] = newName;
@@ -273,7 +284,7 @@ function buildManageSupplierEditForm(name, onChange){
       delete supplierBankDetails[supplierKey(name)];
     }
     supplierDefaults[supplierKey(newName)] = { category: newCat, subcategory: newSub };
-    supplierBankDetails[supplierKey(newName)] = { accountNumber, ifscCode };
+    supplierBankDetails[supplierKey(newName)] = { accountNumber, ifscCode, accountName };
     await saveSuppliers();
     await saveSupplierDefaults();
     await saveSupplierBankDetails();
@@ -308,6 +319,7 @@ function buildManageSupplierEditForm(name, onChange){
   wrap.appendChild(datalist);
   wrap.appendChild(accountInput);
   wrap.appendChild(ifscInput);
+  wrap.appendChild(accountNameInput);
   wrap.appendChild(saveBtn);
   wrap.appendChild(cancelBtn);
   return wrap;

@@ -94,6 +94,20 @@ function supplierHasBankAccount(name){
   const d = supplierBankDetails[supplierKey(name)];
   return !!(d && d.accountNumber && d.accountNumber.trim());
 }
+// Added 2026-10-20 -- the name on a supplier's actual bank account can
+// differ from the common/display name they're billed under (a typo'd
+// proprietor name, a different registered business name, etc.). `accountName`
+// is an optional field alongside accountNumber/ifscCode; left blank, this
+// falls back to the supplier's own name rather than storing a redundant
+// copy of it, so a later rename of the supplier is automatically reflected
+// here too instead of needing a separate edit. The one place this actually
+// matters is a bank-transfer file's beneficiary-name column (NEFT needs
+// the name to match the receiving bank's own records) -- see
+// downloadPendingBillsBankTransfer() in vendor-ledger.js.
+function supplierBankAccountName(name){
+  const d = supplierBankDetails[supplierKey(name)];
+  return (d && d.accountName && d.accountName.trim()) ? d.accountName.trim() : name;
+}
 
 // ---- Month-bucketed bills & sales ----
 // One document per restaurant per month (not per day) — e.g. "rest:savali:bills:2026-07"

@@ -2462,3 +2462,49 @@ page/session and then calling `localStorage.clear()` in a second
 session sharing the same browser context wipes what the first had just
 written, since `clear()` resets the whole origin's storage, not just
 login state — fixed by seeding after the clear, in the same session.
+
+## Supplier bank account name, separate from the common/display name (2026-10-20)
+Some suppliers are billed under a common/trading name that differs from
+the legal name their bank account is actually registered under (e.g.
+billed as "Laxmi Departmental Stores" but the account is held by a
+proprietor or a differently-named registered business) — NEFT bank-
+transfer processing checks the beneficiary name against the receiving
+bank's own records, so the wrong name there can bounce a transfer even
+though the account number/IFSC are correct. Applies to all 3 tenants
+(shared `app/js` code).
+
+**`accountName`** joins `accountNumber`/`ifscCode` as a third, optional
+field on `supplierBankDetails[supplierKey(name)]`. Left blank, it's not
+stored as a redundant copy of the supplier's own name — `supplierBankAccountName(name)`
+(data-store.js) resolves it at read time, falling back to the supplier's
+current name, so a later rename of the supplier is automatically
+reflected here too instead of silently going stale. Added everywhere a
+supplier's bank details can be entered: the Suppliers tab's own add form,
+the shared edit form (`buildManageSupplierEditForm()`, used by both the
+Suppliers tab and the Manage Suppliers modal), the combine-duplicates
+tool (carries over from whichever supplier's details are kept), and the
+bulk-edit-via-Excel template/upload (`SUPPLIER_TEMPLATE_HEADERS` gained
+an "Account Name" column). The Manage Suppliers modal's own "Add a new
+supplier" form was deliberately left alone — it never had bank fields at
+all (Managers don't handle financial admin), consistent with the
+existing design.
+
+**The one place this actually changes behavior**, per the explicit ask
+("in the bank detail download page give the bank account names"):
+`downloadPendingBillsBankTransfer()` (vendor-ledger.js) now uses
+`supplierBankAccountName(g.name)` as the beneficiary-name column instead
+of the vendor's plain display name — this is the actual NEFT file fed to
+a bank's bulk-upload screen, where the name has to match the account
+holder's own records. The flat CSV and vendor-wise Excel downloads
+(informational, not fed to a bank) gained an additional "Account Name"
+reference column alongside Account Number/IFSC rather than replacing the
+vendor name column, since a human reading those wants to see both.
+
+Verified via two dedicated test files: the field itself (add with a
+distinct name, falls back correctly when blank, prefilled/editable in
+the Edit form, carries through combine-duplicates and bulk-edit-via-Excel
+round-trip) and the bank-transfer download specifically (confirms the
+beneficiary name is the bank account name, not the display name, and
+that it's genuinely different from the display name in the test case —
+not just coincidentally equal) plus the broader existing supplier/
+Vendor-Ledger regression suite again, zero failures.

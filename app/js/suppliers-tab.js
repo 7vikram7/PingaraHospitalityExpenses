@@ -225,6 +225,7 @@ document.getElementById('supTabSaveSupplierBtn').addEventListener('click', async
   const sub = document.getElementById('supTabNewSub').value.trim();
   const accountNumber = document.getElementById('supTabNewAccount').value.trim();
   const ifscCode = document.getElementById('supTabNewIfsc').value.trim().toUpperCase();
+  const accountName = document.getElementById('supTabNewAccountName').value.trim();
   if(!name || !cat){
     alert("Please enter a supplier name and pick a category.");
     return;
@@ -239,7 +240,7 @@ document.getElementById('supTabSaveSupplierBtn').addEventListener('click', async
   }
   supplierDefaults[supplierKey(name)] = { category: cat, subcategory: sub };
   await saveSupplierDefaults();
-  supplierBankDetails[supplierKey(name)] = { accountNumber, ifscCode };
+  supplierBankDetails[supplierKey(name)] = { accountNumber, ifscCode, accountName };
   await saveSupplierBankDetails();
 
   renderSupplierSelect(); // keeps the Add Expenses quick-add dropdown in sync
@@ -248,6 +249,7 @@ document.getElementById('supTabSaveSupplierBtn').addEventListener('click', async
   document.getElementById('supTabNewSub').value = "";
   document.getElementById('supTabNewAccount').value = "";
   document.getElementById('supTabNewIfsc').value = "";
+  document.getElementById('supTabNewAccountName').value = "";
   document.getElementById('supTabNewName').focus();
 });
 
@@ -265,7 +267,7 @@ document.getElementById('supTabSaveSupplierBtn').addEventListener('click', async
    the whole batch, not one per row). Genuinely an actual .xlsx (not .csv,
    unlike Staff's template) per the explicit "excel file" wording of the
    request this shipped from. */
-const SUPPLIER_TEMPLATE_HEADERS = ["Supplier Name*", "Category", "Subcategory", "Account Number", "IFSC Code"];
+const SUPPLIER_TEMPLATE_HEADERS = ["Supplier Name*", "Category", "Subcategory", "Account Number", "IFSC Code", "Account Name"];
 document.getElementById('supBulkEditLink').addEventListener('click', ()=>{
   document.getElementById('supBulkEditBox').classList.toggle('open');
 });
@@ -274,7 +276,7 @@ document.getElementById('supDownloadTemplateBtn').addEventListener('click', ()=>
   [...suppliers].sort((a,b)=>a.localeCompare(b)).forEach(name=>{
     const def = supplierDefaults[supplierKey(name)] || {};
     const bank = supplierBankDetails[supplierKey(name)] || {};
-    rows.push([name, def.category || "", def.subcategory || "", bank.accountNumber || "", bank.ifscCode || ""]);
+    rows.push([name, def.category || "", def.subcategory || "", bank.accountNumber || "", bank.ifscCode || "", bank.accountName || ""]);
   });
   const wb = XLSX.utils.book_new();
   const ws = XLSX.utils.aoa_to_sheet(rows);
@@ -335,7 +337,8 @@ document.getElementById('supUploadBtn').addEventListener('click', async ()=>{
 
       const accountNumber = get(row, "Account Number", "Account No", "Account");
       const ifscCode = get(row, "IFSC Code", "IFSC").toUpperCase();
-      supplierBankDetails[supplierKey(canonicalName)] = { accountNumber, ifscCode };
+      const accountName = get(row, "Account Name", "Bank Account Name");
+      supplierBankDetails[supplierKey(canonicalName)] = { accountNumber, ifscCode, accountName };
 
       if(isNew) added++; else updated++;
     });
@@ -548,6 +551,7 @@ document.getElementById('supCombineConfirmBtn').addEventListener('click', async 
   const keptSubcategory = document.getElementById('supCombineSubInput').value.trim();
   const keptAccountNumber = keptBank.accountNumber || "";
   const keptIfscCode = keptBank.ifscCode || "";
+  const keptAccountName = keptBank.accountName || "";
   if(!keptCategory){
     alert("Please pick a category for the combined supplier.");
     return;
@@ -570,7 +574,7 @@ document.getElementById('supCombineConfirmBtn').addEventListener('click', async 
   });
   if(!suppliers.includes(finalName)) suppliers.push(finalName);
   supplierDefaults[supplierKey(finalName)] = { category: keptCategory, subcategory: keptSubcategory };
-  supplierBankDetails[supplierKey(finalName)] = { accountNumber: keptAccountNumber, ifscCode: keptIfscCode };
+  supplierBankDetails[supplierKey(finalName)] = { accountNumber: keptAccountNumber, ifscCode: keptIfscCode, accountName: keptAccountName };
 
   await saveSuppliers();
   await saveSupplierDefaults();

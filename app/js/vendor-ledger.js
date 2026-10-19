@@ -429,13 +429,13 @@ function downloadPendingBillsReport(){
     alert("No pending bills for this period/restaurant scope.");
     return;
   }
-  const out = [["Date", "Restaurant", "Supplier", "Category", "Invoice #", "Amount", "Account Number", "IFSC Code"]];
+  const out = [["Date", "Restaurant", "Supplier", "Category", "Invoice #", "Amount", "Account Number", "IFSC Code", "Account Name"]];
   rows.forEach(b=>{
     const bank = supplierBankDetails[supplierKey(b.supplier)] || {};
     out.push([
       fmtDateLabel(b.date), restaurantLabel(b.restaurantId), b.supplier, b.category,
       b.invoice || "", b.amount.toFixed(2),
-      csvForceText(bank.accountNumber), bank.ifscCode || ""
+      csvForceText(bank.accountNumber), bank.ifscCode || "", bank.accountName || ""
     ]);
   });
   const csv = out.map(r => r.map(csvEscape).join(",")).join("\n");
@@ -472,7 +472,7 @@ function downloadPendingBillsByVendor(){
     return;
   }
 
-  const header = ["Vendor", "Category", "Date", "Invoice #"].concat(showRestCol ? ["Restaurant"] : [], ["Amount", "Account Number", "IFSC Code"]);
+  const header = ["Vendor", "Category", "Date", "Invoice #"].concat(showRestCol ? ["Restaurant"] : [], ["Amount", "Account Number", "IFSC Code", "Account Name"]);
   const rows = [header];
   groups.forEach(g=>{
     const bank = supplierBankDetails[supplierKey(g.name)] || {};
@@ -485,14 +485,14 @@ function downloadPendingBillsByVendor(){
           fmtDateLabel(b.date), b.invoice || ""
         ].concat(
           showRestCol ? [restaurantLabel(b.restaurantId)] : [],
-          [Number(b.amount.toFixed(2)), idx === 0 ? (bank.accountNumber || "") : "", idx === 0 ? (bank.ifscCode || "") : ""]
+          [Number(b.amount.toFixed(2)), idx === 0 ? (bank.accountNumber || "") : "", idx === 0 ? (bank.ifscCode || "") : "", idx === 0 ? (bank.accountName || "") : ""]
         ));
       });
-    rows.push([`Subtotal - ${g.name}`, "", "", ""].concat(showRestCol ? [""] : [], [Number(g.total.toFixed(2)), "", ""]));
+    rows.push([`Subtotal - ${g.name}`, "", "", ""].concat(showRestCol ? [""] : [], [Number(g.total.toFixed(2)), "", "", ""]));
     rows.push([]);
   });
   const grandTotal = groups.reduce((s,g)=> s + g.total, 0);
-  rows.push(["GRAND TOTAL", "", "", ""].concat(showRestCol ? [""] : [], [Number(grandTotal.toFixed(2)), "", ""]));
+  rows.push(["GRAND TOTAL", "", "", ""].concat(showRestCol ? [""] : [], [Number(grandTotal.toFixed(2)), "", "", ""]));
 
   const wb = XLSX.utils.book_new();
   const ws = XLSX.utils.aoa_to_sheet(rows);
@@ -546,12 +546,19 @@ async function downloadPendingBillsBankTransfer(){
     alert("No vendors with a complete account number + IFSC on file have pending bills for this period/restaurant scope.");
     return;
   }
+  // Beneficiary name here is the supplier's BANK account name, not its
+  // common/display name (supplierBankAccountName(), data-store.js falls
+  // back to the display name if no distinct one is on file) -- this is the
+  // one place that distinction actually matters: a bank's NEFT processing
+  // checks the beneficiary name against its own account records, which
+  // won't recognize a vendor's informal billing name if that's not what
+  // the account is actually registered under.
   const dataRows = groups
     .sort((a,b)=> a.name.localeCompare(b.name))
     .map(g=>{
       const bank = supplierBankDetails[supplierKey(g.name)];
       return buildBankTransferRow(
-        { name: g.name, accountNumber: bank.accountNumber, ifscCode: bank.ifscCode },
+        { name: supplierBankAccountName(g.name), accountNumber: bank.accountNumber, ifscCode: bank.ifscCode },
         g.total,
         "Pending bills payment"
       );

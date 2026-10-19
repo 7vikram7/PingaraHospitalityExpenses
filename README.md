@@ -98,13 +98,19 @@ Firebase Hosting.
   amount, paid/unpaid) and flip paid status right there, with the paid
   date recorded alongside it. A **download pending bills** option covers
   whatever period/restaurant scope is currently selected: a plain CSV of
-  every unpaid bill with its supplier's account number and IFSC code, or a
+  every unpaid bill with its supplier's account number, IFSC code, and
+  bank account name (added 2026-10-20 — see below), or a
   bank-transfer `.xlsx` (same IDFC FIRST bulk-payment format the Staff tab
   uses) with **one row per vendor** — each vendor's pending bills summed
   into a single total, just like the Staff tab's own bank-transfer file
   aggregates OT/Incentive/Tips per employee, no bill-wise detail in this
   one. Only vendors with a complete account number *and* IFSC on file
-  qualify, same bar as everywhere else this format is used. A third option,
+  qualify, same bar as everywhere else this format is used. The
+  beneficiary name in this file is the vendor's **bank account name**
+  (falls back to its regular display name if none is set) — a vendor is
+  sometimes billed under a common/trading name that's different from
+  what their actual bank account is registered under, and NEFT processing
+  checks that name against the bank's own records. A third option,
   **pending bills by vendor (.xlsx)**, groups those same pending bills
   under each vendor instead of listing them flat — vendor name, category,
   and bank details shown once per group, a Subtotal row per vendor, and a
@@ -133,7 +139,10 @@ Firebase Hosting.
   download as a fallback for that case. Same **sort** (name or pending
   amount, both directions) and **bank-account filter** as Vendor Ledger.
 - **Suppliers tab** (Owner only): every supplier with its category/
-  subcategory and, now, an optional account number + IFSC code, shared
+  subcategory and, now, an optional account number + IFSC code (plus a
+  separate **bank account name**, since the name on a supplier's actual
+  bank account can differ from the common name it's billed under —
+  left blank, downloads fall back to the supplier's own name), shared
   across every restaurant on the account, plus adding new ones. **Sort**
   the list A-Z or Z-A and **filter** to suppliers with or without a bank
   account on file. Editing a
