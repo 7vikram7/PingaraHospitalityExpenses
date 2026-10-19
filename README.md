@@ -125,11 +125,13 @@ Firebase Hosting.
   exactly what it's about to pay, right beside the unchanged pending
   total, so a mismatch is obvious before you confirm. A page-level
   "Selected to mark paid" total sits next to "Total pending" the same
-  way. "Mark All Paid" (or "Mark Selected Paid" once something's
-  unchecked) handles everyone shown at once, with a confirmation naming
-  the exact count and amount either way. Marking paid only affects the
-  bills that exist at that moment — a bill added later, even dated inside
-  a range you already paid, always starts unpaid like any other new bill.
+  way, for a quick glance at what a full walkthrough would add up to.
+  Marking paid is always **per vendor, one row at a time** — a page-wide
+  "mark everyone at once" option existed briefly but was removed (added
+  2026-10-20) as too easy to fire by accident across a whole scope.
+  Marking paid only affects the bills that exist at that moment — a bill
+  added later, even dated inside a range you already paid, always starts
+  unpaid like any other new bill.
   Any vendor row that already has a paid bill in the current scope shows
   a small **⬇ N paid** link right next to its name — click it to download
   a flat, date-sorted CSV (with a Restaurant column) of just that

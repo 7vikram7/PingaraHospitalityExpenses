@@ -4,8 +4,10 @@
    impractical as the bill count grew. Deliberately a FOCUSED view, not
    another full ledger: shows only vendors with something still pending
    for the selected period/restaurant scope (no already-paid bills
-   cluttering the list), with a "Mark Paid" button per vendor and one
-   "Mark All Paid" for the whole scope at once. Reuses the exact same
+   cluttering the list), with a "Mark Paid" button per vendor (a
+   page-wide "Mark All Paid" existed briefly too, removed 2026-10-20 as
+   too easy to fire by accident across a whole scope -- per-vendor is the
+   one safe granularity now). Reuses the exact same
    computeVendorLedgerData()/period-picker/restaurant-selector/search
    pattern vendor-ledger.js already built and tested, rather than a
    second parallel implementation -- same data, different purpose-built
@@ -80,8 +82,9 @@ document.getElementById('payPasswordInput').addEventListener('keydown', (ev)=>{
 // the search box can re-filter instantly without re-fetching, same
 // vlLastAllRows/applyVLSearchAndRender() split vendor-ledger.js already
 // uses. payLastFilteredRows is what's actually on screen right now (paid
-// bills excluded, search applied) -- the "Mark All Paid" button reads from
-// this directly rather than recomputing the same filter twice.
+// bills excluded, search applied) -- the "Selected to mark paid" hero
+// stat reads from this directly rather than recomputing the same filter
+// twice.
 let payLastAllRows = [];
 let payLastFilteredRows = [];
 
@@ -144,12 +147,10 @@ function applyPaySearchAndRender(){
   updatePayVendorDownload();
 
   const totalsBar = document.getElementById('payTotalsBar');
-  const markAllWrap = document.getElementById('payMarkAllWrap');
   const empty = document.getElementById('payEmpty');
   if(rows.length === 0){
     document.getElementById('payTableWrap').innerHTML = "";
     totalsBar.style.display = 'none';
-    markAllWrap.style.display = 'none';
     empty.textContent = pendingRows.length === 0
       ? "Nothing pending for this period/restaurant scope."
       : "No vendors match your search/filter.";
@@ -158,7 +159,6 @@ function applyPaySearchAndRender(){
   }
   empty.style.display = 'none';
   totalsBar.style.display = 'flex';
-  markAllWrap.style.display = 'flex';
 
   const totalBills = rows.reduce((s,r)=> s + r.bills.length, 0);
   const totalAmount = rows.reduce((s,r)=> s + r.bills.reduce((s2,b)=> s2 + b.amount, 0), 0);
@@ -460,10 +460,13 @@ function buildPayDetailTable(row, showRestCol){
 }
 
 // Recomputes every vendor's selected subtotal (Mark Paid button label +
-// caption) and the page-level "Selected to mark paid" hero / Mark All
-// Paid button, from payExcludedBillIds -- pure DOM text updates against
-// payRowRefs, no table rebuild, so unchecking a bill doesn't collapse any
-// other expanded vendor or move the scroll position.
+// caption) and the page-level "Selected to mark paid" hero stat, from
+// payExcludedBillIds -- pure DOM text updates against payRowRefs, no
+// table rebuild, so unchecking a bill doesn't collapse any other expanded
+// vendor or move the scroll position. (A page-wide "Mark All Paid"
+// button used to live here too, reading the same totals -- removed
+// 2026-10-20, too easy to fire across an entire scope by accident; the
+// hero stat itself stays, it's informational, not an action.)
 function updatePayLiveTotals(){
   payRowRefs.forEach(({ row, markBtn, captionEl })=>{
     const selectedBills = row.bills.filter(b => !payExcludedBillIds.has(b.id));
@@ -483,32 +486,7 @@ function updatePayLiveTotals(){
   const selectedAmount = selectedBills.reduce((s,b)=> s + b.amount, 0);
   const selectedEl = document.getElementById('paySelectedAmount');
   if(selectedEl) selectedEl.textContent = fmtMoney(selectedAmount);
-
-  const markAllBtn = document.getElementById('payMarkAllPaidBtn');
-  if(markAllBtn){
-    markAllBtn.textContent = selectedBills.length === allBills.length
-      ? 'Mark All Paid'
-      : `Mark Selected Paid (${fmtMoney(selectedAmount)})`;
-    markAllBtn.disabled = selectedBills.length === 0;
-  }
 }
-
-document.getElementById('payMarkAllPaidBtn').addEventListener('click', async ()=>{
-  const allBills = payLastFilteredRows.flatMap(r => r.bills);
-  const selectedBills = allBills.filter(b => !payExcludedBillIds.has(b.id));
-  if(selectedBills.length === 0) return;
-  const total = selectedBills.reduce((s,b)=> s + b.amount, 0);
-  const excludedCount = allBills.length - selectedBills.length;
-  const excludedNote = excludedCount > 0
-    ? `\n\n${excludedCount} unchecked bill${excludedCount === 1 ? '' : 's'} will be left pending.`
-    : '';
-  if(!confirm(`Mark ${selectedBills.length} bill${selectedBills.length === 1 ? '' : 's'} (${fmtMoney(total)}) as paid?${excludedNote}\n\nThis only affects bills that exist right now.`)) return;
-  const btn = document.getElementById('payMarkAllPaidBtn');
-  btn.disabled = true;
-  btn.textContent = 'Marking…';
-  await markBillsPaid(selectedBills.map(b => ({ restaurantId: b.restaurantId, date: b.date, id: b.id })));
-  await renderPayments();
-});
 
 const PAY_PERIOD_BTNS = { day: 'payPeriodDay', month: 'payPeriodMonth', range: 'payPeriodRange' };
 const PAY_PERIOD_FIELDS = {

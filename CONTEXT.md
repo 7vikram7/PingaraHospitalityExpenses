@@ -2508,3 +2508,37 @@ beneficiary name is the bank account name, not the display name, and
 that it's genuinely different from the display name in the test case —
 not just coincidentally equal) plus the broader existing supplier/
 Vendor-Ledger regression suite again, zero failures.
+
+## Removed "Mark All Paid" from Payments (2026-10-20)
+The page-wide button that marked every selected bill across the whole
+scope paid in one click (potentially dozens of vendors, lakhs of rupees)
+was removed at the owner's explicit request, likely too easy to fire by
+accident given how much it could affect in one confirm. The per-vendor
+"Mark Paid" button (one vendor's bills at a time, with its own per-bill
+deselect already available by expanding that vendor's row) is now the
+only way to mark bills paid from this tab — deliberately the safer
+granularity, not a workaround.
+
+Removed the button + its wrapper (`#payMarkAllWrap`/`#payMarkAllPaidBtn`,
+index.html), its click handler and the markAllBtn-specific branch inside
+`updatePayLiveTotals()` (payments.js), and the now-dangling
+`document.getElementById('payMarkAllWrap')` references in
+`applyPaySearchAndRender()` that would have thrown on a null element
+otherwise. **Deliberately kept**: the "Selected to mark paid" hero stat
+(`#paySelectedAmount`) — it's informational (shows what a per-vendor
+walkthrough would total up to), not an action, and shares
+`payExcludedBillIds` with the per-vendor deselect mechanism that's
+staying, so removing it would have meant touching shared state the
+per-vendor feature still needs. Updated the explanatory note above the
+table (used to say "...the totals above and the button below update
+live," no longer accurate with no button below).
+
+Updated two existing tests that had exercised the removed button's own
+behavior (`test_payments_tab.js`'s "Mark All Paid clears everything"
+section became "confirm the button is gone, and per-vendor marking
+still fully clears a scope if done for each vendor"; a single stale
+assertion dropped from `test_payments_deselect.js`) rather than just
+deleting their coverage — the underlying per-vendor route was worth
+re-confirming still reaches full-scope clearing, it just isn't a single
+click anymore. Full regression suite re-run after (76 checks across 5
+Payments/sort-filter files), zero failures.
